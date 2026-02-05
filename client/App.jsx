@@ -163,9 +163,12 @@ function App() {
             setCurrentRoom(room);
             setSelectedGames(room.selectedGames || []);
             if (room.gameHistory) setGameHistory(room.gameHistory);
+            // Verify isMaster from actual room data, not just session
+            const isActuallyMaster = room.master === session.playerName;
+            setIsMaster(isActuallyMaster);
             const targetPage = session.page === 'game' ? 'game' : 'room';
             setPage(targetPage);
-            console.log(`Rejoined room ${room.id} as ${session.playerName}`);
+            console.log(`Rejoined room ${room.id} as ${session.playerName}, isMaster: ${isActuallyMaster}`);
         };
 
         const onRejoinFailed = (data) => {
@@ -210,9 +213,6 @@ function App() {
             setPage('room');
             setShowCreateInput(false);
             setAvatarPickerMode('initial');
-            if (audioRef.current) {
-                audioRef.current.play();
-            }
         };
 
         const onRoomJoined = (room) => {
@@ -822,8 +822,12 @@ function App() {
             setCurrentRoom(room);
             setSelectedGames(room.selectedGames || []);
             if (room.gameHistory) setGameHistory(room.gameHistory);
+            // Verify isMaster from actual room data
+            const isActuallyMaster = room.master === session.playerName;
+            setIsMaster(isActuallyMaster);
             const targetPage = session.page === 'game' ? 'game' : 'room';
             setPage(targetPage);
+            console.log(`Rejoined from landing: ${session.playerName}, isMaster: ${isActuallyMaster}`);
         });
 
         socket.once('rejoinFailed', (data) => {
@@ -857,7 +861,6 @@ function App() {
     // Global music playback function
     const playMusic = useCallback(() => {
         if (audioRef.current && !isMuted) {
-            audioRef.current.load();
             audioRef.current.play().catch(err => console.log('Music play failed:', err));
         }
     }, [isMuted]);
@@ -865,8 +868,14 @@ function App() {
     // Handle track changes - play new track if music was already started
     useEffect(() => {
         if (musicStarted && audioRef.current && !isMuted) {
-            audioRef.current.load();
-            audioRef.current.play().catch(err => console.log('Music play failed:', err));
+            // Wait for the audio to be ready after src change, then play
+            const audio = audioRef.current;
+            const handleCanPlay = () => {
+                audio.play().catch(err => console.log('Music play failed:', err));
+                audio.removeEventListener('canplay', handleCanPlay);
+            };
+            audio.addEventListener('canplay', handleCanPlay);
+            return () => audio.removeEventListener('canplay', handleCanPlay);
         }
     }, [selectedTrack]);
 

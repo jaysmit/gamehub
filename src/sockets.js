@@ -20,7 +20,16 @@ const PICTIONARY_WORDS = [
 // Key: "roomId:playerName", Value: { timer }
 const disconnectedPlayers = new Map();
 
+// Track players who haven't selected an avatar yet
+// Key: "roomId:playerName", Value: { timer }
+const avatarSelectionTimers = new Map();
+
+// Track which room each master owns (for detecting when master joins another room)
+// Key: masterName, Value: roomId
+const masterRooms = new Map();
+
 const GRACE_PERIOD_MS = 15000;
+const AVATAR_SELECTION_TIMEOUT_MS = 30000;
 
 // --- Multi-round Pictionary helpers ---
 
@@ -240,6 +249,28 @@ function setupSockets(io) {
 
     // --- Create Room ---
     socket.on('createRoom', (data) => {
+      // Check if this master already has an existing room
+      const existingRoomId = masterRooms.get(data.playerName);
+      if (existingRoomId && rooms.has(existingRoomId)) {
+        const existingRoom = rooms.get(existingRoomId);
+        // Close the existing room
+        io.to(existingRoomId).emit('roomClosed', {
+          roomId: existingRoomId,
+          reason: 'Master created a new room'
+        });
+        // Clean up avatar timers for all players in the old room
+        existingRoom.players.forEach(p => {
+          const timerKey = `${existingRoomId}:${p.name}`;
+          const pending = avatarSelectionTimers.get(timerKey);
+          if (pending) {
+            clearTimeout(pending.timer);
+            avatarSelectionTimers.delete(timerKey);
+          }
+        });
+        rooms.delete(existingRoomId);
+        console.log(`Room ${existingRoomId} closed because master ${data.playerName} created a new room`);
+      }
+
       const roomId = uuidv4().substring(0, 6).toUpperCase();
       const room = {
         id: roomId,
@@ -250,9 +281,32 @@ function setupSockets(io) {
       };
 
       rooms.set(roomId, room);
+      masterRooms.set(data.playerName, roomId);
       socket.join(roomId);
       socket.emit('roomCreated', room);
       console.log(`Room ${roomId} created by ${data.playerName}`);
+
+      // Start avatar selection timer if master starts with meta avatar
+      const avatar = data.avatar || 'meta';
+      if (avatar === 'meta') {
+        const timerKey = `${roomId}:${data.playerName}`;
+        const timer = setTimeout(() => {
+          avatarSelectionTimers.delete(timerKey);
+          const currentRoom = rooms.get(roomId);
+          if (!currentRoom) return;
+
+          const player = currentRoom.players.find(p => p.name === data.playerName);
+          if (!player || player.avatar !== 'meta') return; // Already selected an avatar
+
+          // Remove player and close the room since they are master
+          io.to(socket.id).emit('removedForNoAvatar', { roomId });
+          masterRooms.delete(data.playerName);
+          rooms.delete(roomId);
+          console.log(`Master ${data.playerName} removed from room ${roomId} for not selecting an avatar in 30 seconds - room closed`);
+        }, AVATAR_SELECTION_TIMEOUT_MS);
+
+        avatarSelectionTimers.set(timerKey, { timer });
+      }
     });
 
     // --- Join Room ---
@@ -261,6 +315,29 @@ function setupSockets(io) {
       if (!room) {
         socket.emit('error', { message: 'Room not found' });
         return;
+      }
+
+      // Check if this player is a master of another room
+      const existingRoomId = masterRooms.get(data.playerName);
+      if (existingRoomId && existingRoomId !== data.roomId && rooms.has(existingRoomId)) {
+        const existingRoom = rooms.get(existingRoomId);
+        // Close the existing room
+        io.to(existingRoomId).emit('roomClosed', {
+          roomId: existingRoomId,
+          reason: 'Master joined another room'
+        });
+        // Clean up avatar timers for all players in the old room
+        existingRoom.players.forEach(p => {
+          const timerKey = `${existingRoomId}:${p.name}`;
+          const pending = avatarSelectionTimers.get(timerKey);
+          if (pending) {
+            clearTimeout(pending.timer);
+            avatarSelectionTimers.delete(timerKey);
+          }
+        });
+        rooms.delete(existingRoomId);
+        masterRooms.delete(data.playerName);
+        console.log(`Room ${existingRoomId} closed because master ${data.playerName} joined another room`);
       }
 
       // Check for duplicate name (case-insensitive)
@@ -281,6 +358,33 @@ function setupSockets(io) {
       // Tell everyone else a new player joined
       socket.to(data.roomId).emit('playerJoined', { roomId: data.roomId, player: data.playerName, avatar });
       console.log(`${data.playerName} joined room ${data.roomId}`);
+
+      // Start avatar selection timer if player joined with meta avatar
+      if (avatar === 'meta') {
+        const timerKey = `${data.roomId}:${data.playerName}`;
+        const timer = setTimeout(() => {
+          avatarSelectionTimers.delete(timerKey);
+          const currentRoom = rooms.get(data.roomId);
+          if (!currentRoom) return;
+
+          const player = currentRoom.players.find(p => p.name === data.playerName);
+          if (!player || player.avatar !== 'meta') return; // Already selected an avatar
+
+          // Remove player from room
+          currentRoom.players = currentRoom.players.filter(p => p.name !== data.playerName);
+          io.to(player.socketId).emit('removedForNoAvatar', { roomId: data.roomId });
+          io.to(data.roomId).emit('playerLeft', { roomId: data.roomId, playerName: data.playerName, reason: 'noAvatar' });
+          console.log(`${data.playerName} removed from room ${data.roomId} for not selecting an avatar in 30 seconds`);
+
+          // Clean up room if empty
+          if (currentRoom.players.length === 0) {
+            rooms.delete(data.roomId);
+            console.log(`Room ${data.roomId} removed (empty)`);
+          }
+        }, AVATAR_SELECTION_TIMEOUT_MS);
+
+        avatarSelectionTimers.set(timerKey, { timer });
+      }
     });
 
     // --- Rejoin Room (after page refresh) ---
@@ -342,12 +446,16 @@ function setupSockets(io) {
       console.log(`${playerName} rejoined room ${roomId}`);
     });
 
-    // --- Request Game Sync (for visibility change / tab return) ---
+    // --- Request Game Sync (for visibility change / tab return / rejoin) ---
     socket.on('requestGameSync', (data) => {
       const { roomId } = data;
       const room = rooms.get(roomId);
 
-      if (!room || !room.game) return;
+      if (!room || !room.game) {
+        // No active game, send player back to room
+        socket.emit('gameSync', { noActiveGame: true });
+        return;
+      }
 
       // Find the requesting player
       const player = room.players.find(p => p.socketId === socket.id);
@@ -360,7 +468,8 @@ function setupSockets(io) {
         currentPickValue: room.game.currentPickValue,
         paused: room.game.paused || false,
         timerEndTime: room.game.timerEndTime,
-        timerRemainingMs: room.game.timerRemainingMs
+        timerRemainingMs: room.game.timerRemainingMs,
+        drawingOrder: room.game.drawingOrder
       };
 
       socket.emit('gameSync', gameSync);
@@ -571,6 +680,126 @@ function setupSockets(io) {
       }, 2000);
     });
 
+    // --- Kick Player (Master only) ---
+    socket.on('kickPlayer', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Validate sender is the room master
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender) {
+        socket.emit('error', { message: 'You are not in this room' });
+        console.log(`kickPlayer failed: sender not found for socket ${socket.id} in room ${data.roomId}`);
+        return;
+      }
+      if (sender.name !== room.master) {
+        socket.emit('error', { message: 'Only the room master can kick players' });
+        console.log(`kickPlayer failed: ${sender.name} is not master (master is ${room.master})`);
+        return;
+      }
+
+      // Find the player to kick
+      const playerToKick = room.players.find(p => p.name === data.playerName);
+      if (!playerToKick) return;
+
+      // Can't kick yourself
+      if (playerToKick.name === sender.name) return;
+
+      // Cancel any pending grace period for this player
+      const key = `${data.roomId}:${data.playerName}`;
+      const pending = disconnectedPlayers.get(key);
+      if (pending) {
+        clearTimeout(pending.timer);
+        disconnectedPlayers.delete(key);
+      }
+
+      // Remove player from room
+      room.players = room.players.filter(p => p.name !== data.playerName);
+
+      // Notify the kicked player
+      io.to(playerToKick.socketId).emit('youWereKicked', { roomId: data.roomId });
+
+      // Notify remaining players
+      io.to(data.roomId).emit('playerKicked', { roomId: data.roomId, playerName: data.playerName });
+
+      console.log(`${data.playerName} was kicked from room ${data.roomId} by ${sender.name}`);
+
+      // If kicked player was drawing during a game, advance the round
+      if (room.game && room.game.drawerName === data.playerName) {
+        // Update drawing order to remove kicked player
+        room.game.drawingOrder = room.game.drawingOrder.filter(p => p.name !== data.playerName);
+        room.game.totalRounds = room.game.drawingOrder.length;
+
+        io.to(data.roomId).emit('roundResult', {
+          winnerName: null,
+          points: 0,
+          currentRound: room.game.currentRound,
+          totalRounds: room.game.totalRounds
+        });
+
+        setTimeout(() => {
+          if (room.game) {
+            // Adjust current drawer index since we removed a player
+            if (room.game.currentDrawerIndex > 0) {
+              room.game.currentDrawerIndex--;
+            }
+            advanceRound(io, room, data.roomId);
+          }
+        }, 2000);
+      }
+    });
+
+    // --- Skip Player Turn (Master only, during game) ---
+    socket.on('skipPlayerTurn', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+      if (!room.game) {
+        socket.emit('error', { message: 'No active game' });
+        return;
+      }
+
+      // Validate sender is the room master
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender) {
+        socket.emit('error', { message: 'You are not in this room' });
+        console.log(`skipPlayerTurn failed: sender not found for socket ${socket.id} in room ${data.roomId}`);
+        return;
+      }
+      if (sender.name !== room.master) {
+        socket.emit('error', { message: 'Only the room master can skip turns' });
+        console.log(`skipPlayerTurn failed: ${sender.name} is not master (master is ${room.master})`);
+        return;
+      }
+
+      // Can only skip the current drawer
+      if (room.game.drawerName !== data.playerName) return;
+
+      // Emit skip notification
+      io.to(data.roomId).emit('drawerSkipped', { playerName: data.playerName, reason: 'master_skipped' });
+
+      io.to(data.roomId).emit('roundResult', {
+        winnerName: null,
+        points: 0,
+        currentRound: room.game.currentRound,
+        totalRounds: room.game.totalRounds
+      });
+
+      // Advance to next round after brief delay
+      setTimeout(() => {
+        if (room.game) {
+          advanceRound(io, room, data.roomId);
+        }
+      }, 2000);
+
+      console.log(`${data.playerName}'s turn was skipped in room ${data.roomId} by ${sender.name}`);
+    });
+
     // --- End Game Early (Master only) ---
     socket.on('endGameEarly', (data) => {
       const room = rooms.get(data.roomId);
@@ -642,9 +871,21 @@ function setupSockets(io) {
         return;
       }
 
+      const wasMetaAvatar = player.avatar === 'meta';
       player.avatar = avatar;
       io.to(roomId).emit('avatarChanged', { roomId, playerName: player.name, avatar });
       console.log(`${player.name} changed avatar to ${avatar} in room ${roomId}`);
+
+      // Cancel avatar selection timer if player is selecting a non-meta avatar
+      if (wasMetaAvatar && avatar !== 'meta') {
+        const timerKey = `${roomId}:${player.name}`;
+        const pending = avatarSelectionTimers.get(timerKey);
+        if (pending) {
+          clearTimeout(pending.timer);
+          avatarSelectionTimers.delete(timerKey);
+          console.log(`Avatar selection timer cancelled for ${player.name} in room ${roomId}`);
+        }
+      }
     });
 
     // --- Disconnect: grace period before removing player ---
@@ -667,6 +908,14 @@ function setupSockets(io) {
       rooms.forEach((room, roomId) => {
         const player = room.players.find(p => p.socketId === socket.id);
         if (!player) return;
+
+        // Cancel any pending avatar selection timer for this player
+        const avatarTimerKey = `${roomId}:${player.name}`;
+        const pendingAvatarTimer = avatarSelectionTimers.get(avatarTimerKey);
+        if (pendingAvatarTimer) {
+          clearTimeout(pendingAvatarTimer.timer);
+          avatarSelectionTimers.delete(avatarTimerKey);
+        }
 
         // If disconnecting player is current drawer during active game, treat as noWinner + advance
         if (room.game && room.game.drawerName === player.name) {
@@ -703,6 +952,10 @@ function setupSockets(io) {
 
           // If room is empty, delete it
           if (currentRoom.players.length === 0) {
+            // Clean up masterRooms tracking
+            if (masterRooms.get(currentRoom.master) === roomId) {
+              masterRooms.delete(currentRoom.master);
+            }
             rooms.delete(roomId);
             console.log(`Room ${roomId} removed (empty)`);
           } else {
