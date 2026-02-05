@@ -10,6 +10,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     const lastPointRef = useRef(null);
     const pickTimerRef = useRef(null);
     const roomIdRef = useRef(currentRoom?.id);
+    const chatInputRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
     const [drawColor, setDrawColor] = useState('#000000');
     const [brushSize, setBrushSize] = useState(3);
@@ -39,9 +40,31 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     const [serverTimerStarted, setServerTimerStarted] = useState(false);
     const [currentPickValue, setCurrentPickValue] = useState(100);
     const [correctGuesses, setCorrectGuesses] = useState([]);
+    const [guessCooldown, setGuessCooldown] = useState(false);
 
     // Keep roomIdRef in sync so timer callbacks never have stale closure
     useEffect(() => { roomIdRef.current = currentRoom?.id; }, [currentRoom?.id]);
+
+    // Handle visibility change (phone lock, tab switch) - request game sync when returning
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && currentRoom?.id) {
+                // Request game state sync from server when returning to tab
+                socket.emit('requestGameSync', { roomId: currentRoom.id });
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [currentRoom?.id]);
+
+    // Handle input focus on mobile - scroll to keep canvas visible
+    const handleInputFocus = () => {
+        // Small delay to let keyboard appear, then scroll to top
+        setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
+    };
 
     // Countdown timer — runs independently of modal visibility
     useEffect(() => {
@@ -87,6 +110,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             setServerTimerStarted(false);
             setCurrentPickValue(cpv || 100);
             setCorrectGuesses([]);
+            setGuessCooldown(false);
             clearInterval(pauseCountdownRef.current);
             setPauseCountdown(0);
             // Clear canvas
@@ -148,6 +172,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             setChatFrozen(false);
             setServerTimerStarted(false);
             winnerPendingRef.current = false;
+            setGuessCooldown(false);
             clearInterval(pickTimerRef.current);
             setPickTimerCount(0);
             clearInterval(pauseCountdownRef.current);
@@ -448,11 +473,15 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     };
 
     const sendMessage = () => {
-        if (!chatInput.trim() || isDrawer) return;
+        if (!chatInput.trim() || isDrawer || guessCooldown) return;
         if (currentRoom?.id) {
             socket.emit('gameGuess', { roomId: currentRoom.id, message: chatInput.trim() });
         }
         setChatInput('');
+
+        // Start 3-second cooldown
+        setGuessCooldown(true);
+        setTimeout(() => setGuessCooldown(false), 3000);
     };
 
     const selectWinner = (messageName, timerExpired) => {
@@ -667,20 +696,22 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                         {!isDrawer && pointsEarned === null && (
                             <div className="flex gap-2">
                                 <input
+                                    ref={chatInputRef}
                                     type="text"
                                     value={chatInput}
                                     onChange={(e) => !chatFrozen && setChatInput(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && !chatFrozen && sendMessage()}
-                                    placeholder={chatFrozen ? 'Guessing paused...' : 'Type your guess...'}
-                                    disabled={chatFrozen}
-                                    className={`flex-1 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300' : 'bg-gray-900 text-orange-400 border border-orange-700/50'} px-4 py-2 rounded-lg focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'kids' ? 'focus:ring-purple-500' : 'focus:ring-orange-600'} ${chatFrozen ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onKeyPress={(e) => e.key === 'Enter' && !chatFrozen && !guessCooldown && sendMessage()}
+                                    onFocus={handleInputFocus}
+                                    placeholder={chatFrozen ? 'Guessing paused...' : guessCooldown ? 'Wait 3s...' : 'Type your guess...'}
+                                    disabled={chatFrozen || guessCooldown}
+                                    className={`flex-1 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300' : 'bg-gray-900 text-orange-400 border border-orange-700/50'} px-4 py-2 rounded-lg focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'kids' ? 'focus:ring-purple-500' : 'focus:ring-orange-600'} ${chatFrozen || guessCooldown ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 />
                                 <button
                                     onClick={sendMessage}
-                                    disabled={chatFrozen}
-                                    className={`${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} px-6 py-2 rounded-lg font-bold transition-all ${chatFrozen ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={chatFrozen || guessCooldown}
+                                    className={`${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} px-6 py-2 rounded-lg font-bold transition-all ${chatFrozen || guessCooldown ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >
-                                    Send
+                                    {guessCooldown ? '...' : 'Send'}
                                 </button>
                             </div>
                         )}
@@ -991,34 +1022,56 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                             const isDone = idx < currentRound - 1;
                             const isUpNext = idx > currentRound - 1 && !isCurrentDrawer;
                             const orderNumber = idx + 1;
-                            const playerScore = currentRoom?.players?.find(p => p.name === player.name)?.score || 0;
+                            const roomPlayer = currentRoom?.players?.find(p => p.name === player.name);
+                            const playerScore = roomPlayer?.score || 0;
+                            const isDisconnected = roomPlayer?.connected === false;
                             return (
                                 <div
                                     key={idx}
-                                    className={`${isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-500/30 border-2 border-cyan-400 ring-2 ring-cyan-400 scale-110' : theme === 'kids' ? 'bg-yellow-200 border-2 border-yellow-500 ring-2 ring-yellow-400 scale-110' : 'bg-orange-600/40 border-2 border-orange-500 ring-2 ring-orange-400 scale-110') : isDone ? (theme === 'tron' ? 'bg-gray-800/50 border border-gray-700 opacity-60' : theme === 'kids' ? 'bg-gray-200 border-2 border-gray-300 opacity-60' : 'bg-gray-900/50 border border-gray-700 opacity-60') : (theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50')} rounded-lg p-2 flex items-center gap-2 transition-all relative`}
+                                    className={`${isDisconnected ? 'opacity-50 grayscale' : ''} ${isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-500/30 border-2 border-cyan-400 ring-2 ring-cyan-400 scale-110' : theme === 'kids' ? 'bg-yellow-200 border-2 border-yellow-500 ring-2 ring-yellow-400 scale-110' : 'bg-orange-600/40 border-2 border-orange-500 ring-2 ring-orange-400 scale-110') : isDone ? (theme === 'tron' ? 'bg-gray-800/50 border border-gray-700 opacity-60' : theme === 'kids' ? 'bg-gray-200 border-2 border-gray-300 opacity-60' : 'bg-gray-900/50 border border-gray-700 opacity-60') : (theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50')} rounded-lg p-2 flex items-center gap-2 transition-all relative`}
                                 >
                                     {/* Order Number / Checkmark Badge */}
                                     <div className={`absolute -top-2 -left-2 w-5 h-5 md:w-6 md:h-6 rounded-full ${isDone ? (theme === 'tron' ? 'bg-green-600 text-white' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-green-700 text-white') : isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-400 text-black' : theme === 'kids' ? 'bg-yellow-500 text-white' : 'bg-orange-500 text-white') : (theme === 'tron' ? 'bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-400 text-white' : 'bg-gray-800 text-orange-400')} font-bold text-xs flex items-center justify-center`}>
                                         {isDone ? <Check className="w-3 h-3" /> : orderNumber}
                                     </div>
 
+                                    {/* Offline Badge */}
+                                    {isDisconnected && (
+                                        <div className="absolute -top-2 -right-2 w-5 h-5 md:w-6 md:h-6 rounded-full bg-red-600 text-white font-bold text-[0.6rem] flex items-center justify-center" title="Offline">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                                                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                                                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                                                <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                                                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                                                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                                                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                                            </svg>
+                                        </div>
+                                    )}
+
                                     <div className="w-10 h-10 md:w-12 md:h-12">
-                                        <CharacterSVG characterId={player.avatar} size={48} color={character.color} />
+                                        <CharacterSVG characterId={player.avatar} size={48} color={isDisconnected ? '#666' : character.color} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className={`font-bold text-xs md:text-sm ${currentTheme.text} truncate`}>{player.name}</div>
                                         <div className="text-[0.6rem] md:text-xs font-bold text-yellow-400">{playerScore} pts</div>
-                                        {isCurrentDrawer && (
+                                        {isDisconnected && (
+                                            <div className="text-[0.6rem] md:text-xs text-red-400 font-semibold">
+                                                Offline
+                                            </div>
+                                        )}
+                                        {!isDisconnected && isCurrentDrawer && (
                                             <div className={`text-[0.6rem] md:text-xs ${theme === 'tron' ? 'text-cyan-300' : theme === 'kids' ? 'text-yellow-700' : 'text-orange-400'} font-semibold`}>
                                                 Drawing Now
                                             </div>
                                         )}
-                                        {isDone && (
+                                        {!isDisconnected && isDone && (
                                             <div className={`text-[0.6rem] md:text-xs ${theme === 'tron' ? 'text-green-400' : theme === 'kids' ? 'text-green-600' : 'text-green-500'}`}>
                                                 Done
                                             </div>
                                         )}
-                                        {isUpNext && (
+                                        {!isDisconnected && isUpNext && (
                                             <div className={`text-[0.6rem] md:text-xs ${currentTheme.textSecondary}`}>
                                                 #{orderNumber}
                                             </div>

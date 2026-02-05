@@ -313,6 +313,18 @@ function App() {
             });
         };
 
+        const onPlayerDisconnected = (data) => {
+            setCurrentRoom(prev => {
+                if (!prev || prev.id !== data.roomId) return prev;
+                return {
+                    ...prev,
+                    players: prev.players.map(p =>
+                        p.name === data.playerName ? { ...p, connected: false } : p
+                    )
+                };
+            });
+        };
+
         const onAvatarChanged = (data) => {
             setCurrentRoom(prev => {
                 if (!prev || prev.id !== data.roomId) return prev;
@@ -349,6 +361,7 @@ function App() {
         socket.on('error', onError);
         socket.on('playerLeft', onPlayerLeft);
         socket.on('playerRejoined', onPlayerRejoined);
+        socket.on('playerDisconnected', onPlayerDisconnected);
         socket.on('avatarChanged', onAvatarChanged);
         socket.on('scoresUpdated', onScoresUpdated);
 
@@ -364,6 +377,7 @@ function App() {
             socket.off('error', onError);
             socket.off('playerLeft', onPlayerLeft);
             socket.off('playerRejoined', onPlayerRejoined);
+            socket.off('playerDisconnected', onPlayerDisconnected);
             socket.off('avatarChanged', onAvatarChanged);
             socket.off('scoresUpdated', onScoresUpdated);
         };

@@ -67,10 +67,26 @@ function advanceRound(io, room, roomId) {
   room.game.currentDrawerIndex++;
   room.game.currentRound++;
 
+  // Skip disconnected players
+  while (room.game.currentDrawerIndex < room.game.drawingOrder.length) {
+    const nextDrawer = room.game.drawingOrder[room.game.currentDrawerIndex];
+    const player = room.players.find(p => p.name === nextDrawer.name);
+
+    // If player doesn't exist or is disconnected, skip them
+    if (!player || player.connected === false) {
+      console.log(`Skipping disconnected drawer: ${nextDrawer.name}`);
+      io.to(roomId).emit('drawerSkipped', { playerName: nextDrawer.name, reason: 'disconnected' });
+      room.game.currentDrawerIndex++;
+      room.game.currentRound++;
+    } else {
+      break;
+    }
+  }
+
   if (room.game.currentDrawerIndex >= room.game.drawingOrder.length) {
     // All players have drawn — game over
     const finalScores = room.players
-      .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0 }))
+      .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
       .sort((a, b) => b.score - a.score);
 
     // Compile game history entry
@@ -324,6 +340,35 @@ function setupSockets(io) {
       // Notify other players
       socket.to(roomId).emit('playerRejoined', { roomId, playerName, avatar: player.avatar });
       console.log(`${playerName} rejoined room ${roomId}`);
+    });
+
+    // --- Request Game Sync (for visibility change / tab return) ---
+    socket.on('requestGameSync', (data) => {
+      const { roomId } = data;
+      const room = rooms.get(roomId);
+
+      if (!room || !room.game) return;
+
+      // Find the requesting player
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player) return;
+
+      const gameSync = {
+        drawerName: room.game.drawerName,
+        currentRound: room.game.currentRound,
+        totalRounds: room.game.totalRounds,
+        currentPickValue: room.game.currentPickValue,
+        paused: room.game.paused || false,
+        timerEndTime: room.game.timerEndTime,
+        timerRemainingMs: room.game.timerRemainingMs
+      };
+
+      socket.emit('gameSync', gameSync);
+
+      // If this player is the drawer, resend their word
+      if (room.game.drawerName === player.name) {
+        socket.emit('yourWord', { word: room.game.currentWord });
+      }
     });
 
     // --- Toggle Game Selection ---
@@ -639,6 +684,9 @@ function setupSockets(io) {
         // Mark disconnected but don't remove yet
         player.connected = false;
         const key = `${roomId}:${player.name}`;
+
+        // Notify other players that this player is disconnected (but not removed yet)
+        io.to(roomId).emit('playerDisconnected', { roomId, playerName: player.name });
 
         console.log(`${player.name} disconnected from room ${roomId}, grace period started (${GRACE_PERIOD_MS / 1000}s)`);
 
