@@ -1,0 +1,790 @@
+import React from 'react';
+import { Crown, Gamepad2, Play, Star, Check, Info, Youtube, MessageCircle, ChevronDown, X } from '../icons/UIIcons';
+import CharacterSVG from '../icons/CharacterSVGs';
+import { MOCK_GAMES } from '../data/games';
+import { rarityConfig } from '../data/themes';
+import MusicButton from '../components/MusicButton';
+
+function RoomPage({
+    theme,
+    currentTheme,
+    currentRoom,
+    isMaster,
+    playerName,
+    selectedAvatar,
+    selectedGames,
+    availableCharacters,
+    avatarPickerMode,
+    setAvatarPickerMode,
+    setSelectedAvatar,
+    // Chat
+    lobbyChatMessages,
+    lobbyChatInput,
+    setLobbyChatInput,
+    sendLobbyChat,
+    chatScrollRef,
+    lobbyChatEndRef,
+    modalChatScrollRef,
+    modalChatEndRef,
+    handleChatScroll,
+    chatAutoScroll,
+    setChatAutoScroll,
+    scrollChatToBottom,
+    unreadCount,
+    setUnreadCount,
+    showChatModal,
+    setShowChatModal,
+    isMobilePortrait,
+    // QR
+    qrSmallRef,
+    qrRef,
+    qrExpanded,
+    setQrExpanded,
+    // Game selector
+    showGameSelector,
+    setShowGameSelector,
+    toggleGame,
+    startGame,
+    getGameIcon,
+    // Game selector filters
+    selectorMinPlayers,
+    setSelectorMinPlayers,
+    selectorMaxPlayers,
+    setSelectorMaxPlayers,
+    selectorMinAge,
+    setSelectorMinAge,
+    selectorMaxAge,
+    setSelectorMaxAge,
+    selectorSortBy,
+    setSelectorSortBy,
+    // Game info/desc modals
+    selectedGameInfo,
+    setSelectedGameInfo,
+    selectedGameDesc,
+    setSelectedGameDesc,
+    // Avatar picker
+    takenCharacters,
+    avatarTimerCount,
+    avatarTakenToast,
+    setAvatarTakenToast,
+    confirmAvatarSelection,
+    // Character info modal
+    characterInfoModal,
+    setCharacterInfoModal,
+    // Player profile modal
+    setPlayerProfileModal,
+    // Master tips
+    showMasterTips,
+    setShowMasterTips,
+    // Audio
+    audioRef,
+    isMuted
+}) {
+    // StarRating sub-component
+    const StarRating = ({ rating }) => {
+        const stars = [];
+        for (let i = 1; i <= 5; i++) {
+            stars.push(
+                <Star key={i} className="star inline" filled={i <= Math.floor(rating)} />
+            );
+        }
+        return <div className="flex items-center gap-1">{stars} <span className="text-xs ml-1">{rating}</span></div>;
+    };
+
+    const hasGamesPlayed = (currentRoom?.players || []).some(p => (p.score || 0) > 0);
+
+    return (
+            <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} p-2 pt-24 md:pt-40 landscape:pt-24`} style={{ minHeight: '100dvh' }}>
+                {isMaster && (
+                    <audio ref={audioRef} loop>
+                        {theme === 'tron' && (
+                            <source src="https://www.soundjay.com/mechanical/sounds/mechanical-keyboard-slow-1.mp3" type="audio/mpeg" />
+                        )}
+                        {theme === 'kids' && (
+                            <source src="https://www.soundjay.com/misc/sounds/magic-chime-02.mp3" type="audio/mpeg" />
+                        )}
+                        {theme === 'scary' && (
+                            <source src="https://www.soundjay.com/misc/sounds/horror-bell-1.mp3" type="audio/mpeg" />
+                        )}
+                    </audio>
+                )}
+
+                <MusicButton audioRef={audioRef} theme={theme} isMuted={isMuted} />
+
+                <div className="max-w-6xl mx-auto" style={{ maxHeight: 'calc(100dvh - 6rem)', overflow: 'auto', paddingBottom: isMaster ? (isMobilePortrait ? '9.5rem' : '5rem') : '0' }}>
+                    <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl md:rounded-3xl p-3 md:p-4 landscape:p-3 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-2 md:border-4 border-purple-300' : 'border-2 md:border-4 border-orange-700'} mb-2`}>
+                        {/* Room Info - Title/ID with QR right */}
+                        <div className="flex items-stretch gap-2 md:gap-3 mb-2 md:mb-3">
+                            {/* Left - Title + Room ID */}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                <div id="room-title" className="mb-1 md:mb-2 text-center">
+                                    {isMaster && <Crown className={`mx-auto mb-1 w-6 h-6 md:w-10 md:h-10 ${theme === 'tron' ? 'text-cyan-400' : theme === 'scary' ? 'text-orange-500' : 'text-yellow-400'}`} />}
+                                    <h1 className={`text-xl md:text-2xl lg:text-3xl font-bold ${currentTheme.text} ${currentTheme.font} ${theme === 'tron' ? 'tron-text-glow' : ''} break-words overflow-hidden`}>
+                                        {currentRoom?.name}
+                                    </h1>
+                                </div>
+                                <div id="room-id" className="flex flex-col mt-auto">
+                                    <span className={`text-xs font-semibold ${currentTheme.textSecondary} mb-1`}>Room ID:</span>
+                                    <div className={`font-mono text-lg md:text-xl lg:text-2xl font-bold tracking-wider whitespace-nowrap ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'scary' ? 'bg-orange-900/30 border-2 border-orange-700 text-orange-400' : 'bg-purple-200 text-purple-900 border-2 border-purple-400'} px-3 md:px-4 py-2 md:py-3 rounded-lg text-center inline-block`}>
+                                        {currentRoom?.id}
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Right - QR Code (shrink-wrapped, height fills parent) */}
+                            <div
+                                id="room-qr"
+                                className={`shrink-0 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border' : theme === 'scary' ? 'bg-orange-900/30 border-2 border-orange-700' : 'bg-white border-2 md:border-4 border-purple-400'} p-1 md:p-2 rounded-xl cursor-pointer hover:scale-105 transition-transform flex flex-col items-center`}
+                                onClick={() => setQrExpanded(true)}
+                            >
+                                <div className="bg-white rounded p-0.5 flex items-center justify-center flex-1 min-h-0">
+                                    <div ref={qrSmallRef} className="qr-small-container"></div>
+                                </div>
+                                <p className={`text-[0.5rem] md:text-[0.6rem] text-center mt-0.5 ${theme === 'tron' ? 'text-cyan-400' : theme === 'scary' ? 'text-orange-400' : 'text-purple-600'} font-semibold leading-none shrink-0`}>
+                                    Tap to expand
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Expanded QR Code Modal */}
+                        {qrExpanded && (
+                            <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setQrExpanded(false)}>
+                                <div className={`${currentTheme.cardBg} rounded-3xl p-8 max-w-md w-full`} onClick={(e) => e.stopPropagation()}>
+                                    <h3 className={`text-2xl font-bold ${currentTheme.text} mb-4 text-center ${currentTheme.font}`}>
+                                        Scan to Join
+                                    </h3>
+                                    <div className={`${theme === 'tron' ? 'bg-cyan-400' : theme === 'scary' ? 'bg-orange-600' : 'bg-gradient-to-br from-purple-500 to-pink-500'} rounded-2xl p-8 mb-4`}>
+                                        <div className="bg-white rounded-xl p-6 flex items-center justify-center">
+                                            <div ref={qrRef}></div>
+                                        </div>
+                                    </div>
+                                    <div className={`text-center mb-4 ${currentTheme.text}`}>
+                                        <p className="text-sm mb-2">Room ID:</p>
+                                        <p className="font-mono text-3xl font-bold tracking-wider">{currentRoom?.id}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setQrExpanded(false)}
+                                        className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'scary' ? 'bg-orange-700 hover:bg-orange-600 text-white' : 'bg-purple-500 hover:bg-purple-400 text-white'} font-bold py-3 rounded-xl transition-all`}
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Character Avatars Row - scaled to 80% on md/landscape */}
+                        <div id="room-players" className={`${theme === 'tron' ? 'bg-gray-900/50 border border-cyan-500/30' : theme === 'kids' ? 'bg-white/70 border-2 md:border-4 border-purple-300' : 'bg-gray-950/80 border-2 border-orange-700/50 shadow-[0_0_30px_rgba(194,65,12,0.3)]'} rounded-xl md:rounded-2xl p-3 md:p-4 mb-2 landscape:p-2 landscape:mb-1`}>
+                            <h3 className={`text-sm md:text-base lg:text-lg font-bold ${currentTheme.text} mb-2 md:mb-3 text-center ${currentTheme.font}`}>
+                                {theme === 'tron' ? 'CONNECTED_PLAYERS' : theme === 'kids' ? 'Players in the Room' : 'SUMMONED SOULS'} ({currentRoom?.players.length})
+                            </h3>
+                            <div className="flex flex-wrap justify-center gap-2 md:gap-4">
+                                {[...(currentRoom?.players || [])].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
+                                    const isMeta = player.avatar === 'meta';
+                                    const character = isMeta
+                                        ? { id: 'meta', name: 'Joining...', color: '#06b6d4' }
+                                        : (availableCharacters.find(c => c.id === player.avatar) || availableCharacters[0]);
+                                    const isOwnAvatar = player.name === playerName;
+                                    return (
+                                        <div
+                                            key={player.name}
+                                            className={`player-avatar relative flex flex-col items-center transition-all ${!isMeta ? 'cursor-pointer' : ''}`}
+                                            onClick={() => {
+                                                if (isMeta) return;
+                                                if (isOwnAvatar && !avatarPickerMode) {
+                                                    setSelectedAvatar(player.avatar);
+                                                    setAvatarPickerMode('change');
+                                                } else if (!isOwnAvatar) {
+                                                    setPlayerProfileModal({ ...player, character });
+                                                }
+                                            }}
+                                        >
+                                            {/* Edit indicator for own avatar */}
+                                            {isOwnAvatar && !isMeta && !avatarPickerMode && (
+                                                <div className="absolute -top-1 -left-1 z-10 bg-cyan-500 rounded-full p-1 shadow-lg">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                                    </svg>
+                                                </div>
+                                            )}
+
+                                            {/* Placement badge */}
+                                            {hasGamesPlayed && idx < 3 && !isMeta && (
+                                                <div className={`absolute -top-3 left-1/2 -translate-x-1/2 z-20 px-1.5 py-0.5 rounded-full font-black text-[0.6rem] shadow-lg ${
+                                                    idx === 0 ? 'bg-yellow-400 text-yellow-900' :
+                                                    idx === 1 ? 'bg-gray-300 text-gray-700' :
+                                                    'bg-amber-600 text-white'
+                                                }`}>
+                                                    #{idx + 1}
+                                                </div>
+                                            )}
+
+                                            {/* Character Card */}
+                                            <div
+                                                className={`w-28 h-32 md:w-28 md:h-32 lg:w-32 lg:h-36 landscape:w-24 landscape:h-28 rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center ${
+                                                    isMeta
+                                                        ? 'bg-green-500/10 border border-green-500/30'
+                                                        : theme === 'tron'
+                                                            ? 'bg-cyan-500/20'
+                                                            : theme === 'kids'
+                                                                ? 'bg-gradient-to-br from-purple-200 to-pink-200'
+                                                                : 'bg-gradient-to-br from-gray-900 to-orange-950/50'
+                                                }`}
+                                                style={{
+                                                    boxShadow: isMeta
+                                                        ? '0 0 15px rgba(34,197,94,0.3)'
+                                                        : theme === 'tron'
+                                                            ? `0 0 15px ${character.color}40`
+                                                            : theme === 'scary'
+                                                                ? `0 0 15px ${character.color}30`
+                                                                : undefined
+                                                }}
+                                            >
+                                                {/* Character SVG */}
+                                                <div className="flex-1 flex items-center justify-center w-full min-h-0">
+                                                    <CharacterSVG characterId={character.id} size={80} color={character.color} />
+                                                </div>
+
+                                                {/* "Selecting..." label for meta */}
+                                                {isMeta && (
+                                                    <div className="absolute bottom-0.5 left-0 right-0 text-center">
+                                                        <span className="text-[0.5rem] text-green-400 font-mono" style={{ animation: 'softPulse 2s ease-in-out infinite' }}>Selecting...</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Player Name Below */}
+                                            <div className={`mt-1 px-2 py-0.5 rounded-full font-semibold text-[0.65rem] md:text-xs flex items-center gap-0.5 ${
+                                                isMeta
+                                                    ? 'bg-gray-800 text-green-400'
+                                                    : theme === 'tron'
+                                                        ? 'bg-gray-800 text-cyan-400'
+                                                        : theme === 'kids'
+                                                            ? 'bg-white text-purple-700'
+                                                            : 'bg-gray-900 text-orange-400'
+                                            }`}>
+                                                {player.isMaster && <Crown className="w-3 h-3 text-yellow-400 flex-shrink-0" fill="currentColor" />}
+                                                {player.name}
+                                            </div>
+                                            {/* Score */}
+                                            <div className={`mt-0.5 px-2 py-0.5 rounded-full font-semibold text-[0.55rem] md:text-[0.65rem] ${
+                                                theme === 'tron'
+                                                    ? 'bg-gray-800/60 text-cyan-300'
+                                                    : theme === 'kids'
+                                                        ? 'bg-white/80 text-purple-500'
+                                                        : 'bg-gray-900/60 text-orange-300'
+                                            }`}>
+                                                pts: {player.score || 0}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Games + Chat Side-by-Side on md/landscape */}
+                        <div className="flex flex-col md:flex-row landscape:flex-row gap-2">
+                            {/* Selected Games Section */}
+                            <div id="room-selected-games" className={`md:w-1/2 landscape:w-1/2 flex flex-col ${theme === 'tron' ? 'bg-gray-900/50 border border-cyan-500/30' : theme === 'kids' ? 'bg-white/70 border-2 md:border-4 border-purple-300' : 'bg-gray-950/80 border-2 border-orange-700/50'} rounded-xl md:rounded-2xl p-2 md:p-3`}>
+                                <h3 className={`text-sm md:text-base lg:text-lg font-bold ${currentTheme.text} mb-2 md:mb-3 flex items-center gap-2 ${currentTheme.font}`}>
+                                    <Gamepad2 className="w-5 h-5 md:w-6 md:h-6" />
+                                    <span className="truncate">{theme === 'tron' ? 'SELECTED_GAMES' : theme === 'kids' ? 'Selected Games' : 'CHOSEN HORRORS'}</span>
+                                    <span className="whitespace-nowrap">({selectedGames.length})</span>
+                                </h3>
+                                <div className={`flex-1 overflow-y-auto md:max-h-72 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {selectedGames.length === 0 ? (
+                                            <p className={`${currentTheme.textSecondary} text-sm col-span-full text-center py-4`}>
+                                                {theme === 'tron' ? '> No games selected' : theme === 'kids' ? 'No games selected yet' : '> The chamber awaits...'}
+                                            </p>
+                                        ) : (
+                                            selectedGames.map((gameId) => {
+                                                const game = MOCK_GAMES.find(g => g.id === gameId);
+                                                return (
+                                                    <div
+                                                        key={gameId}
+                                                        className={`${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} rounded-lg p-4`}
+                                                    >
+                                                        <div className="flex items-start gap-3">
+                                                            <div className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-500'}`}>
+                                                                {getGameIcon(game?.id, 'w-8 h-8')}
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className={`${currentTheme.text} font-bold text-sm mb-1`}>{game?.name}</div>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <div className="flex items-center gap-1">
+                                                                        {[1, 2, 3, 4, 5].map((i) => (
+                                                                            <Star key={i} className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-yellow-400' : 'text-orange-500'} w-3 h-3`} filled={i <= Math.floor(game?.rating || 0)} />
+                                                                        ))}
+                                                                        <span className={`text-xs ${currentTheme.textSecondary} ml-1`}>{game?.rating}</span>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => setSelectedGameDesc(game)}
+                                                                        className={`text-xs ${currentTheme.text} underline hover:no-underline transition-all`}
+                                                                    >
+                                                                        description
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Lobby Chat Panel - hidden on mobile portrait, visible on md+ and landscape */}
+                            <div id="room-chat" className={`hidden md:flex landscape:flex md:w-1/2 landscape:w-1/2 flex-col ${theme === 'tron' ? 'bg-gray-900/50 border border-cyan-500/30' : theme === 'kids' ? 'bg-white/70 border-2 md:border-4 border-purple-300' : 'bg-gray-950/80 border-2 border-orange-700/50'} rounded-xl md:rounded-2xl p-2 md:p-3`}>
+                                <h3 className={`text-sm md:text-base font-bold ${currentTheme.text} mb-1 flex items-center gap-2 ${currentTheme.font}`}>
+                                    {theme === 'tron' ? '> ROOM_CHAT' : theme === 'kids' ? 'Room Chat' : 'WHISPERS'}
+                                </h3>
+                                <div className="relative flex-1">
+                                    <div
+                                        ref={chatScrollRef}
+                                        onScroll={handleChatScroll}
+                                        className={`h-40 md:h-56 landscape:h-40 overflow-y-auto mb-1 space-y-1 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}
+                                    >
+                                        {lobbyChatMessages.length === 0 ? (
+                                            <p className={`${currentTheme.textSecondary} text-sm text-center py-4`}>
+                                                {theme === 'tron' ? '> No messages yet...' : theme === 'kids' ? 'No messages yet!' : '> Silence...'}
+                                            </p>
+                                        ) : (
+                                            lobbyChatMessages.map((msg, idx) => {
+                                                const character = availableCharacters.find(c => c.id === msg.avatar) || availableCharacters[0];
+                                                return (
+                                                    <div key={idx} className={`${theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50'} rounded-lg p-2`}>
+                                                        <div className="flex items-start gap-2">
+                                                            <div className="w-7 h-7 flex-shrink-0">
+                                                                <CharacterSVG characterId={msg.avatar} size={28} color={character.color} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className={`font-bold text-xs ${currentTheme.text}`}>{msg.player}</span>
+                                                                <span className={`${currentTheme.textSecondary} text-xs ml-2`}>{msg.message}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                        <div ref={lobbyChatEndRef} />
+                                    </div>
+                                    {/* Scroll to bottom button */}
+                                    {!chatAutoScroll && lobbyChatMessages.length > 0 && (
+                                        <button
+                                            onClick={scrollChatToBottom}
+                                            className={`absolute bottom-2 left-1/2 -translate-x-1/2 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 ${theme === 'tron' ? 'bg-cyan-500 text-black' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700 text-white'}`}
+                                        >
+                                            <ChevronDown className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={lobbyChatInput}
+                                        onChange={(e) => setLobbyChatInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && sendLobbyChat()}
+                                        placeholder={theme === 'tron' ? '> Type message...' : 'Type a message...'}
+                                        maxLength={200}
+                                        className={`flex-1 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300' : 'bg-gray-900 text-orange-400 border border-orange-700/50'} px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'kids' ? 'focus:ring-purple-500' : 'focus:ring-orange-600'}`}
+                                    />
+                                    <button
+                                        onClick={sendLobbyChat}
+                                        className={`${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} px-4 py-2 rounded-lg font-bold text-sm transition-all`}
+                                    >
+                                        Send
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                {/* Fixed Bottom Action Bar */}
+                {isMaster && (
+                    <div className={`fixed bottom-0 left-0 right-0 z-40 p-3 ${theme === 'tron' ? 'bg-gray-900/95 border-t border-cyan-500/30' : theme === 'kids' ? 'bg-white/95 border-t-2 border-purple-300' : 'bg-gray-950/95 border-t-2 border-orange-700/50'} backdrop-blur-sm`}>
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row landscape:flex-row gap-2 items-stretch">
+                            <button
+                                onClick={() => setShowGameSelector(true)}
+                                className={`flex-1 ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black tron-glow' : theme === 'kids' ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white kids-shadow' : 'bg-orange-700 hover:bg-orange-600 text-white shadow-[0_0_20px_rgba(194,65,12,0.5)]'} font-bold py-3 px-6 rounded-xl transition-all duration-300 hover:scale-[1.02] shadow-lg ${currentTheme.font}`}
+                            >
+                                <span className="flex items-center justify-center gap-2 text-base">
+                                    <Gamepad2 className="w-5 h-5" />
+                                    {theme === 'tron' ? '[ ADD_GAMES ]' : theme === 'kids' ? 'Add Games 🎮' : 'ADD NIGHTMARES 🦇'}
+                                </span>
+                            </button>
+                            <button
+                                onClick={startGame}
+                                disabled={selectedGames.length === 0}
+                                className={`flex-1 ${selectedGames.length === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:scale-[1.02]'} ${theme === 'tron' ? 'bg-green-500 hover:bg-green-400 text-black tron-glow' : theme === 'kids' ? 'bg-gradient-to-r from-green-400 to-blue-400 hover:from-green-300 hover:to-blue-300 text-white kids-shadow' : 'bg-gradient-to-r from-green-700 to-green-600 hover:from-green-600 hover:to-green-500 text-white shadow-[0_0_20px_rgba(22,163,74,0.4)]'} font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg ${selectedGames.length > 0 ? 'animate-pulse' : ''} ${currentTheme.font}`}
+                            >
+                                <span className="flex items-center justify-center gap-2 text-base">
+                                    <Play className="w-5 h-5" />
+                                    {theme === 'tron' ? '[ START_GAME ]' : theme === 'kids' ? 'Start Game! 🚀' : 'START GAME 💀'}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Floating Chat Icon - Fixed to Room page bottom-right */}
+                <button
+                    onClick={() => {
+                        if (isMobilePortrait) {
+                            setShowChatModal(true);
+                            setUnreadCount(0);
+                        } else {
+                            const chatEl = document.getElementById('room-chat');
+                            if (chatEl) chatEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setUnreadCount(0);
+                        }
+                    }}
+                    className={`fixed z-40 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-110 ${theme === 'tron' ? 'bg-cyan-500 text-black' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700 text-white'}`}
+                    style={{ bottom: isMaster ? (isMobilePortrait ? '9.5rem' : '5rem') : '1rem', right: '1rem' }}
+                >
+                    <MessageCircle className="w-6 h-6" />
+                    {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                    )}
+                </button>
+
+                {/* Mobile Portrait Chat Modal */}
+                {showChatModal && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col">
+                        <div className={`flex-1 flex flex-col mx-3 mt-3 rounded-2xl overflow-hidden ${theme === 'tron' ? 'bg-gray-900 border border-cyan-500/30' : theme === 'kids' ? 'bg-white border-2 border-purple-300' : 'bg-gray-950 border-2 border-orange-700/50'}`} style={{ marginBottom: isMaster ? '9.5rem' : '0.75rem' }}>
+                            {/* Modal Header */}
+                            <div className={`flex items-center justify-between p-3 border-b ${theme === 'tron' ? 'border-cyan-500/30' : theme === 'kids' ? 'border-purple-300' : 'border-orange-700/50'}`}>
+                                <h3 className={`text-base font-bold ${currentTheme.text} ${currentTheme.font}`}>
+                                    {theme === 'tron' ? '> ROOM_CHAT' : theme === 'kids' ? 'Room Chat' : 'WHISPERS'}
+                                </h3>
+                                <button onClick={() => setShowChatModal(false)} className={`p-1 rounded-lg ${theme === 'tron' ? 'hover:bg-cyan-500/20 text-cyan-400' : theme === 'kids' ? 'hover:bg-purple-100 text-purple-500' : 'hover:bg-orange-900/40 text-orange-400'}`}>
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                            {/* Modal Messages */}
+                            <div
+                                ref={modalChatScrollRef}
+                                onScroll={() => {
+                                    const el = modalChatScrollRef.current;
+                                    if (!el) return;
+                                    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+                                    setChatAutoScroll(atBottom);
+                                    if (atBottom) setUnreadCount(0);
+                                }}
+                                className={`flex-1 overflow-y-auto p-3 space-y-1 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}
+                            >
+                                {lobbyChatMessages.length === 0 ? (
+                                    <p className={`${currentTheme.textSecondary} text-sm text-center py-4`}>
+                                        {theme === 'tron' ? '> No messages yet...' : theme === 'kids' ? 'No messages yet!' : '> Silence...'}
+                                    </p>
+                                ) : (
+                                    lobbyChatMessages.map((msg, idx) => {
+                                        const character = availableCharacters.find(c => c.id === msg.avatar) || availableCharacters[0];
+                                        return (
+                                            <div key={idx} className={`${theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50'} rounded-lg p-2`}>
+                                                <div className="flex items-start gap-2">
+                                                    <div className="w-7 h-7 flex-shrink-0">
+                                                        <CharacterSVG characterId={msg.avatar} size={28} color={character.color} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className={`font-bold text-xs ${currentTheme.text}`}>{msg.player}</span>
+                                                        <span className={`${currentTheme.textSecondary} text-xs ml-2`}>{msg.message}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                                <div ref={modalChatEndRef} />
+                            </div>
+                            {/* Scroll to bottom button in modal */}
+                            {!chatAutoScroll && lobbyChatMessages.length > 0 && (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => {
+                                            const el = modalChatScrollRef.current;
+                                            if (el) { el.scrollTop = el.scrollHeight; setChatAutoScroll(true); }
+                                        }}
+                                        className={`absolute -top-10 left-1/2 -translate-x-1/2 z-10 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 ${theme === 'tron' ? 'bg-cyan-500 text-black' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700 text-white'}`}
+                                    >
+                                        <ChevronDown className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            )}
+                            {/* Modal Input */}
+                            <div className={`p-3 border-t ${theme === 'tron' ? 'border-cyan-500/30' : theme === 'kids' ? 'border-purple-300' : 'border-orange-700/50'}`}>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={lobbyChatInput}
+                                        onChange={(e) => setLobbyChatInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && sendLobbyChat()}
+                                        placeholder={theme === 'tron' ? '> Type message...' : 'Type a message...'}
+                                        maxLength={200}
+                                        className={`flex-1 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300' : 'bg-gray-900 text-orange-400 border border-orange-700/50'} px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'kids' ? 'focus:ring-purple-500' : 'focus:ring-orange-600'}`}
+                                    />
+                                    <button
+                                        onClick={sendLobbyChat}
+                                        className={`${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} px-4 py-2 rounded-lg font-bold text-sm transition-all`}
+                                    >
+                                        Send
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Game Selector Modal */}
+                {showGameSelector && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex flex-col z-50">
+                        <div className={`flex-1 flex flex-col m-2 md:m-4 rounded-2xl md:rounded-3xl overflow-hidden ${currentTheme.cardBg} ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
+                            {/* Header */}
+                            <div className="p-3 md:p-6 pb-0 md:pb-0">
+                                <h2 className={`text-lg md:text-3xl font-bold ${currentTheme.text} mb-3 md:mb-6 text-center ${currentTheme.font} ${theme === 'tron' ? 'tron-text-glow' : ''}`}>
+                                    {theme === 'tron' ? '[ SELECT_GAMES ]' : theme === 'kids' ? 'Select Your Games 🎯' : 'CHOOSE YOUR NIGHTMARES 💀'}
+                                </h2>
+
+                                {/* Filters */}
+                                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-3 md:mb-4">
+                                    {/* Players min-max slider */}
+                                    <div>
+                                        <label className={`block ${currentTheme.textSecondary} text-[0.6rem] md:text-sm font-semibold mb-1`}>
+                                            Players: {selectorMinPlayers === 1 && selectorMaxPlayers === 16 ? 'All' : `${selectorMinPlayers}-${selectorMaxPlayers}`}
+                                        </label>
+                                        <div className="dual-range-wrapper relative h-2 mt-2 mb-3">
+                                            <div className={`absolute inset-0 rounded-lg ${theme === 'tron' ? 'bg-gray-800' : theme === 'scary' ? 'bg-stone-900' : 'bg-purple-100'}`}></div>
+                                            <div className="absolute top-0 h-full rounded-lg" style={{
+                                                left: `${((selectorMinPlayers - 1) / 15) * 100}%`,
+                                                right: `${100 - ((selectorMaxPlayers - 1) / 15) * 100}%`,
+                                                background: theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7'
+                                            }}></div>
+                                            <input
+                                                type="range" min="1" max="16"
+                                                value={selectorMinPlayers}
+                                                onChange={(e) => {
+                                                    const v = parseInt(e.target.value);
+                                                    setSelectorMinPlayers(Math.min(v, selectorMaxPlayers));
+                                                }}
+                                                className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-10"
+                                                style={{ '--tw-thumb-bg': theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7' }}
+                                            />
+                                            <input
+                                                type="range" min="1" max="16"
+                                                value={selectorMaxPlayers}
+                                                onChange={(e) => {
+                                                    const v = parseInt(e.target.value);
+                                                    setSelectorMaxPlayers(Math.max(v, selectorMinPlayers));
+                                                }}
+                                                className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-10"
+                                                style={{ '--tw-thumb-bg': theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7' }}
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Age min-max slider */}
+                                    <div>
+                                        <label className={`block ${currentTheme.textSecondary} text-[0.6rem] md:text-sm font-semibold mb-1`}>
+                                            Age: {selectorMinAge === 5 && selectorMaxAge === 18 ? 'All Ages' : `${selectorMinAge}-${selectorMaxAge}`}
+                                        </label>
+                                        <div className="dual-range-wrapper relative h-2 mt-2 mb-3">
+                                            <div className={`absolute inset-0 rounded-lg ${theme === 'tron' ? 'bg-gray-800' : theme === 'scary' ? 'bg-stone-900' : 'bg-purple-100'}`}></div>
+                                            <div className="absolute top-0 h-full rounded-lg" style={{
+                                                left: `${((selectorMinAge - 5) / 13) * 100}%`,
+                                                right: `${100 - ((selectorMaxAge - 5) / 13) * 100}%`,
+                                                background: theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7'
+                                            }}></div>
+                                            <input
+                                                type="range" min="5" max="18"
+                                                value={selectorMinAge}
+                                                onChange={(e) => {
+                                                    const v = parseInt(e.target.value);
+                                                    setSelectorMinAge(Math.min(v, selectorMaxAge));
+                                                }}
+                                                className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-10"
+                                                style={{ '--tw-thumb-bg': theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7' }}
+                                            />
+                                            <input
+                                                type="range" min="5" max="18"
+                                                value={selectorMaxAge}
+                                                onChange={(e) => {
+                                                    const v = parseInt(e.target.value);
+                                                    setSelectorMaxAge(Math.max(v, selectorMinAge));
+                                                }}
+                                                className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-10"
+                                                style={{ '--tw-thumb-bg': theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7' }}
+                                            />
+                                        </div>
+                                    </div>
+                                    {/* Sort */}
+                                    <div>
+                                        <label className={`block ${currentTheme.textSecondary} text-[0.6rem] md:text-sm font-semibold mb-1`}>
+                                            Sort By
+                                        </label>
+                                        <select
+                                            value={selectorSortBy}
+                                            onChange={(e) => setSelectorSortBy(e.target.value)}
+                                            className={`w-full px-2 md:px-4 py-1 md:py-2 rounded-lg text-xs md:text-sm ${theme === 'tron' ? 'bg-black text-cyan-400 border border-cyan-500' : theme === 'scary' ? 'bg-gray-900 text-orange-400 border border-orange-700' : 'bg-white text-purple-900 border-2 border-purple-300'} focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'scary' ? 'focus:ring-orange-600' : 'focus:ring-purple-500'}`}
+                                        >
+                                            <option value="popular">Most Popular</option>
+                                            <option value="newest">Newest</option>
+                                            <option value="rating">Highest Rated</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Scrollable Game Grid */}
+                            <div className={`flex-1 overflow-y-auto px-3 md:px-6 pb-3 md:pb-4 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-3">
+                                    {MOCK_GAMES
+                                        .filter(game => {
+                                            const playerParts = game.players.split('-');
+                                            const gameMinPlayers = parseInt(playerParts[0]);
+                                            const gameMaxPlayers = parseInt(playerParts[1] || playerParts[0]);
+                                            const playersMatch = gameMinPlayers <= selectorMaxPlayers && gameMaxPlayers >= selectorMinPlayers;
+                                            const ageMatch = game.ageMin >= selectorMinAge && game.ageMin <= selectorMaxAge;
+                                            return playersMatch && ageMatch;
+                                        })
+                                        .sort((a, b) => {
+                                            if (selectorSortBy === 'rating') return b.rating - a.rating;
+                                            if (selectorSortBy === 'newest') return b.id - a.id;
+                                            return 0;
+                                        })
+                                        .map((game) => (
+                                        <div
+                                            key={game.id}
+                                            className={`relative rounded-lg md:rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} ${selectedGames.includes(game.id) ? (theme === 'tron' ? 'ring-2 ring-cyan-400' : theme === 'scary' ? 'ring-2 ring-orange-500' : 'ring-2 ring-purple-500') : ''}`}
+                                        >
+                                            <button
+                                                onClick={() => toggleGame(game.id)}
+                                                className="w-full aspect-[4/3] transition-all relative"
+                                                style={{ backgroundColor: theme === 'tron' ? 'transparent' : game.color }}
+                                            >
+                                                {theme === 'scary' && <div className="absolute inset-0 bg-gradient-to-br from-orange-900/20 to-transparent"></div>}
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center p-2">
+                                                    <div className={`mb-1 ${theme === 'tron' ? 'text-cyan-400' : theme === 'scary' ? 'text-orange-500' : 'text-white'}`}>
+                                                        {getGameIcon(game.id, 'w-6 h-6 md:w-8 md:h-8')}
+                                                    </div>
+                                                    <span className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'scary' ? 'text-orange-400' : 'text-white'} font-bold text-[0.6rem] md:text-xs text-center leading-tight line-clamp-2`}>
+                                                        {game.name}
+                                                    </span>
+                                                    <div className="flex items-center gap-0.5 mt-1">
+                                                        {[1, 2, 3, 4, 5].map((i) => (
+                                                            <Star key={i} className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'scary' ? 'text-orange-500' : 'text-yellow-400'} w-2 h-2 md:w-2.5 md:h-2.5`} filled={i <= Math.floor(game.rating)} />
+                                                        ))}
+                                                    </div>
+                                                    <span className={`text-[0.5rem] md:text-[0.6rem] mt-0.5 ${theme === 'tron' ? 'text-cyan-500' : theme === 'scary' ? 'text-orange-500' : 'text-white/80'}`}>{game.players}</span>
+                                                </div>
+                                                {selectedGames.includes(game.id) && (
+                                                    <div className="absolute top-1 right-1 w-6 h-6 md:w-7 md:h-7 bg-green-500 rounded-full flex items-center justify-center">
+                                                        <Check className="w-3 h-3 md:w-4 md:h-4 text-white" strokeWidth={3} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                            <div className={`p-1 md:p-1.5 ${theme === 'tron' ? 'bg-cyan-900/20 border-t border-cyan-500/30' : theme === 'scary' ? 'bg-orange-900/20 border-t border-orange-700/30' : 'bg-white/90 border-t border-purple-200'}`}>
+                                                <div className="flex gap-1">
+                                                    <button
+                                                        onClick={() => setSelectedGameDesc(game)}
+                                                        className={`flex-1 ${theme === 'tron' ? 'bg-cyan-500/30 hover:bg-cyan-500/50 text-cyan-400' : theme === 'scary' ? 'bg-orange-700/40 hover:bg-orange-700/60 text-orange-400' : 'bg-purple-500 hover:bg-purple-400 text-white'} text-[0.5rem] md:text-xs py-1 px-1 rounded transition-all flex items-center justify-center gap-0.5`}
+                                                    >
+                                                        <Info className="w-2 h-2 md:w-3 md:h-3" />
+                                                        <span className="hidden sm:inline">Desc</span>
+                                                    </button>
+                                                    <a
+                                                        href={game.youtubeLink}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className={`flex-1 ${theme === 'tron' ? 'bg-red-500/30 hover:bg-red-500/50 text-red-400' : theme === 'scary' ? 'bg-red-700/40 hover:bg-red-700/60 text-red-400' : 'bg-red-500 hover:bg-red-400 text-white'} text-[0.5rem] md:text-xs py-1 px-1 rounded transition-all flex items-center justify-center gap-0.5`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <Youtube className="w-2 h-2 md:w-3 md:h-3" />
+                                                        <span className="hidden sm:inline">Video</span>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Fixed Close Button at bottom */}
+                            <div className={`p-3 md:p-4 border-t ${theme === 'tron' ? 'border-cyan-500/30 bg-gray-900/95' : theme === 'kids' ? 'border-purple-300 bg-white/95' : 'border-orange-700/50 bg-gray-950/95'} backdrop-blur-sm`}>
+                                <button
+                                    onClick={() => setShowGameSelector(false)}
+                                    className={`w-full ${theme === 'tron' ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400 tron-border' : theme === 'scary' ? 'bg-orange-700 hover:bg-orange-600 text-white' : 'bg-purple-500 hover:bg-purple-400 text-white kids-shadow'} font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-sm md:text-lg`}
+                                >
+                                    <X className="w-5 h-5 md:w-6 md:h-6" />
+                                    {theme === 'tron' ? '[ CLOSE ]' : theme === 'scary' ? 'SEAL THE CRYPT' : 'Close'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Game Info Modal */}
+                {selectedGameInfo && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedGameInfo(null)}>
+                        <div className={`${currentTheme.cardBg} rounded-3xl p-8 max-w-lg w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`} onClick={(e) => e.stopPropagation()}>
+                            <h3 className={`text-3xl font-bold ${currentTheme.text} mb-4 ${currentTheme.font}`}>
+                                {selectedGameInfo.name}
+                            </h3>
+                            <div className="mb-4">
+                                <StarRating rating={selectedGameInfo.rating} />
+                            </div>
+                            <p className={`${currentTheme.textSecondary} mb-6 text-lg`}>
+                                {selectedGameInfo.description}
+                            </p>
+                            <button
+                                onClick={() => setSelectedGameInfo(null)}
+                                className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all`}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Selected Game Description Modal */}
+                {selectedGameDesc && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedGameDesc(null)}>
+                        <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-8 max-w-lg w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`} onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-500'}`}>
+                                    {getGameIcon(selectedGameDesc.id, 'w-16 h-16')}
+                                </div>
+                                <div>
+                                    <h3 className={`text-2xl font-bold ${currentTheme.text} ${currentTheme.font}`}>
+                                        {selectedGameDesc.name}
+                                    </h3>
+                                    <div className="flex items-center gap-1 mt-1">
+                                        {[1, 2, 3, 4, 5].map((i) => (
+                                            <Star key={i} className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-yellow-400' : 'text-orange-500'} w-4 h-4`} filled={i <= Math.floor(selectedGameDesc.rating)} />
+                                        ))}
+                                        <span className={`text-sm ${currentTheme.textSecondary} ml-1`}>{selectedGameDesc.rating}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className={`${currentTheme.textSecondary} mb-4 text-base`}>
+                                {selectedGameDesc.description}
+                            </p>
+                            <div className={`${currentTheme.textSecondary} text-sm mb-6`}>
+                                <div><strong>Players:</strong> {selectedGameDesc.players}</div>
+                                <div><strong>Age:</strong> {selectedGameDesc.ageMin}+</div>
+                            </div>
+                            <button
+                                onClick={() => setSelectedGameDesc(null)}
+                                className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all`}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+    );
+}
+
+export default RoomPage;

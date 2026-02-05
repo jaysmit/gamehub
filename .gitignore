@@ -1,2 +1,24 @@
 node_modules/
 .env
+
+# Claude config
+.claude/
+
+# Dev/test scripts
+*.ps1
+gen*.js
+test*.js
+write*.js
+copier.js
+create_ps1.js
+generate_raw.js
+make_*.js
+
+# Test/reference files
+*.txt
+char_data.json
+nul
+
+# OS files
+.DS_Store
+Thumbs.db

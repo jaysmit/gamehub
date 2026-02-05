@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameHub - Multiplayer Game Rooms</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect rx='20' width='100' height='100' fill='%230ff'/><circle cx='35' cy='45' r='8' fill='%23111'/><circle cx='65' cy='45' r='8' fill='%23111'/><rect x='20' y='60' rx='5' width='25' height='8' fill='%23111'/><rect x='55' y='60' rx='5' width='25' height='8' fill='%23111'/></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'orbitron': ['"Orbitron"', 'sans-serif'],
+                        'quicksand': ['"Quicksand"', 'sans-serif']
+                    },
+                    screens: {
+                        'landscape': { 'raw': '(orientation: landscape) and (max-height: 500px)' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Tron glow effects */
+        .tron-glow {
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5), 0 0 40px rgba(0, 255, 255, 0.3);
+        }
+
+        .tron-border {
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.2);
+        }
+
+        .tron-text-glow {
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 0 0 20px rgba(0, 255, 255, 0.4);
+        }
+
+        /* Grid background for Tron theme */
+        .tron-grid {
+            background-image:
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+
+        .tron-grid-city {
+            background:
+                linear-gradient(to bottom,
+                    rgba(0, 0, 0, 1) 0%,
+                    rgba(0, 20, 40, 1) 50%,
+                    rgba(0, 0, 0, 1) 100%
+                );
+            position: relative;
+        }
+
+        .tron-grid-city::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 49px,
+                    rgba(0, 255, 255, 0.15) 49px,
+                    rgba(0, 255, 255, 0.15) 50px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 49px,
+                    rgba(0, 255, 255, 0.1) 49px,
+                    rgba(0, 255, 255, 0.1) 50px
+                );
+            background-size: 50px 50px;
+            transform: perspective(500px) rotateX(60deg);
+            transform-origin: center bottom;
+            opacity: 0.6;
+        }
+
+        .tron-grid-city::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(ellipse at center bottom, transparent 0%, rgba(0, 0, 0, 0.8) 70%);
+        }
+
+        /* Kids theme styles */
+        .kids-bubble {
+            animation: float 6s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* Robot head eye animation */
+        .robot-eye-glow {
+            animation: eyeGlow 3s ease-in-out infinite, eyeMove 4s ease-in-out infinite;
+        }
+
+        @keyframes eyeGlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        @keyframes eyeMove {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(2px); }
+            75% { transform: translateX(-2px); }
+        }
+
+        .kids-icon-float {
+            animation: gentleFloat 6s ease-in-out infinite;
+        }
+
+        @keyframes gentleFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        @keyframes softPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Custom scrollbar styles */
+        .scrollbar-tron::-webkit-scrollbar { width: 8px; }
+        .scrollbar-tron::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); border-radius: 10px; }
+        .scrollbar-tron::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #06b6d4, #0891b2); border-radius: 10px; box-shadow: 0 0 10px rgba(6, 182, 212, 0.5); }
+        .scrollbar-tron::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #22d3ee, #06b6d4); box-shadow: 0 0 15px rgba(6, 182, 212, 0.8); }
+
+        .scrollbar-kids::-webkit-scrollbar { width: 10px; }
+        .scrollbar-kids::-webkit-scrollbar-track { background: rgba(216, 180, 254, 0.3); border-radius: 10px; }
+        .scrollbar-kids::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #d8b4fe, #a855f7); border-radius: 10px; }
+        .scrollbar-kids::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #e9d5ff, #c084fc); }
+
+        .scrollbar-scary::-webkit-scrollbar { width: 8px; }
+        .scrollbar-scary::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.8); border-radius: 10px; }
+        .scrollbar-scary::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #ea580c, #7c2d12); border-radius: 10px; box-shadow: 0 0 10px rgba(234, 88, 12, 0.5); }
+        .scrollbar-scary::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #f97316, #9a3412); box-shadow: 0 0 15px rgba(234, 88, 12, 0.8); }
+
+        .kids-shadow { box-shadow: 0 8px 16px rgba(255, 105, 180, 0.3); }
+
+        .star { color: #ffd700; }
+
+        @keyframes fadeToast {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+
+        @media (max-width: 767px) {
+            .player-avatar {
+                transform: scale(0.7);
+                transform-origin: center top;
+                margin: -6px -4px;
+            }
+        }
+
+        @media (orientation: landscape) and (max-height: 500px) {
+            .landscape-compact-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+                gap: 0.5rem !important;
+            }
+        }
+
+        .qr-small-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+        .qr-small-container img,
+        .qr-small-container canvas {
+            display: block;
+            width: auto !important;
+            height: 100% !important;
+            max-height: 100%;
+            aspect-ratio: 1;
+        }
+
+        .dual-range-wrapper input[type="range"]::-webkit-slider-thumb {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: var(--tw-thumb-bg, #06b6d4);
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+            cursor: pointer; -webkit-appearance: none; appearance: none;
+            pointer-events: auto; position: relative; z-index: 10;
+        }
+        .dual-range-wrapper input[type="range"]::-moz-range-thumb {
+            width: 16px; height: 16px; border-radius: 50%;
+            background: var(--tw-thumb-bg, #06b6d4);
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: 0 0 4px rgba(0,0,0,0.3);
+            cursor: pointer; pointer-events: auto; position: relative; z-index: 10;
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/index-D3g0vhWT.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
