@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Menu, Home, User, Settings, HelpCircle, LogOut, Palette, Users } from '../icons/UIIcons';
 import { DaftPunkRobotHead, DaftPunkHelmet, WerewolfHowlingIcon } from '../icons/ThemeLogos';
+import { MUSIC_TRACKS } from '../data/music';
 
 // LogIn icon
 const LogInIcon = ({ className }) => (
@@ -22,12 +23,47 @@ function Header({
     setTheme,
     goToLanding,
     devToast,
-    // New auth props
+    // Music control props
+    musicStarted = false,
+    onStartMusic = () => {},
+    selectedTrack = null,
+    onSelectTrack = () => {},
+    // Auth props
     isLoggedIn = false,
     currentUser = null,
     navigateTo = () => {},
     handleLogout = () => {}
 }) {
+    const [showMusicMenu, setShowMusicMenu] = useState(false);
+    const musicMenuRef = useRef(null);
+    const menuRef = useRef(null);
+
+    // Close music menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (musicMenuRef.current && !musicMenuRef.current.contains(e.target)) {
+                setShowMusicMenu(false);
+            }
+        };
+        if (showMusicMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showMusicMenu]);
+
+    // Close main menu on click outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setShowMenu(false);
+            }
+        };
+        if (showMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showMenu, setShowMenu]);
+
     const handleMenuClick = (destination) => {
         setShowMenu(false);
         if (destination === 'logout') {
@@ -37,6 +73,15 @@ function Header({
         }
     };
 
+    const handleTrackSelect = (track) => {
+        onSelectTrack(track);
+        // Always mark music as started when user selects a track
+        if (!musicStarted) {
+            onStartMusic();
+        }
+        setShowMusicMenu(false);
+    };
+
     return (
         <>
             {devToast && (
@@ -44,7 +89,7 @@ function Header({
                     {theme === 'tron' ? '> ' : ''}{devToast}{theme === 'tron' ? ' _' : ''}
                 </div>
             )}
-            <header className={`fixed top-0 left-0 right-0 z-50 overflow-x-hidden ${currentTheme.headerBg} backdrop-blur-lg ${theme === 'tron' ? 'border-b border-cyan-500/30' : 'border-b-4 border-purple-300'}`}>
+            <header className={`fixed top-0 left-0 right-0 z-50 ${currentTheme.headerBg} backdrop-blur-lg ${theme === 'tron' ? 'border-b border-cyan-500/30' : 'border-b-4 border-purple-300'}`}>
                 <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
                     <button
                         onClick={goToLanding}
@@ -72,9 +117,9 @@ function Header({
                                 onChange={(e) => setTheme(e.target.value)}
                                 className={`appearance-none w-9 h-9 sm:w-10 sm:h-10 md:w-auto md:h-12 md:pl-10 md:pr-4 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border' : theme === 'kids' ? 'bg-purple-500' : 'bg-orange-700/40 border-2 border-orange-700'} rounded-xl font-semibold transition-all hover:scale-105 cursor-pointer focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'kids' ? 'focus:ring-purple-400' : 'focus:ring-orange-500'} text-transparent md:text-current ${theme === 'tron' ? 'md:text-cyan-400' : theme === 'kids' ? 'md:text-white' : 'md:text-orange-400'}`}
                             >
-                                <option value="tron" className={`${theme === 'tron' ? 'bg-gray-900 text-cyan-400' : theme === 'kids' ? 'bg-purple-100 text-purple-900' : 'bg-gray-900 text-orange-400'}`}>Tron</option>
-                                <option value="kids" className={`${theme === 'tron' ? 'bg-gray-900 text-cyan-400' : theme === 'kids' ? 'bg-purple-100 text-purple-900' : 'bg-gray-900 text-orange-400'}`}>Kids</option>
-                                <option value="scary" className={`${theme === 'tron' ? 'bg-gray-900 text-cyan-400' : theme === 'kids' ? 'bg-purple-100 text-purple-900' : 'bg-gray-900 text-orange-400'}`}>Scary</option>
+                                <option value="tron" className={`py-2 px-3 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400' : theme === 'kids' ? 'bg-purple-100 text-purple-900' : 'bg-gray-900 text-orange-400'}`}>Tron</option>
+                                <option value="kids" className={`py-2 px-3 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400' : theme === 'kids' ? 'bg-purple-100 text-purple-900' : 'bg-gray-900 text-orange-400'}`}>Kids</option>
+                                <option value="scary" className={`py-2 px-3 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400' : theme === 'kids' ? 'bg-purple-100 text-purple-900' : 'bg-gray-900 text-orange-400'}`}>Scary</option>
                             </select>
                             {/* Palette Icon Overlay */}
                             <div className="absolute inset-0 flex items-center justify-center md:justify-start md:pl-3 pointer-events-none">
@@ -82,38 +127,83 @@ function Header({
                             </div>
                         </div>
 
-                        {/* Mute Button */}
-                        <button
-                            onClick={() => setIsMuted(!isMuted)}
-                            className={`w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700'} rounded-xl flex items-center justify-center transition-all hover:scale-105`}
-                            title={isMuted ? 'Unmute' : 'Mute'}
-                        >
-                            {isMuted ? (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                    <line x1="23" y1="9" x2="17" y2="15"></line>
-                                    <line x1="17" y1="9" x2="23" y2="15"></line>
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                </svg>
-                            )}
-                        </button>
+                        {/* Music Button with Dropdown */}
+                        <div className="relative" ref={musicMenuRef}>
+                            <button
+                                onClick={() => setShowMusicMenu(!showMusicMenu)}
+                                className={`w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700'} rounded-xl flex items-center justify-center transition-all hover:scale-105 ${!musicStarted && !isMuted ? 'animate-pulse' : ''}`}
+                                title="Music Settings"
+                            >
+                                {isMuted ? (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                        <line x1="23" y1="9" x2="17" y2="15"></line>
+                                        <line x1="17" y1="9" x2="23" y2="15"></line>
+                                    </svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                    </svg>
+                                )}
+                            </button>
 
-                        <button
-                            onClick={() => setShowMenu(!showMenu)}
-                            className={`w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700'} rounded-xl flex items-center justify-center transition-all hover:scale-105`}
-                        >
-                            <Menu className="w-5 h-5 md:w-6 md:h-6" />
-                        </button>
-                    </div>
-                </div>
+                            {/* Music Dropdown */}
+                            {showMusicMenu && (
+                                <div className={`absolute top-full right-0 mt-2 w-36 ${currentTheme.cardBg} backdrop-blur-xl rounded-xl ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-2 border-purple-300' : 'border-2 border-orange-700'} shadow-2xl overflow-hidden z-50`}>
+                                    <div className="p-1.5">
+                                        {/* Mute/Unmute Toggle */}
+                                        <button
+                                            onClick={() => {
+                                                setIsMuted(!isMuted);
+                                                setShowMusicMenu(false);
+                                            }}
+                                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium ${isMuted ? (theme === 'tron' ? 'text-red-400' : 'text-red-500') : (theme === 'tron' ? 'text-green-400' : 'text-green-500')} hover:bg-white/10 transition-all`}
+                                        >
+                                            {isMuted ? (
+                                                <>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+                                                    Unmute
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                                                    Mute
+                                                </>
+                                            )}
+                                        </button>
+
+                                        <div className={`my-1 border-t ${theme === 'tron' ? 'border-cyan-500/30' : theme === 'kids' ? 'border-purple-300' : 'border-orange-700/50'}`}></div>
+
+                                        {/* Track List */}
+                                        {MUSIC_TRACKS.map((track) => (
+                                            <button
+                                                key={track.id}
+                                                onClick={() => handleTrackSelect(track)}
+                                                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs hover:bg-white/10 transition-all ${selectedTrack?.id === track.id ? (theme === 'tron' ? 'bg-cyan-500/20 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 text-purple-700' : 'bg-orange-500/20 text-orange-400') : currentTheme.text}`}
+                                            >
+                                                {selectedTrack?.id === track.id && (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                                                )}
+                                                <span className={selectedTrack?.id === track.id ? '' : 'ml-4'}>{track.shortName}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="relative" ref={menuRef}>
+                            <button
+                                onClick={() => setShowMenu(!showMenu)}
+                                className={`w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700'} rounded-xl flex items-center justify-center transition-all hover:scale-105`}
+                            >
+                                <Menu className="w-5 h-5 md:w-6 md:h-6" />
+                            </button>
 
                 {showMenu && (
-                    <div className={`absolute top-full right-2 sm:right-4 mt-2 w-56 sm:w-64 max-w-[calc(100vw-1rem)] ${currentTheme.cardBg} backdrop-blur-xl rounded-2xl ${theme === 'tron' ? 'tron-border' : 'border-4 border-purple-300'} shadow-2xl overflow-hidden`}>
+                    <div className={`absolute top-full right-0 mt-2 w-56 sm:w-64 max-w-[calc(100vw-1rem)] ${currentTheme.cardBg} backdrop-blur-xl rounded-2xl ${theme === 'tron' ? 'tron-border' : 'border-4 border-purple-300'} shadow-2xl overflow-hidden z-50`}>
                         <div className="p-2">
                             {/* Home */}
                             <button
@@ -189,6 +279,9 @@ function Header({
                         </div>
                     </div>
                 )}
+                        </div>
+                    </div>
+                </div>
             </header>
         </>
     );

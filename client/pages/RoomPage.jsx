@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Crown, Gamepad2, Play, Star, Check, Info, Youtube, MessageCircle, ChevronDown, X } from '../icons/UIIcons';
 import CharacterSVG from '../icons/CharacterSVGs';
 import { MOCK_GAMES } from '../data/games';
 import { rarityConfig } from '../data/themes';
-import MusicButton from '../components/MusicButton';
+import { socket } from '../socket';
 
 function RoomPage({
     theme,
@@ -76,10 +76,14 @@ function RoomPage({
     // Master tips
     showMasterTips,
     setShowMasterTips,
-    // Audio
-    audioRef,
+    // Other
     isMuted
 }) {
+    // State for kick confirmation
+    const [confirmKick, setConfirmKick] = useState(null); // { playerName: string }
+
+    
+    
     // StarRating sub-component
     const StarRating = ({ rating }) => {
         const stars = [];
@@ -93,24 +97,16 @@ function RoomPage({
 
     const hasGamesPlayed = (currentRoom?.players || []).some(p => (p.score || 0) > 0);
 
+    // Kick player from room
+    const handleKickPlayer = (targetPlayerName) => {
+        if (currentRoom?.id) {
+            socket.emit('kickPlayer', { roomId: currentRoom.id, playerName: targetPlayerName });
+        }
+        setConfirmKick(null);
+    };
+
     return (
             <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} p-2 pt-24 md:pt-40 landscape:pt-24`} style={{ minHeight: '100dvh' }}>
-                {isMaster && (
-                    <audio ref={audioRef} loop>
-                        {theme === 'tron' && (
-                            <source src="https://www.soundjay.com/mechanical/sounds/mechanical-keyboard-slow-1.mp3" type="audio/mpeg" />
-                        )}
-                        {theme === 'kids' && (
-                            <source src="https://www.soundjay.com/misc/sounds/magic-chime-02.mp3" type="audio/mpeg" />
-                        )}
-                        {theme === 'scary' && (
-                            <source src="https://www.soundjay.com/misc/sounds/horror-bell-1.mp3" type="audio/mpeg" />
-                        )}
-                    </audio>
-                )}
-
-                <MusicButton audioRef={audioRef} theme={theme} isMuted={isMuted} />
-
                 <div className="max-w-6xl mx-auto" style={{ maxHeight: 'calc(100dvh - 6rem)', overflow: 'auto', paddingBottom: isMaster ? (isMobilePortrait ? '9.5rem' : '5rem') : '0' }}>
                     <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl md:rounded-3xl p-3 md:p-4 landscape:p-3 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-2 md:border-4 border-purple-300' : 'border-2 md:border-4 border-orange-700'} mb-2`}>
                         {/* Room Info - Title/ID with QR right */}
@@ -183,27 +179,49 @@ function RoomPage({
                                         ? { id: 'meta', name: 'Joining...', color: '#06b6d4' }
                                         : (availableCharacters.find(c => c.id === player.avatar) || availableCharacters[0]);
                                     const isOwnAvatar = player.name === playerName;
+                                    const canKick = isMaster && !isOwnAvatar && !isMeta;
                                     return (
+                                        <div key={player.name} className="flex flex-col items-center gap-1">
                                         <div
-                                            key={player.name}
                                             className={`player-avatar relative flex flex-col items-center transition-all ${!isMeta ? 'cursor-pointer' : ''}`}
                                             onClick={() => {
                                                 if (isMeta) return;
-                                                if (isOwnAvatar && !avatarPickerMode) {
-                                                    setSelectedAvatar(player.avatar);
-                                                    setAvatarPickerMode('change');
-                                                } else if (!isOwnAvatar) {
-                                                    setPlayerProfileModal({ ...player, character });
-                                                }
+                                                // Always show player profile when clicking avatar
+                                                setPlayerProfileModal({ ...player, character });
                                             }}
                                         >
-                                            {/* Edit indicator for own avatar */}
+                                            {/* Edit button for own avatar */}
                                             {isOwnAvatar && !isMeta && !avatarPickerMode && (
-                                                <div className="absolute -top-1 -left-1 z-10 bg-cyan-500 rounded-full p-1 shadow-lg">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <button
+                                                    className={`absolute -top-2 -left-2 z-10 ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400' : 'bg-orange-600 hover:bg-orange-500'} rounded-full p-1.5 shadow-lg transition-all hover:scale-110 active:scale-95`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedAvatar(player.avatar);
+                                                        setAvatarPickerMode('change');
+                                                    }}
+                                                    title="Change Avatar"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={theme === 'tron' ? 'black' : 'white'} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                                     </svg>
-                                                </div>
+                                                </button>
+                                            )}
+
+                                            {/* Kick button for master (top-left, red text only) */}
+                                            {canKick && (
+                                                <button
+                                                    className="absolute -top-1 -left-1 z-10 text-red-500 hover:text-red-400 font-bold text-[0.6rem] transition-all hover:scale-110 active:scale-95"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setConfirmKick({ playerName: player.name });
+                                                    }}
+                                                    title="Kick player"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                                    </svg>
+                                                </button>
                                             )}
 
                                             {/* Placement badge */}
@@ -242,14 +260,14 @@ function RoomPage({
                                                 <div className="flex-1 flex items-center justify-center w-full min-h-0">
                                                     <CharacterSVG characterId={character.id} size={80} color={character.color} />
                                                 </div>
-
-                                                {/* "Selecting..." label for meta */}
-                                                {isMeta && (
-                                                    <div className="absolute bottom-0.5 left-0 right-0 text-center">
-                                                        <span className="text-[0.5rem] text-green-400 font-mono" style={{ animation: 'softPulse 2s ease-in-out infinite' }}>Selecting...</span>
-                                                    </div>
-                                                )}
                                             </div>
+
+                                            {/* "Selecting..." label for meta - between avatar and name */}
+                                            {isMeta && (
+                                                <div className="text-center mt-0.5">
+                                                    <span className="text-[0.55rem] text-green-400 font-mono" style={{ animation: 'softPulse 2s ease-in-out infinite' }}>Selecting...</span>
+                                                </div>
+                                            )}
 
                                             {/* Player Name Below */}
                                             <div className={`mt-1 px-2 py-0.5 rounded-full font-semibold text-[0.65rem] md:text-xs flex items-center gap-0.5 ${
@@ -275,10 +293,42 @@ function RoomPage({
                                                 pts: {player.score || 0}
                                             </div>
                                         </div>
+                                        </div>
                                     );
                                 })}
                             </div>
                         </div>
+
+                        {/* Kick Confirmation Modal */}
+                        {confirmKick && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                                <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-sm w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
+                                    <div className="text-center mb-4">
+                                        <div className="text-4xl mb-3">🚪</div>
+                                        <h2 className={`text-xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                                            {theme === 'tron' ? '> KICK_PLAYER' : 'Kick Player?'}
+                                        </h2>
+                                        <p className={`${currentTheme.textSecondary} text-sm`}>
+                                            Are you sure you want to <strong className="text-red-400">kick {confirmKick.playerName}</strong> from the room?
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setConfirmKick(null)}
+                                            className={`flex-1 ${theme === 'tron' ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 hover:bg-purple-300 text-purple-900' : 'bg-gray-800 hover:bg-gray-700 text-orange-400'} font-bold py-3 rounded-xl transition-all`}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => handleKickPlayer(confirmKick.playerName)}
+                                            className={`flex-1 ${theme === 'tron' ? 'bg-red-600 hover:bg-red-500 text-white' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-700 hover:bg-red-600 text-white'} font-bold py-3 rounded-xl transition-all`}
+                                        >
+                                            Kick
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Games + Chat Side-by-Side on md/landscape */}
                         <div className="flex flex-col md:flex-row landscape:flex-row gap-2">

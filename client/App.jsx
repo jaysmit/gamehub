@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { socket } from './socket';
 import { MOCK_GAMES } from './data/games';
 import { themes, rarityConfig } from './data/themes';
+import { MUSIC_TRACKS, DEFAULT_TRACK } from './data/music';
 import { characterAvatars } from './data/characters';
 import { saveSession, loadSession, clearSession } from './utils/session';
 import { getGameIcon, Star, Crown, Users } from './icons/UIIcons';
@@ -93,6 +94,8 @@ function App() {
 
     const devFirstConnect = useRef(true);
     const audioRef = useRef(null);
+    const [musicStarted, setMusicStarted] = useState(false);
+    const [selectedTrack, setSelectedTrack] = useState(DEFAULT_TRACK);
     const qrRef = useRef(null);
     const qrSmallRef = useRef(null);
     const lobbyChatEndRef = useRef(null);
@@ -350,6 +353,67 @@ function App() {
             });
         };
 
+        const onPlayerKicked = (data) => {
+            setCurrentRoom(prev => {
+                if (!prev || prev.id !== data.roomId) return prev;
+                return { ...prev, players: prev.players.filter(p => p.name !== data.playerName) };
+            });
+            // Also update drawing order if in game
+            setDrawingOrder(prev => prev.filter(p => p.name !== data.playerName));
+        };
+
+        const onYouWereKicked = (data) => {
+            clearSession();
+            setCurrentRoom(null);
+            setPage('landing');
+            setIsMaster(false);
+            setError('You were kicked from the room');
+            setTimeout(() => setError(''), 4000);
+        };
+
+        const onDrawerSkipped = (data) => {
+            // Update drawing order to reflect skip (handled via roundResult/nextRound)
+            console.log(`${data.playerName}'s turn was skipped: ${data.reason}`);
+        };
+
+        const onGameSync = (data) => {
+            // Handle gameSync for rejoin - update drawing order and round info
+            if (data.noActiveGame) {
+                // No active game, go to room
+                setPage('room');
+                return;
+            }
+            if (data.drawingOrder) {
+                setDrawingOrder(data.drawingOrder);
+            }
+            if (data.currentRound) {
+                setCurrentRound(data.currentRound);
+            }
+            if (data.totalRounds) {
+                setTotalRounds(data.totalRounds);
+            }
+        };
+
+        const onRoomClosed = (data) => {
+            clearSession();
+            setCurrentRoom(null);
+            setPage('landing');
+            setIsMaster(false);
+            setError(data.reason || 'Room was closed');
+            setTimeout(() => setError(''), 4000);
+        };
+
+        const onRemovedForNoAvatar = (data) => {
+            clearSession();
+            setCurrentRoom(null);
+            setPage('landing');
+            setIsMaster(false);
+            setSelectedAvatar('meta');
+            setAvatarPickerMode(null);
+            setError('You were removed for not selecting an avatar in time');
+            setTimeout(() => setError(''), 4000);
+        };
+
         socket.on('roomCreated', onRoomCreated);
         socket.on('roomJoined', onRoomJoined);
         socket.on('playerJoined', onPlayerJoined);
@@ -364,6 +428,12 @@ function App() {
         socket.on('playerDisconnected', onPlayerDisconnected);
         socket.on('avatarChanged', onAvatarChanged);
         socket.on('scoresUpdated', onScoresUpdated);
+        socket.on('playerKicked', onPlayerKicked);
+        socket.on('youWereKicked', onYouWereKicked);
+        socket.on('drawerSkipped', onDrawerSkipped);
+        socket.on('gameSync', onGameSync);
+        socket.on('roomClosed', onRoomClosed);
+        socket.on('removedForNoAvatar', onRemovedForNoAvatar);
 
         return () => {
             socket.off('roomCreated', onRoomCreated);
@@ -380,6 +450,12 @@ function App() {
             socket.off('playerDisconnected', onPlayerDisconnected);
             socket.off('avatarChanged', onAvatarChanged);
             socket.off('scoresUpdated', onScoresUpdated);
+            socket.off('playerKicked', onPlayerKicked);
+            socket.off('youWereKicked', onYouWereKicked);
+            socket.off('drawerSkipped', onDrawerSkipped);
+            socket.off('gameSync', onGameSync);
+            socket.off('roomClosed', onRoomClosed);
+            socket.off('removedForNoAvatar', onRemovedForNoAvatar);
         };
     }, []);
 
@@ -778,10 +854,34 @@ function App() {
         });
     };
 
+    // Global music playback function
+    const playMusic = useCallback(() => {
+        if (audioRef.current && !isMuted) {
+            audioRef.current.load();
+            audioRef.current.play().catch(err => console.log('Music play failed:', err));
+        }
+    }, [isMuted]);
+
+    // Handle track changes - play new track if music was already started
+    useEffect(() => {
+        if (musicStarted && audioRef.current && !isMuted) {
+            audioRef.current.load();
+            audioRef.current.play().catch(err => console.log('Music play failed:', err));
+        }
+    }, [selectedTrack]);
+
     // Shared props for Header
     const headerProps = {
         theme, currentTheme, page, showMenu, setShowMenu, isMuted, setIsMuted,
         setTheme, goToLanding, devToast,
+        // Music control
+        musicStarted,
+        selectedTrack,
+        onSelectTrack: setSelectedTrack,
+        onStartMusic: () => {
+            playMusic();
+            setMusicStarted(true);
+        },
         // Auth props
         isLoggedIn,
         currentUser: user,
@@ -791,12 +891,14 @@ function App() {
 
     // --- Page Rendering ---
 
-    // Login page
-    if (page === 'login') {
-        return (
-            <>
-                <Header {...headerProps} />
-                <LoginPage
+    // Helper to render page content
+    const renderPageContent = () => {
+        // Login page
+        if (page === 'login') {
+            return (
+                <>
+                    <Header {...headerProps} />
+                    <LoginPage
                     theme={theme}
                     currentTheme={currentTheme}
                     onLogin={handleLogin}
@@ -1052,7 +1154,6 @@ function App() {
                 characterInfoModal={characterInfoModal}
                 setPlayerProfileModal={setPlayerProfileModal}
                 showMasterTips={showMasterTips}
-                audioRef={audioRef}
                 isMuted={isMuted}
                 lobbyChatMessages={lobbyChatMessages}
                 lobbyChatInput={lobbyChatInput}
@@ -1176,6 +1277,21 @@ function App() {
                     currentRoom={currentRoom}
                 />
             )}
+        </>
+    );
+    };
+
+    // Main render with global audio element
+    return (
+        <>
+            {/* Global background music - always present */}
+            <audio
+                ref={audioRef}
+                loop
+                src={selectedTrack?.file || '/assets/music/Audiopanther - Waves.mp3'}
+                muted={isMuted}
+            />
+            {renderPageContent()}
         </>
     );
 }

@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CharacterSVG } from '../icons/CharacterSVGs';
 import { Check } from '../icons/UIIcons';
 import { socket } from '../socket';
-import MusicButton from '../components/MusicButton';
 
 const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds }) => {
     const canvasRef = useRef(null);
-    const audioRef = useRef(null);
+    const chatEndRef = useRef(null);
     const lastPointRef = useRef(null);
     const pickTimerRef = useRef(null);
     const roomIdRef = useRef(currentRoom?.id);
@@ -45,6 +44,17 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     // Keep roomIdRef in sync so timer callbacks never have stale closure
     useEffect(() => { roomIdRef.current = currentRoom?.id; }, [currentRoom?.id]);
 
+    // Request game sync on mount (handles rejoin mid-game after page refresh)
+    useEffect(() => {
+        if (currentRoom?.id) {
+            // Small delay to ensure socket listeners are set up
+            const timer = setTimeout(() => {
+                socket.emit('requestGameSync', { roomId: currentRoom.id });
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, []); // Only run on mount
+
     // Handle visibility change (phone lock, tab switch) - request game sync when returning
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -60,11 +70,18 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
 
     // Handle input focus on mobile - scroll to keep canvas visible
     const handleInputFocus = () => {
-        // Small delay to let keyboard appear, then scroll to top
+        // Longer delay to let mobile keyboard fully appear, then scroll to top
         setTimeout(() => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
+        }, 300);
     };
+
+    // Auto-scroll chat to bottom when new messages arrive
+    useEffect(() => {
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [chatMessages]);
 
     // Countdown timer — runs independently of modal visibility
     useEffect(() => {
@@ -272,11 +289,17 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         };
 
         // Handle game sync for rejoining players mid-game
-        const onGameSync = ({ drawerName: drawer, currentRound, totalRounds, currentPickValue: cpv, paused, timerEndTime, timerRemainingMs }) => {
+        const onGameSync = (data) => {
+            // If no active game, App.jsx will handle redirect to room
+            if (data.noActiveGame) return;
+
+            const { drawerName: drawer, currentPickValue: cpv, paused, timerEndTime, timerRemainingMs } = data;
 
             // Set drawer info
-            setDrawerName(drawer);
-            setIsDrawer(drawer === playerName);
+            if (drawer) {
+                setDrawerName(drawer);
+                setIsDrawer(drawer === playerName);
+            }
             setCurrentPickValue(cpv || 100);
 
             // Hide rules modal since game is already in progress
@@ -410,16 +433,26 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         });
     };
 
-    const startDrawing = (e) => {
-        if (!isDrawer || countdown > 0) return;
-        if (e.touches) e.preventDefault();
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext('2d');
+    // State for kick/skip confirmation
+    const [confirmAction, setConfirmAction] = useState(null); // { type: 'kick'|'skip', playerName: string }
+
+    const getPointerPosition = (e, canvas) => {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
-        const x = ((e.clientX || e.touches?.[0]?.clientX) - rect.left) * scaleX;
-        const y = ((e.clientY || e.touches?.[0]?.clientY) - rect.top) * scaleY;
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    };
+
+    const startDrawing = (e) => {
+        if (!isDrawer || countdown > 0) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        const { x, y } = getPointerPosition(e, canvas);
 
         ctx.beginPath();
         ctx.moveTo(x, y);
@@ -429,14 +462,9 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
 
     const draw = (e) => {
         if (!isDrawing || !isDrawer || countdown > 0) return;
-        if (e.touches) e.preventDefault();
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const x = ((e.clientX || e.touches?.[0]?.clientX) - rect.left) * scaleX;
-        const y = ((e.clientY || e.touches?.[0]?.clientY) - rect.top) * scaleY;
+        const { x, y } = getPointerPosition(e, canvas);
 
         ctx.strokeStyle = drawColor;
         ctx.lineWidth = brushSize;
@@ -462,6 +490,56 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         lastPointRef.current = null;
     };
 
+    // Add non-passive touch event listeners to prevent scrolling while drawing
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const handleTouchStart = (e) => {
+            if (isDrawer && countdown <= 0) {
+                e.preventDefault();
+                startDrawing(e);
+            }
+        };
+
+        const handleTouchMove = (e) => {
+            if (isDrawer && countdown <= 0) {
+                e.preventDefault();
+                draw(e);
+            }
+        };
+
+        const handleTouchEnd = (e) => {
+            stopDrawing();
+        };
+
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('touchstart', handleTouchStart);
+            canvas.removeEventListener('touchmove', handleTouchMove);
+            canvas.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [isDrawer, countdown, isDrawing, drawColor, brushSize, currentRoom?.id]);
+
+    // Kick player from room/game
+    const handleKickPlayer = (targetPlayerName) => {
+        if (currentRoom?.id) {
+            socket.emit('kickPlayer', { roomId: currentRoom.id, playerName: targetPlayerName });
+        }
+        setConfirmAction(null);
+    };
+
+    // Skip player's drawing turn
+    const handleSkipTurn = (targetPlayerName) => {
+        if (currentRoom?.id) {
+            socket.emit('skipPlayerTurn', { roomId: currentRoom.id, playerName: targetPlayerName });
+        }
+        setConfirmAction(null);
+    };
+
     const clearCanvas = () => {
         if (!isDrawer) return;
         const canvas = canvasRef.current;
@@ -479,9 +557,9 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         }
         setChatInput('');
 
-        // Start 3-second cooldown
+        // Start 5-second cooldown
         setGuessCooldown(true);
-        setTimeout(() => setGuessCooldown(false), 3000);
+        setTimeout(() => setGuessCooldown(false), 5000);
     };
 
     const selectWinner = (messageName, timerExpired) => {
@@ -497,50 +575,22 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     };
 
     return (
-        <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-orange-300 via-pink-400 to-purple-500' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} p-4 pt-24 pb-[32vh] md:pb-4`}>
-            {/* Background Music */}
-            <audio ref={audioRef} loop>
-                {theme === 'tron' && (
-                    <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg" />
-                )}
-                {theme === 'kids' && (
-                    <source src="https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3" type="audio/mpeg" />
-                )}
-                {theme === 'scary' && (
-                    <source src="https://assets.mixkit.co/active_storage/sfx/2462/2462-preview.mp3" type="audio/mpeg" />
-                )}
-                Your browser does not support the audio element.
-            </audio>
-
-            <MusicButton audioRef={audioRef} theme={theme} isMuted={isMuted} />
-
+        <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-orange-300 via-pink-400 to-purple-500' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} p-2 pt-16 md:p-4 md:pt-24 pb-[32vh] md:pb-4`}>
             <div className="max-w-7xl mx-auto">
-                {/* Game Header */}
-                <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-lg p-2 ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-400' : 'border border-orange-700'} mb-2`}>
-                    {/* Title row — own row on mobile, inline on desktop */}
-                    <div className="flex items-center justify-center gap-2 md:hidden mb-1">
-                        <h1 className={`text-sm font-bold ${currentTheme.text} ${currentTheme.font} whitespace-nowrap`}>
-                            {theme === 'tron' ? 'PICTIONARY' : theme === 'kids' ? 'Drawing' : 'PICTIONARY'}
-                        </h1>
-                        {isDrawer && (
-                            <div className={`${theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border border-orange-700'} px-2 py-1 rounded-lg flex items-center gap-1`}>
-                                <span className="text-[0.6rem] opacity-70">Word:</span>
-                                <span className="text-xs font-black tracking-wide">{currentWord}</span>
-                            </div>
-                        )}
+                {/* Word to Draw - Compact display for drawer */}
+                {isDrawer && currentWord && (
+                    <div className={`${theme === 'tron' ? 'bg-gradient-to-r from-cyan-500/30 via-cyan-400/40 to-cyan-500/30 border border-cyan-400' : theme === 'kids' ? 'bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400' : 'bg-gradient-to-r from-orange-700/50 via-orange-600/60 to-orange-700/50 border border-orange-500'} rounded-lg px-4 py-1 mb-1 flex items-center justify-center gap-2`}>
+                        <span className={`text-[0.6rem] ${theme === 'tron' ? 'text-cyan-300' : theme === 'kids' ? 'text-white/80' : 'text-orange-300'} uppercase tracking-wider`}>Draw:</span>
+                        <span className={`text-base md:text-lg font-black ${theme === 'tron' ? 'text-cyan-400 tron-text-glow' : theme === 'kids' ? 'text-white' : 'text-orange-400'} tracking-wide animate-pulse`}>
+                            {currentWord}
+                        </span>
                     </div>
-                    {/* Main row — all items on desktop, badges only on mobile */}
-                    <div className="flex items-center justify-between gap-2">
-                        {/* Game Name + Word — desktop only (hidden on mobile, shown above) */}
-                        <h1 className={`hidden md:block text-lg font-bold ${currentTheme.text} ${currentTheme.font} whitespace-nowrap`}>
-                            {theme === 'tron' ? 'PICTIONARY' : theme === 'kids' ? 'Drawing' : 'PICTIONARY'}
-                        </h1>
-                        {isDrawer && (
-                            <div className={`hidden md:flex ${theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border border-orange-700'} px-2 py-1 rounded-lg items-center gap-1`}>
-                                <span className="text-[0.6rem] opacity-70">Word:</span>
-                                <span className="text-sm font-black tracking-wide">{currentWord}</span>
-                            </div>
-                        )}
+                )}
+
+                {/* Game Header */}
+                <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-lg p-1.5 ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-400' : 'border border-orange-700'} mb-1`}>
+                    {/* Main row */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
 
                         {/* Round Indicator */}
                         {totalRounds > 0 && (
@@ -562,16 +612,6 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                             </svg>
                             <span className="text-sm md:text-base font-black">{gameTimer}s</span>
                         </div>
-
-                        {/* End Game - Master only */}
-                        {isMaster && (
-                            <button
-                                onClick={() => setShowEndGameConfirm(true)}
-                                className={`${theme === 'tron' ? 'bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30' : theme === 'kids' ? 'bg-red-400 hover:bg-red-500 text-white' : 'bg-red-700/30 hover:bg-red-700/50 text-red-400 border border-red-700/50'} px-2 py-1 rounded-lg text-[0.6rem] md:text-xs font-bold transition-all`}
-                            >
-                                End Game
-                            </button>
-                        )}
                     </div>
                 </div>
 
@@ -581,39 +621,48 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                     <div>
                         <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl p-4 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-2 border-orange-700'}`}>
                             {isDrawer && (
-                                <div className="flex flex-wrap items-center gap-3 mb-4">
-                                    <div className="flex items-center gap-2">
-                                        <label className={`text-sm font-semibold ${currentTheme.text}`}>Color:</label>
+                                <div className="mb-2">
+                                    {/* Colors Row */}
+                                    <div className="flex items-center justify-center gap-1 mb-1.5">
                                         <input
                                             type="color"
                                             value={drawColor}
                                             onChange={(e) => setDrawColor(e.target.value)}
-                                            className="w-12 h-12 rounded cursor-pointer border-2"
+                                            className="w-6 h-6 rounded cursor-pointer border-0"
                                         />
-                                        <button onClick={() => setDrawColor('#000000')} className="w-8 h-8 bg-black border-2 rounded" title="Black"></button>
-                                        <button onClick={() => setDrawColor('#ff0000')} className="w-8 h-8 bg-red-500 border-2 rounded" title="Red"></button>
-                                        <button onClick={() => setDrawColor('#0000ff')} className="w-8 h-8 bg-blue-500 border-2 rounded" title="Blue"></button>
-                                        <button onClick={() => setDrawColor('#00ff00')} className="w-8 h-8 bg-green-500 border-2 rounded" title="Green"></button>
-                                        <button onClick={() => setDrawColor('#ffffff')} className="w-8 h-8 bg-white border-2 border-gray-400 rounded" title="Eraser (White)"></button>
+                                        <button onClick={() => setDrawColor('#000000')} className={`w-5 h-5 bg-black rounded ${drawColor === '#000000' ? 'ring-2 ring-cyan-400' : 'border border-gray-600'}`} title="Black"></button>
+                                        <button onClick={() => setDrawColor('#ffffff')} className={`w-5 h-5 bg-white rounded ${drawColor === '#ffffff' ? 'ring-2 ring-cyan-400' : 'border border-gray-400'}`} title="Eraser"></button>
+                                        <button onClick={() => setDrawColor('#ff0000')} className={`w-5 h-5 bg-red-500 rounded ${drawColor === '#ff0000' ? 'ring-2 ring-cyan-400' : ''}`} title="Red"></button>
+                                        <button onClick={() => setDrawColor('#ff6b00')} className={`w-5 h-5 bg-orange-500 rounded ${drawColor === '#ff6b00' ? 'ring-2 ring-cyan-400' : ''}`} title="Orange"></button>
+                                        <button onClick={() => setDrawColor('#ffdd00')} className={`w-5 h-5 bg-yellow-400 rounded ${drawColor === '#ffdd00' ? 'ring-2 ring-cyan-400' : ''}`} title="Yellow"></button>
+                                        <button onClick={() => setDrawColor('#00cc00')} className={`w-5 h-5 bg-green-500 rounded ${drawColor === '#00cc00' ? 'ring-2 ring-cyan-400' : ''}`} title="Green"></button>
+                                        <button onClick={() => setDrawColor('#0066ff')} className={`w-5 h-5 bg-blue-500 rounded ${drawColor === '#0066ff' ? 'ring-2 ring-cyan-400' : ''}`} title="Blue"></button>
+                                        <button onClick={() => setDrawColor('#8b00ff')} className={`w-5 h-5 bg-purple-600 rounded ${drawColor === '#8b00ff' ? 'ring-2 ring-cyan-400' : ''}`} title="Purple"></button>
+                                        <button onClick={() => setDrawColor('#ff69b4')} className={`w-5 h-5 bg-pink-400 rounded ${drawColor === '#ff69b4' ? 'ring-2 ring-cyan-400' : ''}`} title="Pink"></button>
+                                        <button onClick={() => setDrawColor('#8b4513')} className={`w-5 h-5 rounded ${drawColor === '#8b4513' ? 'ring-2 ring-cyan-400' : ''}`} style={{backgroundColor: '#8b4513'}} title="Brown"></button>
+                                        <button onClick={() => setDrawColor('#808080')} className={`w-5 h-5 bg-gray-500 rounded ${drawColor === '#808080' ? 'ring-2 ring-cyan-400' : ''}`} title="Gray"></button>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <label className={`text-sm font-semibold ${currentTheme.text}`}>Size:</label>
-                                        <input
-                                            type="range"
-                                            min="1"
-                                            max="20"
-                                            value={brushSize}
-                                            onChange={(e) => setBrushSize(Number(e.target.value))}
-                                            className="w-24"
-                                        />
-                                        <span className={currentTheme.text}>{brushSize}px</span>
+                                    {/* Size and Clear Row */}
+                                    <div className="flex items-center justify-center gap-3">
+                                        <div className="flex items-center gap-1">
+                                            <span className={`${currentTheme.text} text-[0.6rem]`}>Size:</span>
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="20"
+                                                value={brushSize}
+                                                onChange={(e) => setBrushSize(Number(e.target.value))}
+                                                className="w-14"
+                                            />
+                                            <span className={`${currentTheme.text} text-[0.6rem] w-4`}>{brushSize}</span>
+                                        </div>
+                                        <button
+                                            onClick={clearCanvas}
+                                            className={`${theme === 'tron' ? 'bg-red-500/30 hover:bg-red-500/50 text-red-400' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-700/40 hover:bg-red-700/60 text-red-400'} px-2 py-0.5 rounded font-semibold transition-all text-xs`}
+                                        >
+                                            Clear
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={clearCanvas}
-                                        className={`${theme === 'tron' ? 'bg-red-500/30 hover:bg-red-500/50 text-red-400' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-700/40 hover:bg-red-700/60 text-red-400'} px-4 py-2 rounded-lg font-semibold transition-all`}
-                                    >
-                                        Clear
-                                    </button>
                                 </div>
                             )}
                             <div className="relative">
@@ -625,11 +674,8 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                     onMouseMove={draw}
                                     onMouseUp={stopDrawing}
                                     onMouseLeave={stopDrawing}
-                                    onTouchStart={startDrawing}
-                                    onTouchMove={draw}
-                                    onTouchEnd={stopDrawing}
-                                    className={`w-full bg-white rounded-xl ${isDrawer ? 'cursor-crosshair' : 'cursor-not-allowed'} touch-none`}
-                                    style={{ maxHeight: '450px' }}
+                                    className={`w-full bg-white rounded-xl ${isDrawer ? 'cursor-crosshair' : 'cursor-not-allowed'}`}
+                                    style={{ maxHeight: '450px', touchAction: 'none' }}
                                 />
                                 {countdown > 0 && (
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -648,7 +694,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                             {isDrawer ? (theme === 'tron' ? '> GUESSES' : 'Guesses') : (theme === 'tron' ? '> YOUR_GUESS' : 'Your Guess')}
                         </h3>
 
-                        {/* Messages - Visible without scrolling */}
+                        {/* Messages - Oldest at top, newest at bottom, auto-scroll to bottom */}
                         <div className={`flex-1 overflow-y-auto mb-2 space-y-2 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
                             {chatMessages.map((msg, idx) => {
                                 const character = availableCharacters.find(c => c.id === msg.avatar) || availableCharacters[0];
@@ -669,6 +715,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                     </div>
                                 );
                             })}
+                            <div ref={chatEndRef} />
                         </div>
 
                         {/* Winner Announcement */}
@@ -702,7 +749,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                     onChange={(e) => !chatFrozen && setChatInput(e.target.value)}
                                     onKeyPress={(e) => e.key === 'Enter' && !chatFrozen && !guessCooldown && sendMessage()}
                                     onFocus={handleInputFocus}
-                                    placeholder={chatFrozen ? 'Guessing paused...' : guessCooldown ? 'Wait 3s...' : 'Type your guess...'}
+                                    placeholder={chatFrozen ? 'Guessing paused...' : guessCooldown ? 'Wait 5s...' : 'Type your guess...'}
                                     disabled={chatFrozen || guessCooldown}
                                     className={`flex-1 ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300' : 'bg-gray-900 text-orange-400 border border-orange-700/50'} px-4 py-2 rounded-lg focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400' : theme === 'kids' ? 'focus:ring-purple-500' : 'focus:ring-orange-600'} ${chatFrozen || guessCooldown ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 />
@@ -1025,63 +1072,155 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                             const roomPlayer = currentRoom?.players?.find(p => p.name === player.name);
                             const playerScore = roomPlayer?.score || 0;
                             const isDisconnected = roomPlayer?.connected === false;
+                            const isMe = player.name === playerName;
+                            const canManage = isMaster && !isMe;
                             return (
-                                <div
-                                    key={idx}
-                                    className={`${isDisconnected ? 'opacity-50 grayscale' : ''} ${isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-500/30 border-2 border-cyan-400 ring-2 ring-cyan-400 scale-110' : theme === 'kids' ? 'bg-yellow-200 border-2 border-yellow-500 ring-2 ring-yellow-400 scale-110' : 'bg-orange-600/40 border-2 border-orange-500 ring-2 ring-orange-400 scale-110') : isDone ? (theme === 'tron' ? 'bg-gray-800/50 border border-gray-700 opacity-60' : theme === 'kids' ? 'bg-gray-200 border-2 border-gray-300 opacity-60' : 'bg-gray-900/50 border border-gray-700 opacity-60') : (theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50')} rounded-lg p-2 flex items-center gap-2 transition-all relative`}
-                                >
-                                    {/* Order Number / Checkmark Badge */}
-                                    <div className={`absolute -top-2 -left-2 w-5 h-5 md:w-6 md:h-6 rounded-full ${isDone ? (theme === 'tron' ? 'bg-green-600 text-white' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-green-700 text-white') : isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-400 text-black' : theme === 'kids' ? 'bg-yellow-500 text-white' : 'bg-orange-500 text-white') : (theme === 'tron' ? 'bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-400 text-white' : 'bg-gray-800 text-orange-400')} font-bold text-xs flex items-center justify-center`}>
-                                        {isDone ? <Check className="w-3 h-3" /> : orderNumber}
-                                    </div>
+                                <div key={idx} className="flex flex-col items-center gap-1">
+                                    <div
+                                        className={`${isDisconnected ? 'opacity-50 grayscale' : ''} ${isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-500/30 border-2 border-cyan-400 ring-2 ring-cyan-400 scale-110' : theme === 'kids' ? 'bg-yellow-200 border-2 border-yellow-500 ring-2 ring-yellow-400 scale-110' : 'bg-orange-600/40 border-2 border-orange-500 ring-2 ring-orange-400 scale-110') : isDone ? (theme === 'tron' ? 'bg-gray-800/50 border border-gray-700 opacity-60' : theme === 'kids' ? 'bg-gray-200 border-2 border-gray-300 opacity-60' : 'bg-gray-900/50 border border-gray-700 opacity-60') : (theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50')} rounded-lg p-2 flex items-center gap-2 transition-all relative`}
+                                    >
+                                        {/* Order Number / Checkmark Badge */}
+                                        <div className={`absolute -top-2 -left-2 w-5 h-5 md:w-6 md:h-6 rounded-full ${isDone ? (theme === 'tron' ? 'bg-green-600 text-white' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-green-700 text-white') : isCurrentDrawer ? (theme === 'tron' ? 'bg-cyan-400 text-black' : theme === 'kids' ? 'bg-yellow-500 text-white' : 'bg-orange-500 text-white') : (theme === 'tron' ? 'bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-400 text-white' : 'bg-gray-800 text-orange-400')} font-bold text-xs flex items-center justify-center`}>
+                                            {isDone ? <Check className="w-3 h-3" /> : orderNumber}
+                                        </div>
 
-                                    {/* Offline Badge */}
-                                    {isDisconnected && (
-                                        <div className="absolute -top-2 -right-2 w-5 h-5 md:w-6 md:h-6 rounded-full bg-red-600 text-white font-bold text-[0.6rem] flex items-center justify-center" title="Offline">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                <line x1="1" y1="1" x2="23" y2="23"></line>
-                                                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-                                                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-                                                <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-                                                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-                                                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                                                <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                                            </svg>
+                                        {/* Offline Badge */}
+                                        {isDisconnected && (
+                                            <div className="absolute -top-2 -right-2 w-5 h-5 md:w-6 md:h-6 rounded-full bg-red-600 text-white font-bold text-[0.6rem] flex items-center justify-center" title="Offline">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                                    <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                                                    <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                                                    <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                                                    <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                                                    <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                                                    <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                                                </svg>
+                                            </div>
+                                        )}
+
+                                        <div className="w-10 h-10 md:w-12 md:h-12">
+                                            <CharacterSVG characterId={player.avatar} size={48} color={isDisconnected ? '#666' : character.color} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className={`font-bold text-xs md:text-sm ${currentTheme.text} truncate`}>{player.name}</div>
+                                            <div className="text-[0.6rem] md:text-xs font-bold text-yellow-400">{playerScore} pts</div>
+                                            {isDisconnected && (
+                                                <div className="text-[0.6rem] md:text-xs text-red-400 font-semibold">
+                                                    Offline
+                                                </div>
+                                            )}
+                                            {!isDisconnected && isCurrentDrawer && (
+                                                <div className={`text-[0.6rem] md:text-xs ${theme === 'tron' ? 'text-cyan-300' : theme === 'kids' ? 'text-yellow-700' : 'text-orange-400'} font-semibold`}>
+                                                    Drawing Now
+                                                </div>
+                                            )}
+                                            {!isDisconnected && isDone && (
+                                                <div className={`text-[0.6rem] md:text-xs ${theme === 'tron' ? 'text-green-400' : theme === 'kids' ? 'text-green-600' : 'text-green-500'}`}>
+                                                    Done
+                                                </div>
+                                            )}
+                                            {!isDisconnected && isUpNext && (
+                                                <div className={`text-[0.6rem] md:text-xs ${currentTheme.textSecondary}`}>
+                                                    #{orderNumber}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {/* Master-only Kick/Skip buttons */}
+                                    {canManage && (
+                                        <div className="flex gap-1 mt-1">
+                                            {isCurrentDrawer && (
+                                                <button
+                                                    onClick={() => setConfirmAction({ type: 'skip', playerName: player.name })}
+                                                    className={`${theme === 'tron' ? 'bg-yellow-600/80 hover:bg-yellow-600 text-black' : theme === 'kids' ? 'bg-yellow-500 hover:bg-yellow-400 text-white' : 'bg-yellow-700 hover:bg-yellow-600 text-white'} px-2 py-0.5 rounded text-[0.6rem] font-bold transition-all`}
+                                                    title="Skip this player's turn"
+                                                >
+                                                    Skip
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => setConfirmAction({ type: 'kick', playerName: player.name })}
+                                                className={`${theme === 'tron' ? 'bg-red-600/80 hover:bg-red-600 text-white' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-700 hover:bg-red-600 text-white'} px-2 py-0.5 rounded text-[0.6rem] font-bold transition-all`}
+                                                title="Kick player from room"
+                                            >
+                                                Kick
+                                            </button>
                                         </div>
                                     )}
-
-                                    <div className="w-10 h-10 md:w-12 md:h-12">
-                                        <CharacterSVG characterId={player.avatar} size={48} color={isDisconnected ? '#666' : character.color} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className={`font-bold text-xs md:text-sm ${currentTheme.text} truncate`}>{player.name}</div>
-                                        <div className="text-[0.6rem] md:text-xs font-bold text-yellow-400">{playerScore} pts</div>
-                                        {isDisconnected && (
-                                            <div className="text-[0.6rem] md:text-xs text-red-400 font-semibold">
-                                                Offline
-                                            </div>
-                                        )}
-                                        {!isDisconnected && isCurrentDrawer && (
-                                            <div className={`text-[0.6rem] md:text-xs ${theme === 'tron' ? 'text-cyan-300' : theme === 'kids' ? 'text-yellow-700' : 'text-orange-400'} font-semibold`}>
-                                                Drawing Now
-                                            </div>
-                                        )}
-                                        {!isDisconnected && isDone && (
-                                            <div className={`text-[0.6rem] md:text-xs ${theme === 'tron' ? 'text-green-400' : theme === 'kids' ? 'text-green-600' : 'text-green-500'}`}>
-                                                Done
-                                            </div>
-                                        )}
-                                        {!isDisconnected && isUpNext && (
-                                            <div className={`text-[0.6rem] md:text-xs ${currentTheme.textSecondary}`}>
-                                                #{orderNumber}
-                                            </div>
-                                        )}
-                                    </div>
+                                    {/* Master can skip their own turn when drawing */}
+                                    {isMaster && isMe && isCurrentDrawer && (
+                                        <div className="flex gap-1 mt-1">
+                                            <button
+                                                onClick={() => setConfirmAction({ type: 'skipSelf', playerName: player.name })}
+                                                className={`${theme === 'tron' ? 'bg-yellow-600/80 hover:bg-yellow-600 text-black' : theme === 'kids' ? 'bg-yellow-500 hover:bg-yellow-400 text-white' : 'bg-yellow-700 hover:bg-yellow-600 text-white'} px-2 py-0.5 rounded text-[0.6rem] font-bold transition-all`}
+                                                title="Skip your own turn"
+                                            >
+                                                Skip My Turn
+                                            </button>
+                                        </div>
+                                    )}
+                                    {/* End Game button - Master only, below their avatar */}
+                                    {isMaster && isMe && (
+                                        <button
+                                            onClick={() => setShowEndGameConfirm(true)}
+                                            className={`${theme === 'tron' ? 'bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/30' : theme === 'kids' ? 'bg-red-400 hover:bg-red-500 text-white' : 'bg-red-700/30 hover:bg-red-700/50 text-red-400 border border-red-700/50'} px-2 py-0.5 rounded text-[0.6rem] font-bold transition-all mt-1`}
+                                        >
+                                            End Game
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })}
                     </div>
                 </div>
+
+                {/* Kick/Skip Confirmation Modal */}
+                {confirmAction && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                        <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-sm w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
+                            <div className="text-center mb-4">
+                                <div className="text-4xl mb-3">{confirmAction.type === 'kick' ? '🚪' : '⏭️'}</div>
+                                <h2 className={`text-xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                                    {confirmAction.type === 'kick'
+                                        ? (theme === 'tron' ? '> KICK_PLAYER' : 'Kick Player?')
+                                        : confirmAction.type === 'skipSelf'
+                                        ? (theme === 'tron' ? '> SKIP_YOUR_TURN' : 'Skip Your Turn?')
+                                        : (theme === 'tron' ? '> SKIP_TURN' : 'Skip Turn?')
+                                    }
+                                </h2>
+                                <p className={`${currentTheme.textSecondary} text-sm`}>
+                                    {confirmAction.type === 'kick'
+                                        ? <>Are you sure you want to <strong className="text-red-400">kick {confirmAction.playerName}</strong> from the room? They will be removed from the game.</>
+                                        : confirmAction.type === 'skipSelf'
+                                        ? <>Are you sure you want to <strong className="text-yellow-400">skip your own</strong> drawing turn? The next player will draw.</>
+                                        : <>Are you sure you want to <strong className="text-yellow-400">skip {confirmAction.playerName}'s</strong> drawing turn?</>
+                                    }
+                                </p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setConfirmAction(null)}
+                                    className={`flex-1 ${theme === 'tron' ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 hover:bg-purple-300 text-purple-900' : 'bg-gray-800 hover:bg-gray-700 text-orange-400'} font-bold py-3 rounded-xl transition-all`}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => confirmAction.type === 'kick'
+                                        ? handleKickPlayer(confirmAction.playerName)
+                                        : handleSkipTurn(confirmAction.playerName)
+                                    }
+                                    className={`flex-1 ${confirmAction.type === 'kick'
+                                        ? (theme === 'tron' ? 'bg-red-600 hover:bg-red-500 text-white' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-700 hover:bg-red-600 text-white')
+                                        : (theme === 'tron' ? 'bg-yellow-600 hover:bg-yellow-500 text-black' : theme === 'kids' ? 'bg-yellow-500 hover:bg-yellow-400 text-white' : 'bg-yellow-700 hover:bg-yellow-600 text-white')
+                                    } font-bold py-3 rounded-xl transition-all`}
+                                >
+                                    {confirmAction.type === 'kick' ? 'Kick' : 'Skip'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Correct Guesses List */}
                 {correctGuesses.length > 0 && (
