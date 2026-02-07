@@ -41,14 +41,18 @@ function App() {
     const [isMaster, setIsMaster] = useState(false);
     const [showGameSelector, setShowGameSelector] = useState(false);
     const [selectedGames, setSelectedGames] = useState([]);
+    const [completedGames, setCompletedGames] = useState([]); // Array of { gameId, timestamp, scores }
+    const [accumulatedScores, setAccumulatedScores] = useState({}); // { playerName: totalScore } - persists across games
     const [countdown, setCountdown] = useState(3);
     const [currentGameIndex, setCurrentGameIndex] = useState(0);
     const [drawingOrder, setDrawingOrder] = useState([]);
     const [currentRound, setCurrentRound] = useState(0);
     const [totalRounds, setTotalRounds] = useState(0);
+    const [gameType, setGameType] = useState('pictionary');  // 'pictionary' or 'trivia'
     const [error, setError] = useState('');
     const [showMenu, setShowMenu] = useState(false);
     const [theme, setTheme] = useState('tron');
+    const [pendingSession, setPendingSession] = useState(() => loadSession());
     const [isMuted, setIsMuted] = useState(false);
     const [numPlayers, setNumPlayers] = useState('');
     const [ageRange, setAgeRange] = useState('');
@@ -173,6 +177,7 @@ function App() {
 
         const onRejoinFailed = (data) => {
             clearSession();
+            setPendingSession(null);  // Clear pending session to hide rejoin button
             setPage('landing');
             setIsMaster(false);
             setError(data.message || 'Could not rejoin room');
@@ -210,6 +215,8 @@ function App() {
             setCurrentRoom(room);
             setIsMaster(true);
             setSelectedGames(room.selectedGames || []);
+            setCompletedGames([]); // Reset completed games for new room
+            setAccumulatedScores({}); // Reset accumulated scores for new room
             setPage('room');
             setShowCreateInput(false);
             setAvatarPickerMode('initial');
@@ -219,6 +226,8 @@ function App() {
             setCurrentRoom(room);
             setIsMaster(false);
             setSelectedGames(room.selectedGames || []);
+            setCompletedGames([]); // Reset completed games for new room
+            setAccumulatedScores({}); // Reset accumulated scores for new room
             setPage('room');
             setShowJoinInput(false);
             setAvatarPickerMode('initial');
@@ -248,6 +257,7 @@ function App() {
                 setDrawingOrder(data.drawingOrder || []);
                 setTotalRounds(data.totalRounds || 0);
                 setCurrentRound(data.currentRound || 1);
+                setGameType(data.gameType || 'pictionary');
                 setCountdown(3);
                 setPage('countdown');
                 let count = 3;
@@ -269,7 +279,40 @@ function App() {
         };
 
         const onGameEnded = (data) => {
+            console.log('[DEBUG] gameEnded received:', JSON.stringify(data?.finalScores, null, 2));
             if (data?.gameHistory) setGameHistory(data.gameHistory);
+            // Update accumulated scores from finalScores (persists across games in room session)
+            // This is separate from currentRoom.players[].score which gets reset each game
+            if (data?.finalScores && data.finalScores.length > 0) {
+                setAccumulatedScores(prev => {
+                    const updated = { ...prev };
+                    data.finalScores.forEach(sp => {
+                        updated[sp.name] = (updated[sp.name] || 0) + sp.score;
+                    });
+                    console.log('[DEBUG] Updated accumulatedScores:', JSON.stringify(updated, null, 2));
+                    return updated;
+                });
+            }
+            // Mark current game as completed (use the game that was played based on currentGameIndex)
+            setSelectedGames(prev => {
+                const currentGame = prev[0]; // First game in queue was played
+                if (currentGame && !data?.cancelled) {
+                    // Get the latest game history entry for this game's scores
+                    const latestGameHistory = data?.gameHistory?.[data.gameHistory.length - 1];
+                    setCompletedGames(prevCompleted => [
+                        ...prevCompleted,
+                        {
+                            gameId: currentGame,
+                            timestamp: Date.now(),
+                            finalScores: latestGameHistory?.finalScores || data?.finalScores || [],
+                            roundScores: latestGameHistory?.roundScores || {}
+                        }
+                    ]);
+                    // Remove the completed game from selected games
+                    return prev.slice(1);
+                }
+                return prev;
+            });
             setPage('room');
             setDrawingOrder([]);
             setCurrentRound(0);
@@ -414,6 +457,18 @@ function App() {
             setTimeout(() => setError(''), 4000);
         };
 
+        const onPlayerAfkChanged = (data) => {
+            setCurrentRoom(prev => {
+                if (!prev || prev.id !== data.roomId) return prev;
+                return {
+                    ...prev,
+                    players: prev.players.map(p =>
+                        p.name === data.playerName ? { ...p, isAfk: data.isAfk } : p
+                    )
+                };
+            });
+        };
+
         socket.on('roomCreated', onRoomCreated);
         socket.on('roomJoined', onRoomJoined);
         socket.on('playerJoined', onPlayerJoined);
@@ -434,6 +489,7 @@ function App() {
         socket.on('gameSync', onGameSync);
         socket.on('roomClosed', onRoomClosed);
         socket.on('removedForNoAvatar', onRemovedForNoAvatar);
+        socket.on('playerAfkChanged', onPlayerAfkChanged);
 
         return () => {
             socket.off('roomCreated', onRoomCreated);
@@ -456,6 +512,7 @@ function App() {
             socket.off('gameSync', onGameSync);
             socket.off('roomClosed', onRoomClosed);
             socket.off('removedForNoAvatar', onRemovedForNoAvatar);
+            socket.off('playerAfkChanged', onPlayerAfkChanged);
         };
     }, []);
 
@@ -466,6 +523,31 @@ function App() {
         mq.addEventListener('change', handler);
         return () => mq.removeEventListener('change', handler);
     }, []);
+
+    // Track AFK status based on visibility and page
+    useEffect(() => {
+        if (!currentRoom?.id) return;
+        const roomId = currentRoom.id; // Capture for cleanup
+        const isInRoom = page === 'room' || page === 'game';
+
+        const handleVisibilityChange = () => {
+            const isAfk = document.hidden || !isInRoom;
+            socket.emit('setAfkStatus', { roomId, isAfk });
+        };
+
+        // Set initial AFK status
+        const isAfk = document.hidden || !isInRoom;
+        socket.emit('setAfkStatus', { roomId, isAfk });
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            // Emit AFK when leaving room/game pages (cleanup runs with captured values)
+            if (isInRoom) {
+                socket.emit('setAfkStatus', { roomId, isAfk: true });
+            }
+        };
+    }, [currentRoom?.id, page]);
 
     // Auto-fill room code from URL parameter
     useEffect(() => {
@@ -627,6 +709,25 @@ function App() {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
         }
+    };
+
+    // Leave room voluntarily (clears session)
+    const handleLeaveRoom = () => {
+        if (currentRoom?.id) {
+            socket.emit('leaveRoom', { roomId: currentRoom.id });
+        }
+        clearSession();
+        setCurrentRoom(null);
+        setPage('landing');
+        setIsMaster(false);
+        setShowMenu(false);
+        setShowCreateInput(false);
+        setShowJoinInput(false);
+        setSelectedGames([]);
+        setAvatarPickerMode(null);
+        setSelectedAvatar('meta');
+        setLobbyChatMessages([]);
+        setGameHistory([]);
     };
 
     // Navigation helper
@@ -832,6 +933,7 @@ function App() {
 
         socket.once('rejoinFailed', (data) => {
             clearSession();
+            setPendingSession(null);  // Clear pending session to hide rejoin button
             setPage('landing');
             setIsMaster(false);
             setError(data.message || 'Room no longer available');
@@ -839,16 +941,17 @@ function App() {
         });
     };
 
-    const handleDismissSession = () => {
+    const handleDismissSession = useCallback(() => {
         const session = loadSession();
         if (session && session.roomId) {
             // Notify server that user is leaving
             socket.emit('leaveRoom', { roomId: session.roomId });
         }
         clearSession();
+        setPendingSession(null);  // Clear the pending session state to hide rejoin button
         setCurrentRoom(null);
         setIsMaster(false);
-    };
+    }, []);
 
     const toggleTheme = () => {
         setTheme(prev => {
@@ -1016,6 +1119,11 @@ function App() {
                 DaftPunkRobotHead={DaftPunkRobotHead}
                 DaftPunkHelmet={DaftPunkHelmet}
                 WerewolfHowlingIcon={WerewolfHowlingIcon}
+                onTimeout={() => {
+                    // Redirect to landing page after timeout
+                    setCurrentRoom(null);
+                    setPage('landing');
+                }}
             />
         );
     }
@@ -1027,7 +1135,7 @@ function App() {
                 <LandingPage
                     theme={theme}
                     currentTheme={currentTheme}
-                    pendingSession={loadSession()}
+                    pendingSession={pendingSession}
                     handleRejoinFromLanding={handleRejoinFromLanding}
                     handleDismissSession={handleDismissSession}
                     roomName={roomName}
@@ -1113,6 +1221,7 @@ function App() {
                     drawingOrder={drawingOrder}
                     currentRound={currentRound}
                     totalRounds={totalRounds}
+                    gameType={gameType}
                 />
             </>
         );
@@ -1164,6 +1273,7 @@ function App() {
                 setPlayerProfileModal={setPlayerProfileModal}
                 showMasterTips={showMasterTips}
                 isMuted={isMuted}
+                handleLeaveRoom={handleLeaveRoom}
                 lobbyChatMessages={lobbyChatMessages}
                 lobbyChatInput={lobbyChatInput}
                 setLobbyChatInput={setLobbyChatInput}
@@ -1186,6 +1296,9 @@ function App() {
                 StarRating={StarRating}
                 CharacterSVG={CharacterSVG}
                 Crown={Crown}
+                completedGames={completedGames}
+                setCompletedGames={setCompletedGames}
+                accumulatedScores={accumulatedScores}
             />
 
             {/* Modals */}

@@ -161,6 +161,41 @@
             100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
         }
 
+        /* Winner celebration animations */
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes scaleIn {
+            0% { opacity: 0; transform: scale(0.5); }
+            50% { transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .animate-scaleIn {
+            animation: scaleIn 0.6s ease-out forwards;
+        }
+
+        @keyframes confetti {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+        .animate-confetti {
+            animation: confetti 4s ease-in-out infinite;
+        }
+
+        @keyframes goldCoin {
+            0% { transform: translateY(-100vh) rotateY(0deg); opacity: 1; }
+            50% { opacity: 1; }
+            100% { transform: translateY(100vh) rotateY(1080deg); opacity: 0; }
+        }
+        .animate-goldCoin {
+            animation: goldCoin 3s ease-in-out infinite;
+        }
+
         @media (max-width: 767px) {
             .player-avatar {
                 transform: scale(0.7);

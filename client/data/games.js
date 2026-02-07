@@ -8,7 +8,8 @@ export const MOCK_GAMES = [
         description: 'Test your knowledge across multiple categories. Fast-paced questions with real-time scoring.',
         youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         players: '2-8',
-        ageMin: 10
+        ageMin: 10,
+        gameType: 'trivia'
     },
     {
         id: 2,
@@ -19,7 +20,8 @@ export const MOCK_GAMES = [
         description: 'Draw and guess in this creative multiplayer game. Perfect for artists and doodlers alike!',
         youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         players: '3-10',
-        ageMin: 6
+        ageMin: 6,
+        gameType: 'pictionary'
     },
     {
         id: 3,
@@ -52,7 +54,8 @@ export const MOCK_GAMES = [
         description: 'Solve math problems faster than your opponents. Educational and exciting!',
         youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         players: '1-8',
-        ageMin: 7
+        ageMin: 7,
+        gameType: 'quickmath'
     },
     {
         id: 6,

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Home, User, Settings, HelpCircle, LogOut, Palette, Users } from '../icons/UIIcons';
+import { Menu, Home, User, Settings, HelpCircle, LogOut, Palette, Users, MusicIcon } from '../icons/UIIcons';
 import { DaftPunkRobotHead, DaftPunkHelmet, WerewolfHowlingIcon } from '../icons/ThemeLogos';
 import { MUSIC_TRACKS } from '../data/music';
 
@@ -79,6 +79,10 @@ function Header({
         if (!musicStarted) {
             onStartMusic();
         }
+        // Unmute when selecting a track
+        if (isMuted) {
+            setIsMuted(false);
+        }
         setShowMusicMenu(false);
     };
 
@@ -127,55 +131,41 @@ function Header({
                             </div>
                         </div>
 
-                        {/* Music Button with Dropdown */}
+                        {/* Mute/Unmute Button */}
+                        <button
+                            onClick={() => setIsMuted(!isMuted)}
+                            className={`w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700'} rounded-xl flex items-center justify-center transition-all hover:scale-105`}
+                            title={isMuted ? "Unmute" : "Mute"}
+                        >
+                            {isMuted ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                                </svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                </svg>
+                            )}
+                        </button>
+
+                        {/* Music Select Button with Dropdown */}
                         <div className="relative" ref={musicMenuRef}>
                             <button
                                 onClick={() => setShowMusicMenu(!showMusicMenu)}
                                 className={`w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 ${theme === 'tron' ? 'bg-cyan-500/20 tron-border text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700'} rounded-xl flex items-center justify-center transition-all hover:scale-105 ${!musicStarted && !isMuted ? 'animate-pulse' : ''}`}
-                                title="Music Settings"
+                                title="Select Music"
                             >
-                                {isMuted ? (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                        <line x1="23" y1="9" x2="17" y2="15"></line>
-                                        <line x1="17" y1="9" x2="23" y2="15"></line>
-                                    </svg>
-                                ) : (
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                    </svg>
-                                )}
+                                <MusicIcon className="w-5 h-5" />
                             </button>
 
                             {/* Music Dropdown */}
                             {showMusicMenu && (
                                 <div className={`absolute top-full right-0 mt-2 w-36 ${currentTheme.cardBg} backdrop-blur-xl rounded-xl ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-2 border-purple-300' : 'border-2 border-orange-700'} shadow-2xl overflow-hidden z-50`}>
                                     <div className="p-1.5">
-                                        {/* Mute/Unmute Toggle */}
-                                        <button
-                                            onClick={() => {
-                                                setIsMuted(!isMuted);
-                                                setShowMusicMenu(false);
-                                            }}
-                                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium ${isMuted ? (theme === 'tron' ? 'text-red-400' : 'text-red-500') : (theme === 'tron' ? 'text-green-400' : 'text-green-500')} hover:bg-white/10 transition-all`}
-                                        >
-                                            {isMuted ? (
-                                                <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
-                                                    Unmute
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                                                    Mute
-                                                </>
-                                            )}
-                                        </button>
-
-                                        <div className={`my-1 border-t ${theme === 'tron' ? 'border-cyan-500/30' : theme === 'kids' ? 'border-purple-300' : 'border-orange-700/50'}`}></div>
-
                                         {/* Track List */}
                                         {MUSIC_TRACKS.map((track) => (
                                             <button

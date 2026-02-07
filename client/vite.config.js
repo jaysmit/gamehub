@@ -14,6 +14,9 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
       },
+      '/assets': {
+        target: 'http://localhost:3000',
+      },
     },
   },
   build: {

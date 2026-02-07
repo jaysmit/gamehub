@@ -55,12 +55,18 @@ function PlayerProfile({
     // Compute per-player game history
     const playerGameHistory = gameHistory.map((entry, gameIdx) => {
         const playerRoundScores = entry.roundScores?.[p.name] || [];
-        if (playerRoundScores.length === 0) {
-            // Check if player appears in finalScores with score > 0
-            const inFinal = entry.finalScores?.find(f => f.name === p.name);
-            if (!inFinal || inFinal.score === 0) return null;
-        }
-        const total = playerRoundScores.reduce((sum, rs) => sum + rs.points, 0);
+        const playerFinalScore = entry.finalScores?.find(f => f.name === p.name);
+
+        // Skip if player wasn't in this game
+        if (!playerFinalScore && playerRoundScores.length === 0) return null;
+
+        // Calculate total from roundScores if available, otherwise use finalScores
+        const roundTotal = playerRoundScores.reduce((sum, rs) => sum + rs.points, 0);
+        const total = roundTotal > 0 ? roundTotal : (playerFinalScore?.score || 0);
+
+        // Skip if player has 0 points
+        if (total === 0) return null;
+
         const position = (entry.finalScores || []).findIndex(f => f.name === p.name) + 1;
 
         // Group by round and sum points
@@ -70,7 +76,7 @@ function PlayerProfile({
         });
         const roundSummary = Object.entries(roundGroups)
             .sort(([a], [b]) => Number(a) - Number(b))
-            .map(([round, pts]) => `round ${round}: ${pts}pts`);
+            .map(([round, pts]) => `R${round}: ${pts}pts`);
 
         return {
             gameNumber: gameIdx + 1,

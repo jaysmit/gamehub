@@ -77,10 +77,22 @@ function RoomPage({
     showMasterTips,
     setShowMasterTips,
     // Other
-    isMuted
+    isMuted,
+    handleLeaveRoom,
+    // Completed games
+    completedGames = [],
+    setCompletedGames,
+    // Accumulated scores across all games
+    accumulatedScores = {}
 }) {
     // State for kick confirmation
     const [confirmKick, setConfirmKick] = useState(null); // { playerName: string }
+    // State for leave room confirmation
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+    // State for AFK info modal
+    const [afkInfoPlayer, setAfkInfoPlayer] = useState(null); // { playerName: string }
+    // State for completed game score breakdown modal
+    const [selectedCompletedGame, setSelectedCompletedGame] = useState(null); // { gameId, finalScores, roundScores }
 
     
     
@@ -95,7 +107,7 @@ function RoomPage({
         return <div className="flex items-center gap-1">{stars} <span className="text-xs ml-1">{rating}</span></div>;
     };
 
-    const hasGamesPlayed = (currentRoom?.players || []).some(p => (p.score || 0) > 0);
+    const hasGamesPlayed = Object.values(accumulatedScores).some(score => score > 0);
 
     // Kick player from room
     const handleKickPlayer = (targetPlayerName) => {
@@ -113,7 +125,24 @@ function RoomPage({
                         <div className="flex items-stretch gap-2 md:gap-3 mb-2 md:mb-3">
                             {/* Left - Title + Room ID */}
                             <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                <div id="room-title" className="mb-1 md:mb-2 text-center">
+                                <div id="room-title" className="mb-1 md:mb-2 text-center relative">
+                                    {/* Leave Room button */}
+                                    <button
+                                        onClick={() => setShowLeaveConfirm(true)}
+                                        className={`absolute top-0 left-0 flex items-center gap-1 px-2 py-1 rounded-lg text-[0.6rem] md:text-xs font-semibold transition-all hover:scale-105 ${
+                                            theme === 'tron' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30' :
+                                            theme === 'kids' ? 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-300' :
+                                            'bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-700/50'
+                                        }`}
+                                        title="Leave Room"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                            <polyline points="16 17 21 12 16 7"></polyline>
+                                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                                        </svg>
+                                        <span className="hidden md:inline">Leave</span>
+                                    </button>
                                     {isMaster && <Crown className={`mx-auto mb-1 w-6 h-6 md:w-10 md:h-10 ${theme === 'tron' ? 'text-cyan-400' : theme === 'scary' ? 'text-orange-500' : 'text-yellow-400'}`} />}
                                     <h1 className={`text-xl md:text-2xl lg:text-3xl font-bold ${currentTheme.text} ${currentTheme.font} ${theme === 'tron' ? 'tron-text-glow' : ''} break-words overflow-hidden`}>
                                         {currentRoom?.name}
@@ -173,7 +202,7 @@ function RoomPage({
                                 {theme === 'tron' ? 'CONNECTED_PLAYERS' : theme === 'kids' ? 'Players in the Room' : 'SUMMONED SOULS'} ({currentRoom?.players.length})
                             </h3>
                             <div className="flex flex-wrap justify-center gap-2 md:gap-4">
-                                {[...(currentRoom?.players || [])].sort((a, b) => (b.score || 0) - (a.score || 0)).map((player, idx) => {
+                                {[...(currentRoom?.players || [])].sort((a, b) => (accumulatedScores[b.name] || 0) - (accumulatedScores[a.name] || 0)).map((player, idx) => {
                                     const isMeta = player.avatar === 'meta';
                                     const character = isMeta
                                         ? { id: 'meta', name: 'Joining...', color: '#06b6d4' }
@@ -235,6 +264,25 @@ function RoomPage({
                                                 </div>
                                             )}
 
+                                            {/* AFK badge */}
+                                            {player.isAfk && !isMeta && !isOwnAvatar && (
+                                                <button
+                                                    className={`absolute -top-2 -right-2 z-20 px-1.5 py-0.5 rounded-full font-bold text-[0.55rem] shadow-lg ${
+                                                        theme === 'tron' ? 'bg-cyan-500/80 text-black border border-cyan-400' :
+                                                        theme === 'kids' ? 'bg-yellow-400 text-yellow-900' :
+                                                        'bg-orange-500/80 text-black border border-orange-400'
+                                                    } hover:scale-110 transition-transform`}
+                                                    style={theme === 'tron' ? { boxShadow: '0 0 10px rgba(6, 182, 212, 0.5)' } : undefined}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setAfkInfoPlayer({ playerName: player.name });
+                                                    }}
+                                                    title="Player is AFK"
+                                                >
+                                                    AFK
+                                                </button>
+                                            )}
+
                                             {/* Character Card */}
                                             <div
                                                 className={`w-28 h-32 md:w-28 md:h-32 lg:w-32 lg:h-36 landscape:w-24 landscape:h-28 rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center ${
@@ -245,7 +293,7 @@ function RoomPage({
                                                             : theme === 'kids'
                                                                 ? 'bg-gradient-to-br from-purple-200 to-pink-200'
                                                                 : 'bg-gradient-to-br from-gray-900 to-orange-950/50'
-                                                }`}
+                                                } ${player.isAfk && !isOwnAvatar ? 'opacity-60' : ''}`}
                                                 style={{
                                                     boxShadow: isMeta
                                                         ? '0 0 15px rgba(34,197,94,0.3)'
@@ -257,7 +305,7 @@ function RoomPage({
                                                 }}
                                             >
                                                 {/* Character SVG */}
-                                                <div className="flex-1 flex items-center justify-center w-full min-h-0">
+                                                <div className={`flex-1 flex items-center justify-center w-full min-h-0 ${player.isAfk && !isOwnAvatar ? 'grayscale' : ''}`}>
                                                     <CharacterSVG characterId={character.id} size={80} color={character.color} />
                                                 </div>
                                             </div>
@@ -290,7 +338,7 @@ function RoomPage({
                                                         ? 'bg-white/80 text-purple-500'
                                                         : 'bg-gray-900/60 text-orange-300'
                                             }`}>
-                                                pts: {player.score || 0}
+                                                pts: {accumulatedScores[player.name] || 0}
                                             </div>
                                         </div>
                                         </div>
@@ -330,29 +378,131 @@ function RoomPage({
                             </div>
                         )}
 
+                        {/* Leave Room Confirmation Modal */}
+                        {showLeaveConfirm && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                                <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-sm w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
+                                    <div className="text-center mb-4">
+                                        <div className="text-4xl mb-3">👋</div>
+                                        <h2 className={`text-xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                                            {theme === 'tron' ? '> LEAVE_ROOM' : 'Leave Room?'}
+                                        </h2>
+                                        <p className={`${currentTheme.textSecondary} text-sm`}>
+                                            {isMaster
+                                                ? 'As the room master, leaving will close the room for everyone.'
+                                                : 'Are you sure you want to leave this room?'
+                                            }
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => setShowLeaveConfirm(false)}
+                                            className={`flex-1 ${theme === 'tron' ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 hover:bg-purple-300 text-purple-900' : 'bg-gray-800 hover:bg-gray-700 text-orange-400'} font-bold py-3 rounded-xl transition-all`}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setShowLeaveConfirm(false);
+                                                handleLeaveRoom();
+                                            }}
+                                            className={`flex-1 ${theme === 'tron' ? 'bg-red-600 hover:bg-red-500 text-white' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-700 hover:bg-red-600 text-white'} font-bold py-3 rounded-xl transition-all`}
+                                        >
+                                            Leave
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* AFK Info Modal */}
+                        {afkInfoPlayer && (
+                            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setAfkInfoPlayer(null)}>
+                                <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-sm w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`} onClick={(e) => e.stopPropagation()}>
+                                    <div className="text-center mb-4">
+                                        <div className={`text-4xl mb-3 ${theme === 'tron' ? 'text-yellow-400' : theme === 'kids' ? 'text-yellow-500' : 'text-yellow-500'}`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                            </svg>
+                                        </div>
+                                        <h2 className={`text-xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                                            {theme === 'tron' ? '> PLAYER_AFK' : 'Player Away'}
+                                        </h2>
+                                        <p className={`${currentTheme.textSecondary} text-sm mb-2`}>
+                                            <strong className={theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}>{afkInfoPlayer.playerName}</strong> is currently not in the game room.
+                                        </p>
+                                        <p className={`${currentTheme.textSecondary} text-xs`}>
+                                            They may be on another page or their device is inactive. They could be trying to reconnect.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setAfkInfoPlayer(null)}
+                                        className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all`}
+                                    >
+                                        {theme === 'tron' ? '[ OK ]' : 'Got it'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Games + Chat Side-by-Side on md/landscape */}
                         <div className="flex flex-col md:flex-row landscape:flex-row gap-2">
                             {/* Selected Games Section */}
                             <div id="room-selected-games" className={`md:w-1/2 landscape:w-1/2 flex flex-col ${theme === 'tron' ? 'bg-gray-900/50 border border-cyan-500/30' : theme === 'kids' ? 'bg-white/70 border-2 md:border-4 border-purple-300' : 'bg-gray-950/80 border-2 border-orange-700/50'} rounded-xl md:rounded-2xl p-2 md:p-3`}>
                                 <h3 className={`text-sm md:text-base lg:text-lg font-bold ${currentTheme.text} mb-2 md:mb-3 flex items-center gap-2 ${currentTheme.font}`}>
                                     <Gamepad2 className="w-5 h-5 md:w-6 md:h-6" />
-                                    <span className="truncate">{theme === 'tron' ? 'SELECTED_GAMES' : theme === 'kids' ? 'Selected Games' : 'CHOSEN HORRORS'}</span>
-                                    <span className="whitespace-nowrap">({selectedGames.length})</span>
+                                    <span className="truncate">{theme === 'tron' ? 'GAME_QUEUE' : theme === 'kids' ? 'Game Queue' : 'GAME QUEUE'}</span>
+                                    <span className="whitespace-nowrap">({completedGames.length + selectedGames.length})</span>
                                 </h3>
                                 <div className={`flex-1 overflow-y-auto md:max-h-72 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
                                     <div className="grid grid-cols-1 gap-3">
-                                        {selectedGames.length === 0 ? (
+                                        {/* Show completed games first */}
+                                        {completedGames.map((completed, idx) => {
+                                            const game = MOCK_GAMES.find(g => g.id === completed.gameId);
+                                            return (
+                                                <div
+                                                    key={`completed-${idx}`}
+                                                    onClick={() => setSelectedCompletedGame(completed)}
+                                                    className={`${theme === 'tron' ? 'border border-gray-600/50 bg-gray-800/30' : theme === 'kids' ? 'border-2 border-gray-300 bg-gray-100/50' : 'border border-gray-700/50 bg-gray-900/30'} rounded-lg p-4 opacity-60 cursor-pointer hover:opacity-80 transition-all`}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="text-gray-500">
+                                                            {getGameIcon(game?.id, 'w-8 h-8')}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-gray-500 font-bold text-sm mb-1">{game?.name}</div>
+                                                            <div className={`text-xs font-bold ${theme === 'tron' ? 'text-green-500' : theme === 'kids' ? 'text-green-600' : 'text-green-500'} flex items-center gap-1`}>
+                                                                <Check className="w-3 h-3" /> Complete
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {/* Show upcoming games */}
+                                        {selectedGames.length === 0 && completedGames.length === 0 ? (
                                             <p className={`${currentTheme.textSecondary} text-sm col-span-full text-center py-4`}>
                                                 {theme === 'tron' ? '> No games selected' : theme === 'kids' ? 'No games selected yet' : '> The chamber awaits...'}
                                             </p>
                                         ) : (
-                                            selectedGames.map((gameId) => {
+                                            selectedGames.map((gameId, idx) => {
                                                 const game = MOCK_GAMES.find(g => g.id === gameId);
+                                                const isUpNext = idx === 0;
                                                 return (
                                                     <div
                                                         key={gameId}
-                                                        className={`${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} rounded-lg p-4`}
+                                                        className={`${isUpNext
+                                                            ? (theme === 'tron' ? 'border-2 border-cyan-400 bg-cyan-500/10 ring-2 ring-cyan-400/50' : theme === 'kids' ? 'border-2 border-purple-500 bg-purple-100 ring-2 ring-purple-400/50' : 'border-2 border-orange-500 bg-orange-900/20 ring-2 ring-orange-500/50')
+                                                            : (theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50')
+                                                        } rounded-lg p-4 transition-all`}
                                                     >
+                                                        {isUpNext && (
+                                                            <div className={`text-xs font-bold mb-2 ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}`}>
+                                                                {theme === 'tron' ? '> UP_NEXT!' : 'Up Next!'} {!isMaster && 'Waiting for Game Master to start...'}
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-start gap-3">
                                                             <div className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-500'}`}>
                                                                 {getGameIcon(game?.id, 'w-8 h-8')}
@@ -471,7 +621,10 @@ function RoomPage({
                             >
                                 <span className="flex items-center justify-center gap-2 text-base">
                                     <Play className="w-5 h-5" />
-                                    {theme === 'tron' ? '[ START_GAME ]' : theme === 'kids' ? 'Start Game! 🚀' : 'START GAME 💀'}
+                                    {completedGames.length > 0
+                                        ? (theme === 'tron' ? '[ START_NEXT ]' : theme === 'kids' ? 'Start Next Game! 🚀' : 'START NEXT GAME 💀')
+                                        : (theme === 'tron' ? '[ START_GAME ]' : theme === 'kids' ? 'Start Game! 🚀' : 'START GAME 💀')
+                                    }
                                 </span>
                             </button>
                         </div>
@@ -733,6 +886,11 @@ function RoomPage({
                                                         <Check className="w-3 h-3 md:w-4 md:h-4 text-white" strokeWidth={3} />
                                                     </div>
                                                 )}
+                                                {completedGames.some(cg => cg.gameId === game.id) && !selectedGames.includes(game.id) && (
+                                                    <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[0.5rem] font-bold ${theme === 'tron' ? 'bg-green-500/80 text-black' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-green-600/80 text-white'}`}>
+                                                        Played
+                                                    </div>
+                                                )}
                                             </button>
                                             <div className={`p-1 md:p-1.5 ${theme === 'tron' ? 'bg-cyan-900/20 border-t border-cyan-500/30' : theme === 'scary' ? 'bg-orange-900/20 border-t border-orange-700/30' : 'bg-white/90 border-t border-purple-200'}`}>
                                                 <div className="flex gap-1">
@@ -830,6 +988,124 @@ function RoomPage({
                             >
                                 Close
                             </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Completed Game Score Breakdown Modal */}
+                {selectedCompletedGame && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedCompletedGame(null)}>
+                        <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`} onClick={(e) => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className={`${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-500'}`}>
+                                    {getGameIcon(selectedCompletedGame.gameId, 'w-12 h-12')}
+                                </div>
+                                <div>
+                                    <h3 className={`text-xl md:text-2xl font-bold ${currentTheme.text} ${currentTheme.font}`}>
+                                        {MOCK_GAMES.find(g => g.id === selectedCompletedGame.gameId)?.name || 'Game'} - Results
+                                    </h3>
+                                    <div className={`text-xs ${theme === 'tron' ? 'text-green-400' : theme === 'kids' ? 'text-green-600' : 'text-green-500'} flex items-center gap-1`}>
+                                        <Check className="w-3 h-3" /> Completed
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Score Table */}
+                            <div className={`flex-1 overflow-y-auto ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className={`border-b ${theme === 'tron' ? 'border-cyan-500/30' : theme === 'kids' ? 'border-purple-300' : 'border-orange-700/50'}`}>
+                                            <th className={`text-left py-2 px-2 ${currentTheme.text} text-sm font-bold`}>Player</th>
+                                            <th className={`text-center py-2 px-1 ${currentTheme.textSecondary} text-xs font-semibold`}>R1</th>
+                                            <th className={`text-center py-2 px-1 ${currentTheme.textSecondary} text-xs font-semibold`}>R2</th>
+                                            <th className={`text-center py-2 px-1 ${currentTheme.textSecondary} text-xs font-semibold`}>R3</th>
+                                            <th className={`text-center py-2 px-1 ${currentTheme.textSecondary} text-xs font-semibold`}>Speed</th>
+                                            <th className={`text-right py-2 px-2 ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'} text-sm font-bold`}>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {(() => {
+                                            // Build player data from finalScores and roundScores
+                                            const playerData = [];
+                                            const finalScores = selectedCompletedGame.finalScores || [];
+                                            const roundScores = selectedCompletedGame.roundScores || {};
+
+                                            // Get all player names from finalScores
+                                            finalScores.forEach(fs => {
+                                                const playerRoundScores = roundScores[fs.name] || [];
+                                                const r1 = playerRoundScores.filter(rs => rs.round === 1).reduce((sum, rs) => sum + rs.points, 0);
+                                                const r2 = playerRoundScores.filter(rs => rs.round === 2).reduce((sum, rs) => sum + rs.points, 0);
+                                                const r3 = playerRoundScores.filter(rs => rs.round === 3).reduce((sum, rs) => sum + rs.points, 0);
+                                                const speed = playerRoundScores.filter(rs => rs.round === 4).reduce((sum, rs) => sum + rs.points, 0);
+                                                const roundTotal = r1 + r2 + r3 + speed;
+                                                const total = roundTotal > 0 ? roundTotal : (fs.score || 0);
+
+                                                playerData.push({
+                                                    name: fs.name,
+                                                    avatar: fs.avatar,
+                                                    r1, r2, r3, speed, total
+                                                });
+                                            });
+
+                                            // Sort by total score descending
+                                            playerData.sort((a, b) => b.total - a.total);
+
+                                            return playerData.map((player, idx) => {
+                                                const character = availableCharacters.find(c => c.id === player.avatar) || availableCharacters[0];
+                                                return (
+                                                    <tr key={player.name} className={`border-b ${theme === 'tron' ? 'border-cyan-500/20' : theme === 'kids' ? 'border-purple-200' : 'border-orange-700/30'} ${idx === 0 ? (theme === 'tron' ? 'bg-cyan-500/10' : theme === 'kids' ? 'bg-yellow-100' : 'bg-orange-900/20') : ''}`}>
+                                                        <td className="py-2 px-2">
+                                                            <div className="flex items-center gap-2">
+                                                                {idx < 3 && (
+                                                                    <span className={`text-xs font-bold ${
+                                                                        idx === 0 ? 'text-yellow-400' :
+                                                                        idx === 1 ? 'text-gray-400' :
+                                                                        'text-amber-600'
+                                                                    }`}>
+                                                                        #{idx + 1}
+                                                                    </span>
+                                                                )}
+                                                                <div className="w-6 h-6 flex-shrink-0">
+                                                                    <CharacterSVG characterId={player.avatar} size={24} color={character.color} />
+                                                                </div>
+                                                                <span className={`${currentTheme.text} text-sm font-semibold truncate max-w-[100px]`}>{player.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className={`text-center py-2 px-1 text-xs ${currentTheme.textSecondary}`}>{player.r1 || '-'}</td>
+                                                        <td className={`text-center py-2 px-1 text-xs ${currentTheme.textSecondary}`}>{player.r2 || '-'}</td>
+                                                        <td className={`text-center py-2 px-1 text-xs ${currentTheme.textSecondary}`}>{player.r3 || '-'}</td>
+                                                        <td className={`text-center py-2 px-1 text-xs ${currentTheme.textSecondary}`}>{player.speed || '-'}</td>
+                                                        <td className={`text-right py-2 px-2 font-bold ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}`}>{player.total}</td>
+                                                    </tr>
+                                                );
+                                            });
+                                        })()}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Re-add to queue button and Close */}
+                            <div className="flex gap-3 mt-4">
+                                <button
+                                    onClick={() => {
+                                        // Re-add this game to the queue as a fresh entry
+                                        if (!selectedGames.includes(selectedCompletedGame.gameId)) {
+                                            toggleGame(selectedCompletedGame.gameId);
+                                        }
+                                        setSelectedCompletedGame(null);
+                                    }}
+                                    className={`flex-1 ${theme === 'tron' ? 'bg-cyan-500/30 hover:bg-cyan-500/50 text-cyan-400 border border-cyan-500/50' : theme === 'kids' ? 'bg-purple-200 hover:bg-purple-300 text-purple-700' : 'bg-orange-900/50 hover:bg-orange-900/70 text-orange-400 border border-orange-700/50'} font-bold py-3 rounded-xl transition-all`}
+                                >
+                                    {theme === 'tron' ? '[ RE-ADD ]' : 'Play Again'}
+                                </button>
+                                <button
+                                    onClick={() => setSelectedCompletedGame(null)}
+                                    className={`flex-1 ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all`}
+                                >
+                                    Close
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

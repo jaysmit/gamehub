@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DaftPunkRobotHead, DaftPunkHelmet, WerewolfHowlingIcon } from '../icons/ThemeLogos';
 
-function RejoiningPage({ theme, currentTheme }) {
+function RejoiningPage({ theme, currentTheme, onTimeout }) {
+    // Redirect to landing page after 5 seconds if still on this page
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (onTimeout) {
+                onTimeout();
+            }
+        }, 5000);
+
+        return () => clearTimeout(timer);
+    }, [onTimeout]);
+
     return (
         <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} flex flex-col items-center justify-center p-4`} style={{ minHeight: '100dvh' }}>
             <div className={`text-center`}>

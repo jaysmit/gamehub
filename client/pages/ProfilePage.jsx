@@ -32,6 +32,32 @@ function ProfilePage({
     return (
         <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-pink-200 via-purple-200 to-blue-200' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} p-4 pt-24 pb-8`}>
             <div className="max-w-4xl mx-auto space-y-6">
+                {/* Level & XP Progress Card - At Top */}
+                <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-4 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
+                    <div className="flex items-center gap-4">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center ${theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-400' : theme === 'kids' ? 'bg-purple-200 border-4 border-purple-400' : 'bg-orange-900/40 border-2 border-orange-600'}`}>
+                            <span className={`text-2xl font-black ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}`}>
+                                {user.level}
+                            </span>
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className={`text-lg font-bold ${currentTheme.text}`}>Level {user.level}</span>
+                                <span className={`text-sm ${currentTheme.textSecondary}`}>{user.xp} / {xpForNext} XP</span>
+                            </div>
+                            <div className={`h-4 rounded-full ${theme === 'tron' ? 'bg-gray-800' : theme === 'kids' ? 'bg-purple-200' : 'bg-gray-800'} overflow-hidden`}>
+                                <div
+                                    className={`h-full rounded-full ${theme === 'tron' ? 'bg-cyan-500' : theme === 'kids' ? 'bg-purple-500' : 'bg-orange-500'} transition-all`}
+                                    style={{ width: `${xpProgress}%` }}
+                                />
+                            </div>
+                            <p className={`text-xs mt-1 ${currentTheme.textSecondary}`}>
+                                {xpForNext - user.xp} XP to next level
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Profile Header Card */}
                 <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400 kids-shadow' : 'border-4 border-orange-700'}`}>
                     <div className="flex flex-col md:flex-row items-center gap-6">
@@ -49,20 +75,6 @@ function ProfilePage({
                                 {user.name}
                             </h1>
                             <p className={`${currentTheme.textSecondary} text-sm mt-1`}>{user.email}</p>
-
-                            {/* XP Bar */}
-                            <div className="mt-4">
-                                <div className="flex justify-between text-sm mb-1">
-                                    <span className={currentTheme.textSecondary}>XP Progress</span>
-                                    <span className={currentTheme.text}>{user.xp} / {xpForNext}</span>
-                                </div>
-                                <div className={`h-3 rounded-full ${theme === 'tron' ? 'bg-gray-800' : theme === 'kids' ? 'bg-purple-200' : 'bg-gray-800'} overflow-hidden`}>
-                                    <div
-                                        className={`h-full rounded-full ${theme === 'tron' ? 'bg-cyan-500' : theme === 'kids' ? 'bg-purple-500' : 'bg-orange-500'} transition-all`}
-                                        style={{ width: `${xpProgress}%` }}
-                                    />
-                                </div>
-                            </div>
                         </div>
 
                         {/* Edit Button */}

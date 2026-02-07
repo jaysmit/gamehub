@@ -27,6 +27,7 @@ app.use(passport.initialize());
 
 // --- Serve the frontend ---
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // --- API Routes ---
 app.use('/api/auth', authRoutes);
