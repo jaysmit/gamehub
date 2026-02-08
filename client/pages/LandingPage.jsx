@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Crown, Users, Gamepad2, Play, Star, Info, Youtube } from '../icons/UIIcons';
 import { DaftPunkRobotHead, DaftPunkHelmet, WerewolfHowlingIcon } from '../icons/ThemeLogos';
 import { MOCK_GAMES } from '../data/games';
-import CharacterSVG from '../icons/CharacterSVGs';
+import CharacterAvatar from '../components/CharacterAvatar';
 
 function LandingPage({
     theme,
@@ -42,6 +42,7 @@ function LandingPage({
     setSelectedGameDesc,
     availableCharacters,
     rarityConfig,
+    unlockedCharacters = [],
 }) {
     const [showcaseChar, setShowcaseChar] = useState(null);
     const [showDevButtons, setShowDevButtons] = useState(false);
@@ -585,7 +586,7 @@ function LandingPage({
                             </p>
 
                             <div className={`max-h-[700px] lg:max-h-[500px] overflow-y-auto pr-2 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
-                                {['common', 'uncommon', 'rare', 'legendary'].map(rarity => {
+                                {['common', 'uncommon', 'rare', 'epic', 'legendary'].map(rarity => {
                                     const chars = availableCharacters.filter(c => (c.rarity || 'common') === rarity);
                                     if (chars.length === 0) return null;
                                     const rc = rarityConfig[rarity];
@@ -598,7 +599,7 @@ function LandingPage({
                                             </div>
                                             <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
                                                 {chars.map((character) => {
-                                                    const isLocked = character.unlock != null;
+                                                    const isLocked = character.unlock != null && !unlockedCharacters.includes(character.id);
                                                     return (
                                                         <button
                                                             key={character.id}
@@ -621,9 +622,13 @@ function LandingPage({
                                                                     </svg>
                                                                 </div>
                                                             )}
-                                                            <div className={`mb-1 flex justify-center ${isLocked ? 'grayscale' : ''}`}>
-                                                                <CharacterSVG characterId={character.id} size={60} color={isLocked ? '#555' : character.color} />
-                                                            </div>
+                                                            <CharacterAvatar
+                                                                characterId={character.id}
+                                                                size={60}
+                                                                rarity={character.rarity}
+                                                                isLocked={isLocked}
+                                                                className="mb-1"
+                                                            />
                                                             <div className={`text-xs font-semibold text-center ${isLocked ? 'text-gray-600' : currentTheme.text}`}>
                                                                 {character.name}
                                                             </div>
@@ -647,9 +652,13 @@ function LandingPage({
                             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]" onClick={() => setShowcaseChar(null)}>
                                 <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl max-w-sm w-full p-6 ${rc.glow}`} style={{ border: `2px solid ${rc.color}40` }} onClick={(e) => e.stopPropagation()}>
                                     <div className="text-center mb-4">
-                                        <div className={`inline-block mb-3 ${isLocked ? 'grayscale' : ''}`}>
-                                            <CharacterSVG characterId={c.id} size={100} color={isLocked ? '#555' : c.color} />
-                                        </div>
+                                        <CharacterAvatar
+                                            characterId={c.id}
+                                            size={100}
+                                            rarity={c.rarity}
+                                            isLocked={false}
+                                            className="inline-block mb-3"
+                                        />
                                         <h3 className={`text-xl font-bold ${currentTheme.font}`} style={{ color: rc.color }}>{c.name}</h3>
                                         <span className="inline-block mt-1 text-[0.65rem] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full" style={{ color: rc.color, background: `${rc.color}20`, border: `1px solid ${rc.color}40` }}>
                                             {rc.label}

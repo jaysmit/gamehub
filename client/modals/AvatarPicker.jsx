@@ -1,5 +1,5 @@
 import React from 'react';
-import CharacterSVG from '../icons/CharacterSVGs';
+import CharacterAvatar from '../components/CharacterAvatar';
 
 function AvatarPicker({
     theme,
@@ -18,7 +18,15 @@ function AvatarPicker({
     rarityConfig,
     currentRoom,
     playerName,
+    unlockedCharacters = [], // List of unlocked character IDs
 }) {
+    // Check if a character is locked (has unlock condition AND not in unlocked list)
+    const isCharacterLocked = (character) => {
+        // Common characters (unlock === null) are always unlocked
+        if (character.unlock === null) return false;
+        // Check if player has unlocked this character
+        return !unlockedCharacters.includes(character.id);
+    };
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-300' : 'border-4 border-orange-600'}`}>
@@ -53,7 +61,7 @@ function AvatarPicker({
 
                 {/* Scrollable Character Grid */}
                 <div className={`flex-1 overflow-y-auto px-6 md:px-8 min-h-0 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
-                    {['common', 'uncommon', 'rare', 'legendary'].map(rarity => {
+                    {['common', 'uncommon', 'rare', 'epic', 'legendary'].map(rarity => {
                         const chars = availableCharacters.filter(c => (c.rarity || 'common') === rarity);
                         if (chars.length === 0) return null;
                         const rc = rarityConfig[rarity];
@@ -67,7 +75,7 @@ function AvatarPicker({
                                     {chars.map((character) => {
                                         const myRoomAvatar = currentRoom?.players.find(p => p.name === playerName)?.avatar;
                                         const isTaken = takenCharacters.filter(a => a !== myRoomAvatar).includes(character.id);
-                                        const isLocked = character.unlock != null;
+                                        const isLocked = isCharacterLocked(character);
                                         const isSelected = selectedAvatar === character.id;
                                         return (
                                             <div key={character.id} className="relative">
@@ -104,9 +112,13 @@ function AvatarPicker({
                                                             </svg>
                                                         </div>
                                                     )}
-                                                    <div className={`mb-1 flex justify-center ${isLocked ? 'grayscale' : ''}`}>
-                                                        <CharacterSVG characterId={character.id} size={60} color={isLocked ? '#555' : character.color} />
-                                                    </div>
+                                                    <CharacterAvatar
+                                                        characterId={character.id}
+                                                        size={60}
+                                                        rarity={character.rarity}
+                                                        isLocked={isLocked}
+                                                        className="mb-1 mx-auto"
+                                                    />
                                                     <div className={`text-xs font-semibold text-center ${(isLocked || isTaken) ? 'text-gray-600' : currentTheme.text}`}>
                                                         {character.name}
                                                         {isTaken && !isLocked && <div className="text-[0.6rem] text-gray-500 mt-0.5">Taken</div>}

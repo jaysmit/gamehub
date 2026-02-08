@@ -31,6 +31,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     // Animated recap state
     const [recapQuestionIndex, setRecapQuestionIndex] = useState(-1);  // -1 = not started, 0+ = showing that question
+    const [recapGroupIndex, setRecapGroupIndex] = useState(0);         // Current group being shown in recap (for per-group questions)
     const [animatedStandings, setAnimatedStandings] = useState([]);    // Standings updated after each question reveal
     const [showingQuestion, setShowingQuestion] = useState(true);      // Toggle for question visibility in animation
     const [nextRoundCountdown, setNextRoundCountdown] = useState(null); // Countdown before auto-advancing
@@ -45,6 +46,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     const [speedRoundCorrectAnswer, setSpeedRoundCorrectAnswer] = useState(null);  // For showing correct on wrong
     const [speedRoundStats, setSpeedRoundStats] = useState({ answered: 0, correct: 0, points: 0 });
     const [speedRoundWaiting, setSpeedRoundWaiting] = useState(false);  // True when finished all questions
+    const [speedRoundDifficulty, setSpeedRoundDifficulty] = useState(null);  // Player's difficulty for speed round
 
     // Speed round race recap state
     const [raceData, setRaceData] = useState(null);
@@ -62,6 +64,11 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     // Previous round scores (frozen scores shown during question phase)
     const [previousRoundScores, setPreviousRoundScores] = useState({});  // {playerName: score}
+
+    // Difficulty group turn state
+    const [isActiveGroup, setIsActiveGroup] = useState(true);  // Whether player is in currently active group
+    const [groupInfo, setGroupInfo] = useState(null);  // Current group turn info
+    const [waitingFor, setWaitingFor] = useState(null);  // Group we're waiting for
 
     // Refs for timer sync
     const roomIdRef = useRef(currentRoom?.id);
@@ -144,6 +151,17 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             setIsSpeedRound(data.isSpeedRound);
             questionEndTimeRef.current = data.questionEndTime;
 
+            // Handle group turn info
+            if (data.groupInfo) {
+                setGroupInfo(data.groupInfo);
+                setIsActiveGroup(data.isActiveGroup !== false);
+                setWaitingFor(null);
+            } else {
+                setGroupInfo(null);
+                setIsActiveGroup(true);
+                setWaitingFor(null);
+            }
+
             // Update speed round end time if provided
             if (data.speedRoundEndTime) {
                 speedRoundEndTimeRef.current = data.speedRoundEndTime;
@@ -202,6 +220,10 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             setSelectedAnswer(null);
             setHasAnswered(false);
             setSpeedRoundWaiting(false);
+            // Store player's difficulty for speed round header display
+            if (data.difficultyLabel) {
+                setSpeedRoundDifficulty(data.difficultyLabel);
+            }
         };
 
         const onSpeedRoundCorrect = (data) => {
@@ -290,6 +312,17 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             if (data.standings) {
                 setStandings(data.standings);
             }
+
+            // Handle group turn info
+            if (data.groupInfo) {
+                setGroupInfo(data.groupInfo);
+                setIsActiveGroup(data.isActiveGroup !== false);
+                setWaitingFor(data.waitingFor || null);
+            } else {
+                setGroupInfo(null);
+                setIsActiveGroup(true);
+                setWaitingFor(null);
+            }
         };
 
         const onScoresUpdated = (data) => {
@@ -298,6 +331,22 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
                 .sort((a, b) => b.score - a.score);
             setStandings(updated);
+        };
+
+        const onTriviaGroupWaiting = (data) => {
+            // Player is not in active group - show waiting screen
+            setPhase('groupWaiting');
+            setQuestionNumber(data.questionNumber);
+            setTotalQuestions(data.totalQuestions);
+            setCurrentRound(data.round);
+            setTotalRounds(data.totalRounds);
+            setGroupInfo(data.groupInfo);
+            setWaitingFor(data.waitingFor);
+            setIsActiveGroup(false);
+
+            // Reset answer state for this question
+            setSelectedAnswer(null);
+            setHasAnswered(false);
         };
 
         const onGameEnded = () => {
@@ -311,10 +360,14 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             setRevealData(null);
             setRecapData(null);
             setFinalData(null);
+            setGroupInfo(null);
+            setIsActiveGroup(true);
+            setWaitingFor(null);
         };
 
         socket.on('triviaRulesStart', onTriviaRulesStart);
         socket.on('triviaQuestion', onTriviaQuestion);
+        socket.on('triviaGroupWaiting', onTriviaGroupWaiting);
         socket.on('triviaAnswerReceived', onTriviaAnswerReceived);
         socket.on('triviaReveal', onTriviaReveal);
         socket.on('triviaRecap', onTriviaRecap);
@@ -332,6 +385,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         return () => {
             socket.off('triviaRulesStart', onTriviaRulesStart);
             socket.off('triviaQuestion', onTriviaQuestion);
+            socket.off('triviaGroupWaiting', onTriviaGroupWaiting);
             socket.off('triviaAnswerReceived', onTriviaAnswerReceived);
             socket.off('triviaReveal', onTriviaReveal);
             socket.off('triviaRecap', onTriviaRecap);
@@ -396,12 +450,13 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         return () => clearInterval(interval);
     }, [isSpeedRound, phase]);
 
-    // Animated recap - reveal questions one by one
+    // Animated recap - reveal questions one by one (with per-group support)
     useEffect(() => {
         if (phase !== 'recap' || !recapData?.questionHistory) return;
 
         // Reset animation state when entering recap
         setRecapQuestionIndex(-1);
+        setRecapGroupIndex(0);
         setAnimatedStandings([]);
         setShowingQuestion(true);
         setNextRoundCountdown(null);
@@ -422,6 +477,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         // Start revealing questions after a brief delay
         const startDelay = setTimeout(() => {
             setRecapQuestionIndex(0);
+            setRecapGroupIndex(0);
             setShowingQuestion(true);
             setRecapAnimPhase(0);  // Start at phase 0 (question only)
         }, 500);
@@ -429,10 +485,38 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         return () => clearTimeout(startDelay);
     }, [phase, recapData?.questionHistory?.length, currentRoom?.players, previousRoundScores]);
 
-    // Three-phase animation for each question in recap
+    // Helper function to get current group data from question history
+    const getCurrentGroupData = () => {
+        if (!recapData?.questionHistory || recapQuestionIndex < 0) return null;
+        const questionHistory = recapData.questionHistory;
+        if (recapQuestionIndex >= questionHistory.length) return null;
+
+        const currentQ = questionHistory[recapQuestionIndex];
+
+        // Check if using new groupData structure
+        if (currentQ.groupData) {
+            const groups = currentQ.groupData;
+            if (recapGroupIndex < groups.length) {
+                return groups[recapGroupIndex];
+            }
+            return null;
+        }
+
+        // Legacy structure: return as single "group"
+        return {
+            question: currentQ.question,
+            category: currentQ.category,
+            correctAnswer: currentQ.correctAnswer,
+            playerResults: currentQ.playerResults,
+            difficultyLabel: null
+        };
+    };
+
+    // Three-phase animation for each question/group in recap
     // Phase 0: Show question (1s)
     // Phase 1: Show correct players without points (1s)
     // Phase 2: Animate points from 0 to earned (0.8s)
+    // Then: 1s delay before next group, or move to next question
     useEffect(() => {
         if (phase !== 'recap' || !recapData?.questionHistory || recapQuestionIndex < 0) return;
 
@@ -440,7 +524,13 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         if (recapQuestionIndex >= questionHistory.length) return;
 
         const currentQ = questionHistory[recapQuestionIndex];
-        const correctPlayerResults = Object.entries(currentQ.playerResults || {})
+        const hasGroupData = !!currentQ.groupData;
+        const groupCount = hasGroupData ? currentQ.groupData.length : 1;
+
+        const groupData = getCurrentGroupData();
+        if (!groupData) return;
+
+        const correctPlayerResults = Object.entries(groupData.playerResults || {})
             .filter(([, result]) => result.isCorrect && result.pointsEarned > 0);
 
         // Phase 0 -> Phase 1: After 1s, show correct players (no points yet)
@@ -489,17 +579,17 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
                     // Create flying points for leaderboard
                     const newFlyingPoints = correctPlayerResults.map(([name, result]) => ({
-                        id: `${recapQuestionIndex}-${name}`,
+                        id: `${recapQuestionIndex}-${recapGroupIndex}-${name}`,
                         playerName: name,
                         points: result.pointsEarned
                     }));
                     setFlyingPoints(newFlyingPoints);
 
-                    // After brief delay, update standings and move to next question
+                    // After brief delay, update standings
                     setTimeout(() => {
                         setAnimatedStandings(prev => {
                             const updated = prev.map(player => {
-                                const result = currentQ.playerResults?.[player.name];
+                                const result = groupData.playerResults?.[player.name];
                                 if (result?.isCorrect) {
                                     return { ...player, score: player.score + result.pointsEarned };
                                 }
@@ -510,10 +600,18 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                         setFlyingPoints([]);
                     }, 500);
 
-                    // Move to next question or finish
+                    // After standings update, decide what's next
                     setTimeout(() => {
-                        if (recapQuestionIndex < questionHistory.length - 1) {
+                        // Check if there are more groups for this question
+                        if (hasGroupData && recapGroupIndex < groupCount - 1) {
+                            // Move to next group with 1s delay between groups
+                            setRecapGroupIndex(prev => prev + 1);
+                            setRecapAnimPhase(0);
+                            setAnimatedPointValues({});
+                        } else if (recapQuestionIndex < questionHistory.length - 1) {
+                            // Move to next question
                             setRecapQuestionIndex(prev => prev + 1);
+                            setRecapGroupIndex(0);
                             setShowingQuestion(true);
                             setRecapAnimPhase(0);
                             setAnimatedPointValues({});
@@ -535,7 +633,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
             return () => clearInterval(interval);
         }
-    }, [recapQuestionIndex, recapAnimPhase, phase, recapData?.questionHistory, standings, currentRoom?.id]);
+    }, [recapQuestionIndex, recapGroupIndex, recapAnimPhase, phase, recapData?.questionHistory, standings, currentRoom?.id]);
 
     // Next round countdown and auto-advance
     useEffect(() => {
@@ -1007,6 +1105,13 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                             <span className="text-base font-black">{speedRoundTimer}s</span>
                         </div>
                     )}
+
+                    {/* Group turn indicator */}
+                    {groupInfo && groupInfo.currentGroup && (
+                        <div className={`${theme === 'tron' ? 'bg-green-500/20 border border-green-500/30 text-green-400' : theme === 'kids' ? 'bg-green-400 text-white' : 'bg-green-700/40 text-green-400 border border-green-700'} px-3 py-1 rounded-lg`}>
+                            <span className="text-sm font-bold">{groupInfo.currentGroup.label} Turn</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1049,11 +1154,16 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 )}
             </div>
 
-            {/* Players who answered */}
+            {/* Players who answered - only show current group if in group mode */}
             <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-xl p-3 ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-400' : 'border border-orange-700'}`}>
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className={`text-sm ${currentTheme.textSecondary}`}>Answered:</span>
-                    {currentRoom?.players.map((player, idx) => {
+                    <span className={`text-sm ${currentTheme.textSecondary}`}>
+                        {groupInfo ? `${groupInfo.currentGroup?.label || 'Group'} Answered:` : 'Answered:'}
+                    </span>
+                    {(groupInfo?.currentGroup?.playerNames
+                        ? currentRoom?.players.filter(p => groupInfo.currentGroup.playerNames.includes(p.name))
+                        : currentRoom?.players
+                    )?.map((player, idx) => {
                         const hasAnswered = answeredPlayers.includes(player.name);
                         const character = availableCharacters.find(c => c.id === player.avatar) || availableCharacters[0];
                         return (
@@ -1316,16 +1426,95 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         </div>
     );
 
-    // Render Recap Phase - Animated question reveal (one at a time)
+    // Render Group Waiting Phase - shown when player's group is not active
+    const renderGroupWaitingPhase = () => {
+        if (!groupInfo || !waitingFor) return null;
+
+        const allGroups = groupInfo.allGroups || [];
+        const currentGroupIdx = groupInfo.currentGroupIndex;
+        const totalGroups = groupInfo.totalGroups;
+
+        return (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-lg w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'} text-center`}>
+                    {/* Header */}
+                    <div className="mb-6">
+                        <div className="text-5xl mb-4 animate-pulse">⏳</div>
+                        <h2 className={`text-2xl md:text-3xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                            {theme === 'tron' ? '> WAITING_FOR_GROUP' : 'Waiting for Group'}
+                        </h2>
+                        <div className={`text-lg font-bold ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}`}>
+                            Question {questionNumber} of {totalQuestions}
+                        </div>
+                    </div>
+
+                    {/* Current active group */}
+                    <div className={`p-4 rounded-xl mb-4 ${theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500' : theme === 'kids' ? 'bg-purple-200 border-2 border-purple-400' : 'bg-orange-700/30 border border-orange-600'}`}>
+                        <div className={`text-sm ${currentTheme.textSecondary} mb-2`}>Currently answering:</div>
+                        <div className={`text-xl font-black ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-700' : 'text-orange-400'}`}>
+                            {waitingFor.label} Group
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2 mt-2">
+                            {waitingFor.playerNames.map((name, idx) => {
+                                const player = currentRoom?.players?.find(p => p.name === name);
+                                const character = availableCharacters.find(c => c.id === player?.avatar) || availableCharacters[0];
+                                return (
+                                    <div key={idx} className={`flex items-center gap-1 px-2 py-1 rounded-full ${theme === 'tron' ? 'bg-cyan-500/20' : theme === 'kids' ? 'bg-purple-300' : 'bg-orange-700/40'}`}>
+                                        <div className="w-4 h-4">
+                                            <CharacterSVG characterId={player?.avatar} size={16} color={character.color} />
+                                        </div>
+                                        <span className={`text-xs font-semibold ${currentTheme.text}`}>{name}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Progress indicator */}
+                    <div className="mb-4">
+                        <div className={`text-sm ${currentTheme.textSecondary} mb-2`}>Group Progress:</div>
+                        <div className="flex justify-center gap-2">
+                            {allGroups.map((group, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                        group.isCompleted
+                                            ? 'bg-green-500/30 text-green-400 border border-green-500'
+                                            : group.isActive
+                                            ? `${theme === 'tron' ? 'bg-cyan-500/40 text-cyan-300 border-2 border-cyan-400 animate-pulse' : theme === 'kids' ? 'bg-purple-400 text-white border-2 border-purple-500 animate-pulse' : 'bg-orange-500/40 text-orange-300 border-2 border-orange-400 animate-pulse'}`
+                                            : `${theme === 'tron' ? 'bg-gray-800/50 text-gray-500 border border-gray-700' : theme === 'kids' ? 'bg-gray-200 text-gray-500 border border-gray-300' : 'bg-gray-800/50 text-gray-500 border border-gray-700'}`
+                                    }`}
+                                >
+                                    {group.isCompleted ? '✓ ' : ''}{group.label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Your turn info */}
+                    <div className={`text-sm ${currentTheme.textSecondary}`}>
+                        Your turn is coming up soon!
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    // Render Recap Phase - Animated question reveal (one at a time, per group)
     const renderRecapPhase = () => {
         const questionHistory = recapData?.questionHistory || [];
         const isAnimating = recapQuestionIndex >= 0 && recapQuestionIndex < questionHistory.length;
         const animationComplete = recapQuestionIndex >= questionHistory.length - 1 && !showingQuestion;
         const displayStandings = animatedStandings.length > 0 ? animatedStandings : standings;
-        const currentQ = isAnimating ? questionHistory[recapQuestionIndex] : null;
 
-        // Get players who got current question right
-        const correctPlayers = currentQ ? Object.entries(currentQ.playerResults || {})
+        // Get current group data (handles both new groupData and legacy structure)
+        const groupData = getCurrentGroupData();
+        const currentQ = questionHistory[recapQuestionIndex];
+        const hasMultipleGroups = currentQ?.groupData && currentQ.groupData.length > 1;
+        const totalGroups = currentQ?.groupData?.length || 1;
+
+        // Get players who got current question/group right
+        const correctPlayers = groupData ? Object.entries(groupData.playerResults || {})
             .filter(([, result]) => result.isCorrect)
             .map(([name]) => name) : [];
 
@@ -1351,37 +1540,45 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                                 {isAnimating && (
                                     <span className={`text-sm ${currentTheme.textSecondary}`}>
                                         ({recapQuestionIndex + 1}/{questionHistory.length})
+                                        {hasMultipleGroups && (
+                                            <span className="ml-1">• Group {recapGroupIndex + 1}/{totalGroups}</span>
+                                        )}
                                     </span>
                                 )}
                             </h3>
 
                             {/* Single question display with animation */}
                             <div className="flex-1 flex items-center justify-center">
-                                {currentQ && showingQuestion ? (
+                                {groupData && showingQuestion ? (
                                     <div
                                         className={`w-full transition-all duration-300 ${
                                             theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-400' : theme === 'kids' ? 'bg-purple-200 border-2 border-purple-500' : 'bg-orange-700/30 border-2 border-orange-500'
                                         } p-4 rounded-xl`}
                                     >
-                                        {/* Question number and category */}
-                                        <div className="flex items-center gap-2 mb-3">
+                                        {/* Question number, category, and difficulty label */}
+                                        <div className="flex items-center gap-2 mb-3 flex-wrap">
                                             <span className={`inline-block w-8 h-8 rounded-full ${theme === 'tron' ? 'bg-cyan-500/30 text-cyan-400' : theme === 'kids' ? 'bg-purple-400 text-white' : 'bg-orange-700/50 text-orange-300'} text-center text-base font-bold leading-8`}>
                                                 {recapQuestionIndex + 1}
                                             </span>
                                             <span className={`text-sm px-3 py-1 rounded-full ${theme === 'tron' ? 'bg-cyan-500/20 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 text-purple-700' : 'bg-orange-900/30 text-orange-400'}`}>
-                                                {CATEGORY_ICONS[currentQ.category] || '🧠'} {currentQ.category}
+                                                {CATEGORY_ICONS[groupData.category] || '🧠'} {groupData.category}
                                             </span>
+                                            {groupData.difficultyLabel && (
+                                                <span className={`text-sm px-3 py-1 rounded-full font-semibold ${theme === 'tron' ? 'bg-green-500/20 text-green-400 border border-green-500/50' : theme === 'kids' ? 'bg-green-200 text-green-700 border border-green-400' : 'bg-green-700/30 text-green-400 border border-green-600/50'}`}>
+                                                    {groupData.difficultyLabel}
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Question text */}
                                         <div className={`text-base md:text-lg ${currentTheme.text} font-medium mb-4`}>
-                                            {currentQ.question}
+                                            {groupData.question}
                                         </div>
 
                                         {/* Correct answer */}
                                         <div className="flex items-center gap-2 mb-3">
                                             <span className="text-green-400 font-bold text-lg">✓</span>
-                                            <span className="text-green-400 text-base font-semibold">{currentQ.correctAnswer}</span>
+                                            <span className="text-green-400 text-base font-semibold">{groupData.correctAnswer}</span>
                                         </div>
 
                                         {/* Who got it right - phased animation */}
@@ -1391,7 +1588,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                                                     correctPlayers.map((name, pIdx) => {
                                                         const player = currentRoom?.players.find(p => p.name === name);
                                                         const character = availableCharacters.find(c => c.id === player?.avatar) || availableCharacters[0];
-                                                        const targetPoints = currentQ.playerResults[name]?.pointsEarned || 0;
+                                                        const targetPoints = groupData.playerResults[name]?.pointsEarned || 0;
                                                         const displayPoints = recapAnimPhase >= 2 ? (animatedPointValues[name] ?? targetPoints) : 0;
                                                         const showPoints = recapAnimPhase >= 2;
                                                         return (
@@ -1665,6 +1862,13 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                         <div className={`${theme === 'tron' ? 'bg-red-500/20 border border-red-500/30 text-red-400' : theme === 'kids' ? 'bg-red-500 text-white' : 'bg-red-700/40 text-red-400 border border-red-700'} px-3 py-1 rounded-lg`}>
                             <span className="text-sm font-bold">⚡ SPEED ROUND</span>
                         </div>
+
+                        {/* Difficulty indicator */}
+                        {speedRoundDifficulty && (
+                            <div className={`${theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-400' : theme === 'kids' ? 'bg-purple-500 text-white' : 'bg-orange-700/40 text-orange-400 border border-orange-700'} px-3 py-1 rounded-lg`}>
+                                <span className="text-sm font-bold">📊 {speedRoundDifficulty}</span>
+                            </div>
+                        )}
 
                         {/* Question number */}
                         <div className={`${theme === 'tron' ? 'bg-purple-500/20 border border-purple-500/30 text-purple-400' : theme === 'kids' ? 'bg-pink-500 text-white' : 'bg-purple-700/40 text-purple-400 border border-purple-700'} px-3 py-1 rounded-lg`}>
@@ -2231,6 +2435,7 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         <div className={`min-h-screen ${theme === 'tron' ? 'bg-black tron-grid' : theme === 'kids' ? 'bg-gradient-to-br from-orange-300 via-pink-400 to-purple-500' : 'bg-gradient-to-br from-gray-900 via-orange-950 to-black'} p-2 pt-16 md:p-4 md:pt-24 pb-4`}>
             {phase === 'rules' && renderRulesPhase()}
             {phase === 'question' && renderQuestionPhase()}
+            {phase === 'groupWaiting' && renderGroupWaitingPhase()}
             {phase === 'reveal' && renderRevealPhase()}
             {phase === 'recap' && renderRecapPhase()}
             {phase === 'speedRound' && renderSpeedRoundPhase()}

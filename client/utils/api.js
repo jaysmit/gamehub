@@ -132,10 +132,10 @@ export const api = {
       body: JSON.stringify({ name, email, password })
     }),
 
-  login: (email, password) =>
+  login: (username, password) =>
     apiRequest('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ username, password })
     }),
 
   logout: (refreshToken) =>

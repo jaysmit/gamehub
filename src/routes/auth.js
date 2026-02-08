@@ -11,23 +11,25 @@ const {
   verifyRefreshToken
 } = require('../middleware/auth');
 
-// POST /api/auth/register - Email/password registration
+// POST /api/auth/register - Username/password registration (email optional)
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
+    if (!name || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    // Check if email already exists
-    const existingEmail = await User.findOne({ email: email.toLowerCase() });
-    if (existingEmail) {
-      return res.status(400).json({ error: 'Email already registered' });
+    // Check if email already exists (only if email provided)
+    if (email) {
+      const existingEmail = await User.findOne({ email: email.toLowerCase() });
+      if (existingEmail) {
+        return res.status(400).json({ error: 'Email already registered' });
+      }
     }
 
     // Check if name already exists
@@ -39,10 +41,10 @@ router.post('/register', async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Create user (email is optional)
     const user = new User({
       name,
-      email: email.toLowerCase(),
+      ...(email && { email: email.toLowerCase() }),
       passwordHash
     });
 
@@ -80,17 +82,24 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /api/auth/login - Email/password login
+// POST /api/auth/login - Username or email/password login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body;
+    const loginId = username || email; // Accept either username or email field
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!loginId || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Find user with password hash
-    const user = await User.findOne({ email: email.toLowerCase() }).select('+passwordHash');
+    // Find user by username OR email (with password hash)
+    const user = await User.findOne({
+      $or: [
+        { name: loginId },
+        { email: loginId.toLowerCase() }
+      ]
+    }).select('+passwordHash');
+
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

@@ -3,8 +3,10 @@ import { socket } from './socket';
 import { MOCK_GAMES } from './data/games';
 import { themes, rarityConfig } from './data/themes';
 import { MUSIC_TRACKS, DEFAULT_TRACK } from './data/music';
+import { DIFFICULTY_LEVELS, DEFAULT_DIFFICULTY, getDifficultyById, getPlayerDifficulty } from './data/difficulty';
 import { characterAvatars } from './data/characters';
 import { saveSession, loadSession, clearSession } from './utils/session';
+import { clearSessionData } from './data/achievements';
 import { getGameIcon, Star, Crown, Users } from './icons/UIIcons';
 import CharacterSVG from './icons/CharacterSVGs';
 import { DaftPunkRobotHead, DaftPunkHelmet, WerewolfHowlingIcon } from './icons/ThemeLogos';
@@ -27,6 +29,9 @@ import PlayerProfile from './modals/PlayerProfile';
 import GameSelector from './modals/GameSelector';
 import GameDescription from './modals/GameDescription';
 import QRModal from './modals/QRModal';
+import DifficultyModal from './modals/DifficultyModal';
+import AchievementModal from './modals/AchievementModal';
+import { usePlayerStats } from './hooks/usePlayerStats';
 import { api } from './utils/api';
 import { setTokens, clearTokens, hasTokens, getRefreshToken, getUserIdFromToken } from './utils/tokenStorage';
 
@@ -77,6 +82,9 @@ function App() {
     const [characterInfoModal, setCharacterInfoModal] = useState(null);
     const [playerProfileModal, setPlayerProfileModal] = useState(null);
     const [gameHistory, setGameHistory] = useState([]);
+    const [roomDifficulty, setRoomDifficulty] = useState('medium');
+    const [playerDifficulties, setPlayerDifficulties] = useState({});
+    const [showDifficultyModal, setShowDifficultyModal] = useState(false);
     const [lobbyChatMessages, setLobbyChatMessages] = useState([]);
     const [lobbyChatInput, setLobbyChatInput] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
@@ -90,11 +98,38 @@ function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [authLoading, setAuthLoading] = useState(true);
     const [authError, setAuthError] = useState('');
+    const [justRegistered, setJustRegistered] = useState(false); // Flag for new registration bonus
+    const [justAddedEmail, setJustAddedEmail] = useState(false); // Flag for email bonus
 
     // Friends state
     const [friends, setFriends] = useState([]);
     const [friendsStatus, setFriendsStatus] = useState({});
     const [pendingRequests, setPendingRequests] = useState({ incoming: [], outgoing: [] });
+
+    // Player stats and achievements (works for both logged-in and guests)
+    const playerStats = usePlayerStats(user, isLoggedIn, theme);
+
+    // Award bonus characters for registration and email addition
+    useEffect(() => {
+        if (justRegistered && isLoggedIn) {
+            // Small delay to ensure state is ready
+            const timer = setTimeout(() => {
+                playerStats.awardRandomCharacter('uncommon');
+                setJustRegistered(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [justRegistered, isLoggedIn, playerStats]);
+
+    useEffect(() => {
+        if (justAddedEmail && isLoggedIn) {
+            const timer = setTimeout(() => {
+                playerStats.awardRandomCharacter('rare');
+                setJustAddedEmail(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
+    }, [justAddedEmail, isLoggedIn, playerStats]);
 
     const devFirstConnect = useRef(true);
     const audioRef = useRef(null);
@@ -106,6 +141,10 @@ function App() {
     const modalChatEndRef = useRef(null);
     const chatScrollRef = useRef(null);
     const modalChatScrollRef = useRef(null);
+    const currentRoomRef = useRef(null);
+    const playerStatsRef = useRef(playerStats);
+    const playerNameRef = useRef(playerName);
+    const selectedAvatarRef = useRef(selectedAvatar);
 
     // Derived state
     const availableCharacters = characterAvatars[theme] || characterAvatars.tron;
@@ -138,6 +177,23 @@ function App() {
         return () => socket.off('connect', onConnect);
     }, []);
 
+    // Keep refs in sync with state for use in socket handlers
+    useEffect(() => {
+        currentRoomRef.current = currentRoom;
+    }, [currentRoom]);
+
+    useEffect(() => {
+        playerStatsRef.current = playerStats;
+    }, [playerStats]);
+
+    useEffect(() => {
+        playerNameRef.current = playerName;
+    }, [playerName]);
+
+    useEffect(() => {
+        selectedAvatarRef.current = selectedAvatar;
+    }, [selectedAvatar]);
+
     // Rejoin room on mount (after page refresh)
     useEffect(() => {
         const session = loadSession();
@@ -167,6 +223,8 @@ function App() {
             setCurrentRoom(room);
             setSelectedGames(room.selectedGames || []);
             if (room.gameHistory) setGameHistory(room.gameHistory);
+            setRoomDifficulty(room.difficulty || 'medium');
+            setPlayerDifficulties(room.playerDifficulties || {});
             // Verify isMaster from actual room data, not just session
             const isActuallyMaster = room.master === session.playerName;
             setIsMaster(isActuallyMaster);
@@ -217,9 +275,15 @@ function App() {
             setSelectedGames(room.selectedGames || []);
             setCompletedGames([]); // Reset completed games for new room
             setAccumulatedScores({}); // Reset accumulated scores for new room
+            setRoomDifficulty(room.difficulty || 'medium');
+            setPlayerDifficulties(room.playerDifficulties || {});
+            setLobbyChatMessages([]); // Clear chat from previous room
+            setGameHistory([]); // Clear game history from previous room
             setPage('room');
             setShowCreateInput(false);
             setAvatarPickerMode('initial');
+            // Track room creation for achievements
+            playerStatsRef.current?.recordStat('roomsCreated', 1, true);
         };
 
         const onRoomJoined = (room) => {
@@ -228,9 +292,15 @@ function App() {
             setSelectedGames(room.selectedGames || []);
             setCompletedGames([]); // Reset completed games for new room
             setAccumulatedScores({}); // Reset accumulated scores for new room
+            setRoomDifficulty(room.difficulty || 'medium');
+            setPlayerDifficulties(room.playerDifficulties || {});
+            setLobbyChatMessages([]); // Clear chat from previous room
+            setGameHistory([]); // Clear game history from previous room
             setPage('room');
             setShowJoinInput(false);
             setAvatarPickerMode('initial');
+            // Track room join for achievements
+            playerStatsRef.current?.recordStat('roomsJoined', 1, true);
         };
 
         const onPlayerJoined = (data) => {
@@ -292,6 +362,34 @@ function App() {
                     console.log('[DEBUG] Updated accumulatedScores:', JSON.stringify(updated, null, 2));
                     return updated;
                 });
+
+                // Track game stats for achievements
+                if (!data?.cancelled && playerStatsRef.current) {
+                    const myName = playerNameRef.current;
+                    const myScore = data.finalScores.find(s => s.name === myName);
+                    const myPlacement = data.finalScores.findIndex(s => s.name === myName) + 1;
+                    const won = myPlacement === 1;
+                    const playerCount = data.finalScores.length;
+                    const latestGame = data?.gameHistory?.[data.gameHistory.length - 1];
+                    const gameType = latestGame?.game || 'unknown';
+                    const roomId = currentRoomRef.current?.id;
+
+                    // Build playerScores map for domination check
+                    const playerScores = {};
+                    data.finalScores.forEach(s => { playerScores[s.name] = s.score; });
+
+                    playerStatsRef.current.recordGameComplete({
+                        gameType,
+                        won,
+                        playerCount,
+                        score: myScore?.score || 0,
+                        totalPoints: myScore?.score || 0,
+                        placement: myPlacement,
+                        playerScores,
+                        characterUsed: selectedAvatarRef.current,
+                        roomId
+                    });
+                }
             }
             // Mark current game as completed (use the game that was played based on currentGameIndex)
             setSelectedGames(prev => {
@@ -469,6 +567,12 @@ function App() {
             });
         };
 
+        const onDifficultyUpdated = (data) => {
+            if (data.roomId !== currentRoomRef.current?.id) return;
+            setRoomDifficulty(data.roomDifficulty);
+            setPlayerDifficulties(data.playerDifficulties || {});
+        };
+
         socket.on('roomCreated', onRoomCreated);
         socket.on('roomJoined', onRoomJoined);
         socket.on('playerJoined', onPlayerJoined);
@@ -490,6 +594,7 @@ function App() {
         socket.on('roomClosed', onRoomClosed);
         socket.on('removedForNoAvatar', onRemovedForNoAvatar);
         socket.on('playerAfkChanged', onPlayerAfkChanged);
+        socket.on('difficultyUpdated', onDifficultyUpdated);
 
         return () => {
             socket.off('roomCreated', onRoomCreated);
@@ -513,6 +618,7 @@ function App() {
             socket.off('roomClosed', onRoomClosed);
             socket.off('removedForNoAvatar', onRemovedForNoAvatar);
             socket.off('playerAfkChanged', onPlayerAfkChanged);
+            socket.off('difficultyUpdated', onDifficultyUpdated);
         };
     }, []);
 
@@ -638,6 +744,8 @@ function App() {
         if (!lobbyChatInput.trim() || !currentRoom) return;
         socket.emit('chatMessage', { roomId: currentRoom.id, message: lobbyChatInput.trim() });
         setLobbyChatInput('');
+        // Track chat message for achievements
+        playerStats.recordStat('chatMessagesSent', 1, true);
     };
 
     const handleChatScroll = () => {
@@ -728,6 +836,27 @@ function App() {
         setSelectedAvatar('meta');
         setLobbyChatMessages([]);
         setGameHistory([]);
+        setRoomDifficulty('medium');
+        setPlayerDifficulties({});
+    };
+
+    // Difficulty handlers
+    const handleSetRoomDifficulty = (difficulty, applyToAll = false) => {
+        if (!currentRoom?.id) return;
+        socket.emit('setRoomDifficulty', {
+            roomId: currentRoom.id,
+            difficulty,
+            applyToAll
+        });
+    };
+
+    const handleSetPlayerDifficulty = (playerName, difficulty) => {
+        if (!currentRoom?.id) return;
+        socket.emit('setPlayerDifficulty', {
+            roomId: currentRoom.id,
+            playerName,
+            difficulty
+        });
     };
 
     // Navigation helper
@@ -737,10 +866,10 @@ function App() {
     }, []);
 
     // Auth functions
-    const handleLogin = useCallback(async (email, password) => {
+    const handleLogin = useCallback(async (username, password) => {
         setAuthError('');
         try {
-            const response = await api.login(email, password);
+            const response = await api.login(username, password);
             setTokens(response.accessToken, response.refreshToken);
             setUser(response.user);
             setIsLoggedIn(true);
@@ -758,6 +887,8 @@ function App() {
             setTokens(response.accessToken, response.refreshToken);
             setUser(response.user);
             setIsLoggedIn(true);
+            setJustRegistered(true); // Flag to trigger bonus character award
+
             return response.user;
         } catch (err) {
             setAuthError(err.message);
@@ -775,6 +906,7 @@ function App() {
             // Ignore logout errors
         } finally {
             clearTokens();
+            clearSessionData(); // Clear guest session stats/unlocks to prevent logged-in unlocks persisting
             setUser(null);
             setIsLoggedIn(false);
             setFriends([]);
@@ -795,6 +927,12 @@ function App() {
     const handleUpdateProfile = useCallback(async (updates) => {
         try {
             const updatedUser = await api.updateMe(updates);
+
+            // Check if email was just added (server returns emailAdded flag)
+            if (updatedUser.emailAdded) {
+                setJustAddedEmail(true); // Flag to trigger bonus character award
+            }
+
             setUser(prev => ({ ...prev, ...updatedUser }));
             return updatedUser;
         } catch (err) {
@@ -923,6 +1061,8 @@ function App() {
             setCurrentRoom(room);
             setSelectedGames(room.selectedGames || []);
             if (room.gameHistory) setGameHistory(room.gameHistory);
+            setRoomDifficulty(room.difficulty || 'medium');
+            setPlayerDifficulties(room.playerDifficulties || {});
             // Verify isMaster from actual room data
             const isActuallyMaster = room.master === session.playerName;
             setIsMaster(isActuallyMaster);
@@ -1177,6 +1317,7 @@ function App() {
                     WerewolfHowlingIcon={WerewolfHowlingIcon}
                     availableCharacters={availableCharacters}
                     rarityConfig={rarityConfig}
+                    unlockedCharacters={playerStats.unlockedCharacters}
                 />
                 {selectedGameDesc && (
                     <GameDescription
@@ -1299,6 +1440,14 @@ function App() {
                 completedGames={completedGames}
                 setCompletedGames={setCompletedGames}
                 accumulatedScores={accumulatedScores}
+                roomDifficulty={roomDifficulty}
+                playerDifficulties={playerDifficulties}
+                showDifficultyModal={showDifficultyModal}
+                setShowDifficultyModal={setShowDifficultyModal}
+                handleSetRoomDifficulty={handleSetRoomDifficulty}
+                handleSetPlayerDifficulty={handleSetPlayerDifficulty}
+                DIFFICULTY_LEVELS={DIFFICULTY_LEVELS}
+                getPlayerDifficulty={getPlayerDifficulty}
             />
 
             {/* Modals */}
@@ -1357,6 +1506,7 @@ function App() {
                     playerName={playerName}
                     avatarTakenToast={avatarTakenToast}
                     setAvatarTakenToast={setAvatarTakenToast}
+                    unlockedCharacters={playerStats.unlockedCharacters}
                 />
             )}
 
@@ -1367,6 +1517,8 @@ function App() {
                     playerProfileModal={playerProfileModal}
                     setPlayerProfileModal={setPlayerProfileModal}
                     gameHistory={gameHistory}
+                    playerStats={playerStats.stats}
+                    unlockedCharacters={playerStats.unlockedCharacters}
                 />
             )}
 
@@ -1399,6 +1551,31 @@ function App() {
                     currentRoom={currentRoom}
                 />
             )}
+
+            {showDifficultyModal && (
+                <DifficultyModal
+                    theme={theme}
+                    currentTheme={currentTheme}
+                    currentRoom={currentRoom}
+                    playerName={playerName}
+                    availableCharacters={availableCharacters}
+                    roomDifficulty={roomDifficulty}
+                    playerDifficulties={playerDifficulties}
+                    onSetRoomDifficulty={handleSetRoomDifficulty}
+                    onSetPlayerDifficulty={handleSetPlayerDifficulty}
+                    onClose={() => setShowDifficultyModal(false)}
+                />
+            )}
+
+            {/* Achievement Modal - shows unlocked avatars/medals */}
+            <AchievementModal
+                isOpen={!!playerStats.currentUnlock}
+                onClose={playerStats.dismissUnlock}
+                theme={theme}
+                currentTheme={currentTheme}
+                type={playerStats.currentUnlock?.type || 'character'}
+                item={playerStats.currentUnlock?.item}
+            />
         </>
     );
     };

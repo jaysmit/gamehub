@@ -47,8 +47,9 @@ export const themes = {
 };
 
 export const rarityConfig = {
-    common:    { label: 'Common',    color: '#94a3b8', border: 'border-gray-500/40',   bg: 'bg-gray-500/10',    glow: '' },
-    uncommon:  { label: 'Uncommon',  color: '#22c55e', border: 'border-green-500/40',  bg: 'bg-green-500/10',   glow: '' },
-    rare:      { label: 'Rare',      color: '#8b5cf6', border: 'border-purple-500/50', bg: 'bg-purple-500/10',  glow: 'shadow-[0_0_12px_rgba(139,92,246,0.4)]' },
-    legendary: { label: 'Legendary', color: '#f59e0b', border: 'border-yellow-500/50', bg: 'bg-yellow-500/10', glow: 'shadow-[0_0_20px_rgba(245,158,11,0.5)]' }
+    common:    { label: 'Common',    color: '#6b7fa3', border: 'border-slate-500/40',  bg: 'bg-slate-500/10',   glow: '' },
+    uncommon:  { label: 'Uncommon',  color: '#2dd4a0', border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', glow: '' },
+    rare:      { label: 'Rare',      color: '#00d4ff', border: 'border-cyan-400/50',   bg: 'bg-cyan-400/10',    glow: 'shadow-[0_0_8px_rgba(0,212,255,0.35)]' },
+    epic:      { label: 'Epic',      color: '#a855f7', border: 'border-purple-500/50', bg: 'bg-purple-500/10',  glow: 'shadow-[0_0_14px_rgba(168,85,247,0.45)]' },
+    legendary: { label: 'Legendary', color: '#ff7b00', border: 'border-orange-500/60', bg: 'bg-orange-500/15',  glow: 'shadow-[0_0_22px_rgba(255,123,0,0.6)]' }
 };

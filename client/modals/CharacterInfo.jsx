@@ -1,5 +1,5 @@
 import React from 'react';
-import CharacterSVG from '../icons/CharacterSVGs';
+import CharacterAvatar from '../components/CharacterAvatar';
 
 function CharacterInfo({
     theme,
@@ -16,9 +16,13 @@ function CharacterInfo({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[60]" onClick={() => setCharacterInfoModal(null)}>
             <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl max-w-sm w-full p-6 ${rc.glow}`} style={{ border: `2px solid ${rc.color}40` }} onClick={(e) => e.stopPropagation()}>
                 <div className="text-center mb-4">
-                    <div className="inline-block mb-3">
-                        <CharacterSVG characterId={c.id} size={100} color={isLocked ? '#555' : c.color} />
-                    </div>
+                    <CharacterAvatar
+                        characterId={c.id}
+                        size={100}
+                        rarity={c.rarity}
+                        isLocked={false}
+                        className="inline-block mb-3"
+                    />
                     <h3 className={`text-xl font-bold ${currentTheme.font}`} style={{ color: rc.color }}>{c.name}</h3>
                     <span className="inline-block mt-1 text-[0.65rem] font-bold tracking-widest uppercase px-2 py-0.5 rounded-full" style={{ color: rc.color, background: `${rc.color}20`, border: `1px solid ${rc.color}40` }}>
                         {rc.label}

@@ -3,9 +3,181 @@ const { v4: uuidv4 } = require('uuid');
 // In-memory room store (rooms are ephemeral — no need to persist them)
 const rooms = new Map();
 
-// Trivia questions bank (embedded for server-side use)
-// This is a subset - full list is in client/data/triviaQuestions.js
+// Trivia questions bank organized by difficulty level
+// Very Easy (ages 3-7), Easy (7-12), Medium (12-18), Hard (18+), Master (PhD)
+const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
+  'super-easy': [
+    // Very basic questions for toddlers (3-6)
+    { id: 'SE1', category: 'Colors', question: 'What color is the sky?', answers: ['Blue', 'Red', 'Green', 'Yellow'], correctIndex: 0 },
+    { id: 'SE2', category: 'Colors', question: 'What color is a banana?', answers: ['Yellow', 'Blue', 'Red', 'Green'], correctIndex: 0 },
+    { id: 'SE3', category: 'Colors', question: 'What color is grass?', answers: ['Green', 'Blue', 'Yellow', 'Red'], correctIndex: 0 },
+    { id: 'SE4', category: 'Animals', question: 'What sound does a dog make?', answers: ['Woof', 'Meow', 'Moo', 'Oink'], correctIndex: 0 },
+    { id: 'SE5', category: 'Animals', question: 'What sound does a cat make?', answers: ['Meow', 'Woof', 'Moo', 'Quack'], correctIndex: 0 },
+    { id: 'SE6', category: 'Animals', question: 'What says "moo"?', answers: ['Cow', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'SE7', category: 'Animals', question: 'What says "oink"?', answers: ['Pig', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'SE8', category: 'Animals', question: 'What says "quack"?', answers: ['Duck', 'Dog', 'Cat', 'Cow'], correctIndex: 0 },
+    { id: 'SE9', category: 'Body', question: 'How many eyes do you have?', answers: ['2', '1', '3', '4'], correctIndex: 0 },
+    { id: 'SE10', category: 'Body', question: 'How many noses do you have?', answers: ['1', '2', '3', '0'], correctIndex: 0 },
+    { id: 'SE11', category: 'Body', question: 'How many ears do you have?', answers: ['2', '1', '3', '4'], correctIndex: 0 },
+    { id: 'SE12', category: 'Nature', question: 'The sun is...?', answers: ['Hot', 'Cold', 'Wet', 'Soft'], correctIndex: 0 },
+    { id: 'SE13', category: 'Nature', question: 'Snow is...?', answers: ['Cold', 'Hot', 'Dry', 'Loud'], correctIndex: 0 },
+    { id: 'SE14', category: 'Colors', question: 'Fire trucks are what color?', answers: ['Red', 'Blue', 'Green', 'Yellow'], correctIndex: 0 },
+    { id: 'SE15', category: 'Food', question: 'What is round and orange?', answers: ['Orange', 'Apple', 'Banana', 'Grape'], correctIndex: 0 },
+    { id: 'SE16', category: 'Animals', question: 'A dog is a...?', answers: ['Pet', 'Plant', 'Car', 'Book'], correctIndex: 0 },
+    { id: 'SE17', category: 'Disney', question: 'Mickey Mouse is a...?', answers: ['Mouse', 'Duck', 'Dog', 'Cat'], correctIndex: 0 },
+    { id: 'SE18', category: 'Nature', question: 'Rain is...?', answers: ['Wet', 'Dry', 'Hot', 'Hard'], correctIndex: 0 },
+    { id: 'SE19', category: 'Food', question: 'Ice cream is...?', answers: ['Cold', 'Hot', 'Hard', 'Loud'], correctIndex: 0 },
+    { id: 'SE20', category: 'Animals', question: 'Birds can...?', answers: ['Fly', 'Swim', 'Drive', 'Read'], correctIndex: 0 }
+  ],
+  'very-easy': [
+    { id: 'VE1', category: 'Colors', question: 'What color is the sky on a sunny day?', answers: ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Orange'], correctIndex: 0 },
+    { id: 'VE2', category: 'Colors', question: 'What color is a banana?', answers: ['Yellow', 'Blue', 'Red', 'Green', 'Purple', 'Orange'], correctIndex: 0 },
+    { id: 'VE3', category: 'Colors', question: 'What color is grass?', answers: ['Green', 'Blue', 'Yellow', 'Red', 'Purple', 'Orange'], correctIndex: 0 },
+    { id: 'VE4', category: 'Colors', question: 'What color is a fire truck?', answers: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'], correctIndex: 0 },
+    { id: 'VE5', category: 'Shapes', question: 'How many sides does a triangle have?', answers: ['3', '4', '5', '6', '2', '7'], correctIndex: 0 },
+    { id: 'VE6', category: 'Shapes', question: 'What shape is a ball?', answers: ['Round', 'Square', 'Triangle', 'Rectangle', 'Star', 'Heart'], correctIndex: 0 },
+    { id: 'VE7', category: 'Animals', question: 'What sound does a dog make?', answers: ['Woof', 'Meow', 'Moo', 'Oink', 'Quack', 'Roar'], correctIndex: 0 },
+    { id: 'VE8', category: 'Animals', question: 'What sound does a cat make?', answers: ['Meow', 'Woof', 'Moo', 'Quack', 'Oink', 'Roar'], correctIndex: 0 },
+    { id: 'VE9', category: 'Animals', question: 'What animal says "moo"?', answers: ['Cow', 'Dog', 'Cat', 'Duck', 'Pig', 'Horse'], correctIndex: 0 },
+    { id: 'VE10', category: 'Animals', question: 'What animal has a long trunk?', answers: ['Elephant', 'Dog', 'Cat', 'Bird', 'Fish', 'Lion'], correctIndex: 0 },
+    { id: 'VE11', category: 'Animals', question: 'Which animal can fly?', answers: ['Bird', 'Fish', 'Dog', 'Cat', 'Cow', 'Horse'], correctIndex: 0 },
+    { id: 'VE12', category: 'Animals', question: 'What animal lives in water?', answers: ['Fish', 'Dog', 'Cat', 'Bird', 'Cow', 'Horse'], correctIndex: 0 },
+    { id: 'VE13', category: 'Body', question: 'How many eyes do you have?', answers: ['2', '1', '3', '4', '5', '6'], correctIndex: 0 },
+    { id: 'VE14', category: 'Body', question: 'How many fingers are on one hand?', answers: ['5', '4', '3', '10', '6', '2'], correctIndex: 0 },
+    { id: 'VE15', category: 'Numbers', question: 'What comes after 1, 2, 3?', answers: ['4', '5', '6', '7', '8', '9'], correctIndex: 0 },
+    { id: 'VE16', category: 'Food', question: 'What fruit is red and grows on trees?', answers: ['Apple', 'Banana', 'Orange', 'Grape', 'Lemon', 'Lime'], correctIndex: 0 },
+    { id: 'VE17', category: 'Nature', question: 'The sun comes out during the...?', answers: ['Day', 'Night', 'Evening', 'Never', 'Midnight', 'Dawn'], correctIndex: 0 },
+    { id: 'VE18', category: 'Disney', question: 'Mickey Mouse has two big...?', answers: ['Ears', 'Noses', 'Feet', 'Hands', 'Eyes', 'Teeth'], correctIndex: 0 },
+    { id: 'VE19', category: 'Nature', question: 'Snow is what color?', answers: ['White', 'Blue', 'Yellow', 'Green', 'Red', 'Pink'], correctIndex: 0 },
+    { id: 'VE20', category: 'Animals', question: 'What animal hops?', answers: ['Rabbit', 'Fish', 'Snake', 'Cow', 'Dog', 'Cat'], correctIndex: 0 }
+  ],
+  'easy': [
+    { id: 'E1', category: 'Movies', question: 'Which Disney movie features a character named Simba?', answers: ['The Lion King', 'Frozen', 'Moana', 'Aladdin', 'Tarzan', 'Bambi'], correctIndex: 0 },
+    { id: 'E2', category: 'Movies', question: 'What is the name of the snowman in "Frozen"?', answers: ['Olaf', 'Sven', 'Kristoff', 'Marshmallow', 'Frosty', 'Snowy'], correctIndex: 0 },
+    { id: 'E3', category: 'Movies', question: 'In "Toy Story", what kind of toy is Woody?', answers: ['Cowboy', 'Astronaut', 'Dinosaur', 'Soldier', 'Robot', 'Superhero'], correctIndex: 0 },
+    { id: 'E4', category: 'Movies', question: 'What color is the fish Nemo?', answers: ['Orange and white', 'Blue and yellow', 'Red and black', 'Green and purple', 'Pink', 'Yellow'], correctIndex: 0 },
+    { id: 'E5', category: 'TV Shows', question: 'What is SpongeBob SquarePants\'s pet snail named?', answers: ['Gary', 'Larry', 'Barry', 'Harry', 'Terry', 'Jerry'], correctIndex: 0 },
+    { id: 'E6', category: 'Video Games', question: 'What is the name of Mario\'s brother?', answers: ['Luigi', 'Wario', 'Waluigi', 'Toad', 'Yoshi', 'Bowser'], correctIndex: 0 },
+    { id: 'E7', category: 'Video Games', question: 'What color is Sonic the Hedgehog?', answers: ['Blue', 'Red', 'Green', 'Yellow', 'Purple', 'Orange'], correctIndex: 0 },
+    { id: 'E8', category: 'Video Games', question: 'In Pokemon, what type is Pikachu?', answers: ['Electric', 'Fire', 'Water', 'Grass', 'Normal', 'Flying'], correctIndex: 0 },
+    { id: 'E9', category: 'Animals', question: 'What is the largest animal on Earth?', answers: ['Blue whale', 'Elephant', 'Giraffe', 'Great white shark', 'Hippo', 'Bear'], correctIndex: 0 },
+    { id: 'E10', category: 'Animals', question: 'How many legs does a spider have?', answers: ['8', '6', '10', '4', '12', '7'], correctIndex: 0 },
+    { id: 'E11', category: 'Animals', question: 'What is the fastest land animal?', answers: ['Cheetah', 'Lion', 'Horse', 'Gazelle', 'Leopard', 'Dog'], correctIndex: 0 },
+    { id: 'E12', category: 'Sports', question: 'How many players are on a soccer team on the field?', answers: ['11', '10', '9', '12', '8', '7'], correctIndex: 0 },
+    { id: 'E13', category: 'General', question: 'What planet is known as the "Red Planet"?', answers: ['Mars', 'Venus', 'Jupiter', 'Saturn', 'Mercury', 'Neptune'], correctIndex: 0 },
+    { id: 'E14', category: 'General', question: 'How many continents are there on Earth?', answers: ['7', '6', '5', '8', '9', '4'], correctIndex: 0 },
+    { id: 'E15', category: 'General', question: 'What is the largest ocean on Earth?', answers: ['Pacific Ocean', 'Atlantic Ocean', 'Indian Ocean', 'Arctic Ocean', 'Southern', 'Mediterranean'], correctIndex: 0 },
+    { id: 'E16', category: 'Music', question: 'What Disney song has lyrics "Let it go, let it go"?', answers: ['Let It Go', 'Into the Unknown', 'Show Yourself', 'Frozen Heart', 'Build a Snowman', 'Open Door'], correctIndex: 0 },
+    { id: 'E17', category: 'Sports', question: 'How many rings are in the Olympic symbol?', answers: ['5', '4', '6', '7', '3', '8'], correctIndex: 0 },
+    { id: 'E18', category: 'Video Games', question: 'In Minecraft, what explodes when it gets close?', answers: ['Creeper', 'Zombie', 'Skeleton', 'Enderman', 'Spider', 'Witch'], correctIndex: 0 },
+    { id: 'E19', category: 'General', question: 'How many colors are in a rainbow?', answers: ['7', '6', '5', '8', '9', '10'], correctIndex: 0 },
+    { id: 'E20', category: 'General', question: 'What do bees make?', answers: ['Honey', 'Milk', 'Silk', 'Wax', 'Nectar', 'Pollen'], correctIndex: 0 }
+  ],
+  'medium': [
+    { id: 'M1', category: 'Movies', question: 'Which superhero is known as the "Dark Knight"?', answers: ['Batman', 'Superman', 'Spider-Man', 'Iron Man', 'Thor', 'Captain America'], correctIndex: 0 },
+    { id: 'M2', category: 'Movies', question: 'In Harry Potter, what sport do wizards play on broomsticks?', answers: ['Quidditch', 'Broomball', 'Wizardball', 'Flyball', 'Seekers', 'Snitchball'], correctIndex: 0 },
+    { id: 'M3', category: 'TV Shows', question: 'In Stranger Things, what is Eleven\'s favorite food?', answers: ['Eggo waffles', 'Pizza', 'Ice cream', 'Burgers', 'Fries', 'Chicken nuggets'], correctIndex: 0 },
+    { id: 'M4', category: 'Movies', question: 'What is Baby Yoda\'s real name in The Mandalorian?', answers: ['Grogu', 'Din', 'Mando', 'Yoda', 'Luke', 'Ben'], correctIndex: 0 },
+    { id: 'M5', category: 'Music', question: 'Which K-pop group performed "Dynamite"?', answers: ['BTS', 'BLACKPINK', 'EXO', 'TWICE', 'Stray Kids', 'NCT'], correctIndex: 0 },
+    { id: 'M6', category: 'Music', question: 'Which singer is known for "Bad Guy"?', answers: ['Billie Eilish', 'Ariana Grande', 'Dua Lipa', 'Olivia Rodrigo', 'Doja Cat', 'SZA'], correctIndex: 0 },
+    { id: 'M7', category: 'Sports', question: 'What country won the 2022 FIFA World Cup?', answers: ['Argentina', 'France', 'Brazil', 'Germany', 'Spain', 'England'], correctIndex: 0 },
+    { id: 'M8', category: 'General', question: 'What is the hardest natural substance on Earth?', answers: ['Diamond', 'Gold', 'Iron', 'Steel', 'Titanium', 'Platinum'], correctIndex: 0 },
+    { id: 'M9', category: 'TV Shows', question: 'What Netflix show features "Red Light, Green Light"?', answers: ['Squid Game', 'Money Heist', 'All of Us Are Dead', 'Sweet Home', 'Hellbound', 'The Glory'], correctIndex: 0 },
+    { id: 'M10', category: 'Video Games', question: 'In Fortnite, what is the shrinking danger zone called?', answers: ['The Storm', 'The Circle', 'The Zone', 'The Ring', 'The Wall', 'The Fog'], correctIndex: 0 },
+    { id: 'M11', category: 'Movies', question: 'What superhero wears a red and gold suit of armor?', answers: ['Iron Man', 'Thor', 'Captain America', 'Hulk', 'Black Panther', 'Ant-Man'], correctIndex: 0 },
+    { id: 'M12', category: 'General', question: 'What famous tower is located in Paris?', answers: ['Eiffel Tower', 'Leaning Tower', 'Big Ben', 'Empire State', 'Burj Khalifa', 'CN Tower'], correctIndex: 0 },
+    { id: 'M13', category: 'General', question: 'What is the largest planet in our solar system?', answers: ['Jupiter', 'Saturn', 'Neptune', 'Uranus', 'Earth', 'Mars'], correctIndex: 0 },
+    { id: 'M14', category: 'Music', question: 'Which rapper is known as "Slim Shady"?', answers: ['Eminem', 'Drake', 'Kanye West', 'Snoop Dogg', 'Jay-Z', 'Lil Wayne'], correctIndex: 0 },
+    { id: 'M15', category: 'Sports', question: 'What sport uses a puck?', answers: ['Hockey', 'Lacrosse', 'Curling', 'Field Hockey', 'Polo', 'Cricket'], correctIndex: 0 },
+    { id: 'M16', category: 'Movies', question: 'In "The Incredibles", what is the family\'s last name?', answers: ['Parr', 'Smith', 'Jones', 'Super', 'Powers', 'Strong'], correctIndex: 0 },
+    { id: 'M17', category: 'TV Shows', question: 'In Avatar: The Last Airbender, what element does Aang master first?', answers: ['Air', 'Water', 'Earth', 'Fire', 'Metal', 'Lightning'], correctIndex: 0 },
+    { id: 'M18', category: 'General', question: 'What gas do plants breathe in?', answers: ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen', 'Helium', 'Methane'], correctIndex: 0 },
+    { id: 'M19', category: 'Video Games', question: 'In Roblox, what is the in-game currency called?', answers: ['Robux', 'Coins', 'Gems', 'Bucks', 'Credits', 'Tokens'], correctIndex: 0 },
+    { id: 'M20', category: 'Sports', question: 'What color belt is highest in karate?', answers: ['Black', 'White', 'Red', 'Brown', 'Blue', 'Green'], correctIndex: 0 }
+  ],
+  'hard': [
+    { id: 'H1', category: 'Science', question: 'What is the chemical symbol for gold?', answers: ['Au', 'Ag', 'Fe', 'Cu', 'Pb', 'Hg'], correctIndex: 0 },
+    { id: 'H2', category: 'History', question: 'In what year did World War II end?', answers: ['1945', '1944', '1946', '1943', '1947', '1942'], correctIndex: 0 },
+    { id: 'H3', category: 'Geography', question: 'What is the smallest country in the world by area?', answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein', 'Malta', 'Andorra'], correctIndex: 0 },
+    { id: 'H4', category: 'Science', question: 'What is the speed of light in a vacuum (km/s)?', answers: ['299,792', '299,000', '300,000', '298,000', '301,000', '295,000'], correctIndex: 0 },
+    { id: 'H5', category: 'Literature', question: 'Who wrote "1984"?', answers: ['George Orwell', 'Aldous Huxley', 'Ray Bradbury', 'H.G. Wells', 'Arthur Clarke', 'Isaac Asimov'], correctIndex: 0 },
+    { id: 'H6', category: 'History', question: 'Who was the first person to walk on the moon?', answers: ['Neil Armstrong', 'Buzz Aldrin', 'Michael Collins', 'John Glenn', 'Alan Shepard', 'Yuri Gagarin'], correctIndex: 0 },
+    { id: 'H7', category: 'Science', question: 'What is the powerhouse of the cell?', answers: ['Mitochondria', 'Nucleus', 'Ribosome', 'Endoplasmic reticulum', 'Golgi apparatus', 'Lysosome'], correctIndex: 0 },
+    { id: 'H8', category: 'Geography', question: 'What is the longest river in the world?', answers: ['Nile', 'Amazon', 'Yangtze', 'Mississippi', 'Congo', 'Mekong'], correctIndex: 0 },
+    { id: 'H9', category: 'Art', question: 'Who painted the Mona Lisa?', answers: ['Leonardo da Vinci', 'Michelangelo', 'Raphael', 'Botticelli', 'Caravaggio', 'Titian'], correctIndex: 0 },
+    { id: 'H10', category: 'Science', question: 'What element has the atomic number 1?', answers: ['Hydrogen', 'Helium', 'Lithium', 'Carbon', 'Oxygen', 'Nitrogen'], correctIndex: 0 },
+    { id: 'H11', category: 'History', question: 'What ancient wonder was located in Alexandria, Egypt?', answers: ['Lighthouse', 'Hanging Gardens', 'Colossus', 'Mausoleum', 'Temple of Artemis', 'Statue of Zeus'], correctIndex: 0 },
+    { id: 'H12', category: 'Geography', question: 'What is the capital of Australia?', answers: ['Canberra', 'Sydney', 'Melbourne', 'Perth', 'Brisbane', 'Adelaide'], correctIndex: 0 },
+    { id: 'H13', category: 'Science', question: 'What is the most abundant gas in Earth\'s atmosphere?', answers: ['Nitrogen', 'Oxygen', 'Carbon dioxide', 'Argon', 'Hydrogen', 'Helium'], correctIndex: 0 },
+    { id: 'H14', category: 'Literature', question: 'Who wrote "Romeo and Juliet"?', answers: ['Shakespeare', 'Chaucer', 'Milton', 'Dickens', 'Austen', 'Hemingway'], correctIndex: 0 },
+    { id: 'H15', category: 'Music', question: 'What composer wrote the "Moonlight Sonata"?', answers: ['Beethoven', 'Mozart', 'Bach', 'Chopin', 'Brahms', 'Tchaikovsky'], correctIndex: 0 },
+    { id: 'H16', category: 'History', question: 'In what year did the Berlin Wall fall?', answers: ['1989', '1990', '1988', '1991', '1987', '1992'], correctIndex: 0 },
+    { id: 'H17', category: 'Science', question: 'What is the largest organ in the human body?', answers: ['Skin', 'Liver', 'Brain', 'Heart', 'Lungs', 'Intestines'], correctIndex: 0 },
+    { id: 'H18', category: 'Geography', question: 'Mount Everest is located between which two countries?', answers: ['Nepal and China', 'India and China', 'Nepal and India', 'Tibet and Nepal', 'China and Bhutan', 'India and Tibet'], correctIndex: 0 },
+    { id: 'H19', category: 'Art', question: 'Which artist cut off his own ear?', answers: ['Van Gogh', 'Picasso', 'Monet', 'Rembrandt', 'Dali', 'Warhol'], correctIndex: 0 },
+    { id: 'H20', category: 'Science', question: 'What is the chemical formula for water?', answers: ['H2O', 'CO2', 'NaCl', 'O2', 'H2O2', 'CH4'], correctIndex: 0 }
+  ],
+  'very-hard': [
+    // Challenging adult-level questions (18+)
+    { id: 'VH1', category: 'Science', question: 'What is the chemical symbol for gold?', answers: ['Au', 'Ag', 'Fe', 'Cu', 'Pb', 'Hg'], correctIndex: 0 },
+    { id: 'VH2', category: 'History', question: 'In what year did World War II end?', answers: ['1945', '1944', '1946', '1943', '1947', '1942'], correctIndex: 0 },
+    { id: 'VH3', category: 'Geography', question: 'What is the smallest country in the world by area?', answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein', 'Malta', 'Andorra'], correctIndex: 0 },
+    { id: 'VH4', category: 'Science', question: 'What is the speed of light in a vacuum (km/s)?', answers: ['299,792', '299,000', '300,000', '298,000', '301,000', '295,000'], correctIndex: 0 },
+    { id: 'VH5', category: 'Literature', question: 'Who wrote "1984"?', answers: ['George Orwell', 'Aldous Huxley', 'Ray Bradbury', 'H.G. Wells', 'Arthur Clarke', 'Isaac Asimov'], correctIndex: 0 },
+    { id: 'VH6', category: 'History', question: 'Who was the first person to walk on the moon?', answers: ['Neil Armstrong', 'Buzz Aldrin', 'Michael Collins', 'John Glenn', 'Alan Shepard', 'Yuri Gagarin'], correctIndex: 0 },
+    { id: 'VH7', category: 'Science', question: 'What is the powerhouse of the cell?', answers: ['Mitochondria', 'Nucleus', 'Ribosome', 'Endoplasmic reticulum', 'Golgi apparatus', 'Lysosome'], correctIndex: 0 },
+    { id: 'VH8', category: 'Geography', question: 'What is the longest river in the world?', answers: ['Nile', 'Amazon', 'Yangtze', 'Mississippi', 'Congo', 'Mekong'], correctIndex: 0 },
+    { id: 'VH9', category: 'Art', question: 'Who painted the Mona Lisa?', answers: ['Leonardo da Vinci', 'Michelangelo', 'Raphael', 'Botticelli', 'Caravaggio', 'Titian'], correctIndex: 0 },
+    { id: 'VH10', category: 'Science', question: 'What element has the atomic number 1?', answers: ['Hydrogen', 'Helium', 'Lithium', 'Carbon', 'Oxygen', 'Nitrogen'], correctIndex: 0 },
+    { id: 'VH11', category: 'History', question: 'What ancient wonder was located in Alexandria, Egypt?', answers: ['Lighthouse', 'Hanging Gardens', 'Colossus', 'Mausoleum', 'Temple of Artemis', 'Statue of Zeus'], correctIndex: 0 },
+    { id: 'VH12', category: 'Geography', question: 'What is the capital of Australia?', answers: ['Canberra', 'Sydney', 'Melbourne', 'Perth', 'Brisbane', 'Adelaide'], correctIndex: 0 },
+    { id: 'VH13', category: 'Science', question: 'What is the most abundant gas in Earth\'s atmosphere?', answers: ['Nitrogen', 'Oxygen', 'Carbon dioxide', 'Argon', 'Hydrogen', 'Helium'], correctIndex: 0 },
+    { id: 'VH14', category: 'Literature', question: 'Who wrote "Romeo and Juliet"?', answers: ['Shakespeare', 'Chaucer', 'Milton', 'Dickens', 'Austen', 'Hemingway'], correctIndex: 0 },
+    { id: 'VH15', category: 'Music', question: 'What composer wrote the "Moonlight Sonata"?', answers: ['Beethoven', 'Mozart', 'Bach', 'Chopin', 'Brahms', 'Tchaikovsky'], correctIndex: 0 },
+    { id: 'VH16', category: 'History', question: 'In what year did the Berlin Wall fall?', answers: ['1989', '1990', '1988', '1991', '1987', '1992'], correctIndex: 0 },
+    { id: 'VH17', category: 'Science', question: 'What is the largest organ in the human body?', answers: ['Skin', 'Liver', 'Brain', 'Heart', 'Lungs', 'Intestines'], correctIndex: 0 },
+    { id: 'VH18', category: 'Geography', question: 'Mount Everest is located between which two countries?', answers: ['Nepal and China', 'India and China', 'Nepal and India', 'Tibet and Nepal', 'China and Bhutan', 'India and Tibet'], correctIndex: 0 },
+    { id: 'VH19', category: 'Art', question: 'Which artist cut off his own ear?', answers: ['Van Gogh', 'Picasso', 'Monet', 'Rembrandt', 'Dali', 'Warhol'], correctIndex: 0 },
+    { id: 'VH20', category: 'Science', question: 'What is the chemical formula for water?', answers: ['H2O', 'CO2', 'NaCl', 'O2', 'H2O2', 'CH4'], correctIndex: 0 }
+  ],
+  'genius': [
+    // Expert-level questions
+    { id: 'G1', category: 'Science', question: 'What is the Heisenberg Uncertainty Principle related to?', answers: ['Quantum mechanics', 'Relativity', 'Thermodynamics', 'Electromagnetism', 'Nuclear physics', 'Optics'], correctIndex: 0 },
+    { id: 'G2', category: 'Philosophy', question: 'Who wrote "Critique of Pure Reason"?', answers: ['Immanuel Kant', 'Hegel', 'Nietzsche', 'Descartes', 'Plato', 'Aristotle'], correctIndex: 0 },
+    { id: 'G3', category: 'History', question: 'The Treaty of Westphalia (1648) ended which war?', answers: ['Thirty Years War', 'Hundred Years War', 'Seven Years War', 'Napoleonic Wars', 'English Civil War', 'War of Roses'], correctIndex: 0 },
+    { id: 'G4', category: 'Science', question: 'What is the Chandrasekhar limit approximately equal to?', answers: ['1.4 solar masses', '2.0 solar masses', '1.0 solar masses', '0.5 solar masses', '3.0 solar masses', '2.5 solar masses'], correctIndex: 0 },
+    { id: 'G5', category: 'Literature', question: 'Who wrote "Ulysses" (1922)?', answers: ['James Joyce', 'Virginia Woolf', 'T.S. Eliot', 'F. Scott Fitzgerald', 'Ernest Hemingway', 'William Faulkner'], correctIndex: 0 },
+    { id: 'G6', category: 'Math', question: 'What is Euler\'s number (e) approximately equal to?', answers: ['2.71828', '3.14159', '1.61803', '2.30258', '1.41421', '2.50000'], correctIndex: 0 },
+    { id: 'G7', category: 'Science', question: 'What particle is responsible for mass in the Standard Model?', answers: ['Higgs boson', 'Photon', 'Gluon', 'Graviton', 'W boson', 'Z boson'], correctIndex: 0 },
+    { id: 'G8', category: 'History', question: 'What was the name of the first successful English colony in America?', answers: ['Jamestown', 'Plymouth', 'Roanoke', 'Boston', 'Williamsburg', 'Philadelphia'], correctIndex: 0 },
+    { id: 'G9', category: 'Science', question: 'What is the half-life of Carbon-14 (years)?', answers: ['5,730', '4,500', '6,000', '5,000', '7,000', '8,000'], correctIndex: 0 },
+    { id: 'G10', category: 'Art', question: 'What art movement did Marcel Duchamp help found?', answers: ['Dadaism', 'Surrealism', 'Cubism', 'Futurism', 'Pop Art', 'Minimalism'], correctIndex: 0 },
+    { id: 'G11', category: 'Science', question: 'What is the Schwarzschild radius related to?', answers: ['Black holes', 'Neutron stars', 'White dwarfs', 'Pulsars', 'Quasars', 'Supernovae'], correctIndex: 0 },
+    { id: 'G12', category: 'Philosophy', question: 'What is the "Ship of Theseus" paradox about?', answers: ['Identity', 'Time', 'Space', 'Causality', 'Knowledge', 'Ethics'], correctIndex: 0 },
+    { id: 'G13', category: 'History', question: 'Who was the last Tsar of Russia?', answers: ['Nicholas II', 'Alexander III', 'Nicholas I', 'Alexander II', 'Paul I', 'Peter III'], correctIndex: 0 },
+    { id: 'G14', category: 'Science', question: 'What is the Planck length approximately (meters)?', answers: ['1.6 x 10^-35', '1.6 x 10^-30', '1.6 x 10^-40', '1.6 x 10^-25', '1.6 x 10^-20', '1.6 x 10^-45'], correctIndex: 0 },
+    { id: 'G15', category: 'Literature', question: 'Who wrote "The Brothers Karamazov"?', answers: ['Dostoevsky', 'Tolstoy', 'Chekhov', 'Gogol', 'Turgenev', 'Pushkin'], correctIndex: 0 },
+    { id: 'G16', category: 'Science', question: 'What is the Coriolis effect primarily caused by?', answers: ['Earth\'s rotation', 'Moon\'s gravity', 'Sun\'s radiation', 'Magnetic field', 'Atmospheric pressure', 'Ocean currents'], correctIndex: 0 },
+    { id: 'G17', category: 'History', question: 'The Taiping Rebellion occurred in which country?', answers: ['China', 'Japan', 'India', 'Vietnam', 'Korea', 'Philippines'], correctIndex: 0 },
+    { id: 'G18', category: 'Math', question: 'What is the golden ratio (phi) approximately equal to?', answers: ['1.618', '1.414', '2.718', '3.141', '1.732', '2.236'], correctIndex: 0 },
+    { id: 'G19', category: 'Science', question: 'What is CRISPR primarily used for?', answers: ['Gene editing', 'Protein synthesis', 'Cell division', 'DNA replication', 'RNA transcription', 'Mutation detection'], correctIndex: 0 },
+    { id: 'G20', category: 'Philosophy', question: 'Who proposed the "Veil of Ignorance" thought experiment?', answers: ['John Rawls', 'Robert Nozick', 'Peter Singer', 'John Stuart Mill', 'Immanuel Kant', 'Jeremy Bentham'], correctIndex: 0 }
+  ]
+};
+
+// Flatten all trivia questions for legacy support and speed rounds
 const TRIVIA_QUESTIONS = [
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['super-easy'],
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['very-easy'],
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['easy'],
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['medium'],
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['hard'],
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['very-hard'],
+  ...TRIVIA_QUESTIONS_BY_DIFFICULTY['genius']
+];
+
+// Legacy trivia questions bank (keeping for backwards compatibility with existing code)
+const TRIVIA_QUESTIONS_LEGACY = [
   { id: 1, category: 'Movies', question: 'Which Disney movie features a character named Simba?', answers: ['The Lion King', 'Frozen', 'Moana', 'Aladdin', 'Tarzan', 'Bambi'], correctIndex: 0 },
   { id: 2, category: 'Movies', question: 'What color is the fish Nemo in "Finding Nemo"?', answers: ['Orange and white', 'Blue and yellow', 'Red and black', 'Green and purple', 'Pink and white', 'Yellow and orange'], correctIndex: 0 },
   { id: 3, category: 'Movies', question: 'In "Toy Story", what kind of toy is Woody?', answers: ['Cowboy', 'Astronaut', 'Dinosaur', 'Soldier', 'Robot', 'Superhero'], correctIndex: 0 },
@@ -122,73 +294,286 @@ const MATH_TIME_BONUS_MAX = 50;
 const MATH_SPEED_MULTIPLIER = 2;
 const MATH_SPEED_FIXED_POINTS = 200;  // Fixed points per correct answer in speed round
 
-// Math questions bank
-const MATH_QUESTIONS = [
-  // Addition
-  { id: 1, category: 'Addition', question: '15 + 27', answer: 42 },
-  { id: 2, category: 'Addition', question: '34 + 58', answer: 92 },
-  { id: 3, category: 'Addition', question: '45 + 36', answer: 81 },
-  { id: 4, category: 'Addition', question: '67 + 24', answer: 91 },
-  { id: 5, category: 'Addition', question: '89 + 11', answer: 100 },
-  { id: 6, category: 'Addition', question: '23 + 77', answer: 100 },
-  { id: 7, category: 'Addition', question: '56 + 44', answer: 100 },
-  { id: 8, category: 'Addition', question: '38 + 47', answer: 85 },
-  { id: 9, category: 'Addition', question: '19 + 64', answer: 83 },
-  { id: 10, category: 'Addition', question: '72 + 18', answer: 90 },
-  { id: 11, category: 'Addition', question: '33 + 49', answer: 82 },
-  { id: 12, category: 'Addition', question: '51 + 39', answer: 90 },
-  { id: 13, category: 'Addition', question: '28 + 65', answer: 93 },
-  { id: 14, category: 'Addition', question: '14 + 78', answer: 92 },
-  { id: 15, category: 'Addition', question: '46 + 37', answer: 83 },
-  // Subtraction
-  { id: 31, category: 'Subtraction', question: '85 - 37', answer: 48 },
-  { id: 32, category: 'Subtraction', question: '92 - 45', answer: 47 },
-  { id: 33, category: 'Subtraction', question: '74 - 28', answer: 46 },
-  { id: 34, category: 'Subtraction', question: '100 - 63', answer: 37 },
-  { id: 35, category: 'Subtraction', question: '67 - 19', answer: 48 },
-  { id: 36, category: 'Subtraction', question: '83 - 56', answer: 27 },
-  { id: 37, category: 'Subtraction', question: '91 - 34', answer: 57 },
-  { id: 38, category: 'Subtraction', question: '58 - 29', answer: 29 },
-  { id: 39, category: 'Subtraction', question: '76 - 48', answer: 28 },
-  { id: 40, category: 'Subtraction', question: '99 - 52', answer: 47 },
-  { id: 41, category: 'Subtraction', question: '64 - 17', answer: 47 },
-  { id: 42, category: 'Subtraction', question: '87 - 39', answer: 48 },
-  { id: 43, category: 'Subtraction', question: '73 - 26', answer: 47 },
-  { id: 44, category: 'Subtraction', question: '95 - 68', answer: 27 },
-  { id: 45, category: 'Subtraction', question: '82 - 44', answer: 38 },
-  // Multiplication
-  { id: 61, category: 'Multiplication', question: '8 x 9', answer: 72 },
-  { id: 62, category: 'Multiplication', question: '7 x 6', answer: 42 },
-  { id: 63, category: 'Multiplication', question: '9 x 7', answer: 63 },
-  { id: 64, category: 'Multiplication', question: '6 x 8', answer: 48 },
-  { id: 65, category: 'Multiplication', question: '5 x 9', answer: 45 },
-  { id: 66, category: 'Multiplication', question: '8 x 8', answer: 64 },
-  { id: 67, category: 'Multiplication', question: '7 x 7', answer: 49 },
-  { id: 68, category: 'Multiplication', question: '9 x 9', answer: 81 },
-  { id: 69, category: 'Multiplication', question: '6 x 7', answer: 42 },
-  { id: 70, category: 'Multiplication', question: '8 x 6', answer: 48 },
-  { id: 71, category: 'Multiplication', question: '12 x 7', answer: 84 },
-  { id: 72, category: 'Multiplication', question: '11 x 8', answer: 88 },
-  { id: 73, category: 'Multiplication', question: '9 x 11', answer: 99 },
-  { id: 74, category: 'Multiplication', question: '12 x 6', answer: 72 },
-  { id: 75, category: 'Multiplication', question: '8 x 12', answer: 96 },
-  // Division
-  { id: 86, category: 'Division', question: '72 / 8', answer: 9 },
-  { id: 87, category: 'Division', question: '63 / 7', answer: 9 },
-  { id: 88, category: 'Division', question: '56 / 8', answer: 7 },
-  { id: 89, category: 'Division', question: '48 / 6', answer: 8 },
-  { id: 90, category: 'Division', question: '81 / 9', answer: 9 },
-  { id: 91, category: 'Division', question: '42 / 7', answer: 6 },
-  { id: 92, category: 'Division', question: '54 / 9', answer: 6 },
-  { id: 93, category: 'Division', question: '64 / 8', answer: 8 },
-  { id: 94, category: 'Division', question: '45 / 5', answer: 9 },
-  { id: 95, category: 'Division', question: '36 / 4', answer: 9 },
-  { id: 96, category: 'Division', question: '49 / 7', answer: 7 },
-  { id: 97, category: 'Division', question: '40 / 8', answer: 5 },
-  { id: 98, category: 'Division', question: '84 / 7', answer: 12 },
-  { id: 99, category: 'Division', question: '96 / 8', answer: 12 },
-  { id: 100, category: 'Division', question: '100 / 4', answer: 25 }
-];
+// Difficulty settings
+const DEFAULT_DIFFICULTY = 'medium';
+const DIFFICULTY_LEVELS = ['super-easy', 'very-easy', 'easy', 'medium', 'hard', 'very-hard', 'genius'];
+
+// Math questions by difficulty level
+// Super Easy (2-4): Counting, what comes before/after X, up to 10
+// Very Easy (5-7): Addition/subtraction up to 12, only +/- 1 or 2
+// Easy (8-11): Addition/subtraction up to 100 (+/- no more than 10), basic multiplication/division
+// Medium (12-15): Harder addition/subtraction, medium multiplication/division
+// Hard (16-18): Three-digit math, advanced times tables, complex division
+// Very Hard (19+): Large operations, percentages, squares
+// Genius: Complex math, cubes, square roots, mixed operations
+const MATH_QUESTIONS_BY_DIFFICULTY = {
+  'super-easy': [
+    // Counting - what comes after (ages 2-4)
+    { id: 'SE1', category: 'Counting', question: 'What comes after 1?', answer: 2 },
+    { id: 'SE2', category: 'Counting', question: 'What comes after 2?', answer: 3 },
+    { id: 'SE3', category: 'Counting', question: 'What comes after 3?', answer: 4 },
+    { id: 'SE4', category: 'Counting', question: 'What comes after 4?', answer: 5 },
+    { id: 'SE5', category: 'Counting', question: 'What comes after 5?', answer: 6 },
+    { id: 'SE6', category: 'Counting', question: 'What comes after 6?', answer: 7 },
+    { id: 'SE7', category: 'Counting', question: 'What comes after 7?', answer: 8 },
+    { id: 'SE8', category: 'Counting', question: 'What comes after 8?', answer: 9 },
+    { id: 'SE9', category: 'Counting', question: 'What comes after 9?', answer: 10 },
+    // Counting - what comes before
+    { id: 'SE10', category: 'Counting', question: 'What comes before 2?', answer: 1 },
+    { id: 'SE11', category: 'Counting', question: 'What comes before 3?', answer: 2 },
+    { id: 'SE12', category: 'Counting', question: 'What comes before 4?', answer: 3 },
+    { id: 'SE13', category: 'Counting', question: 'What comes before 5?', answer: 4 },
+    { id: 'SE14', category: 'Counting', question: 'What comes before 6?', answer: 5 },
+    { id: 'SE15', category: 'Counting', question: 'What comes before 7?', answer: 6 },
+    { id: 'SE16', category: 'Counting', question: 'What comes before 8?', answer: 7 },
+    { id: 'SE17', category: 'Counting', question: 'What comes before 9?', answer: 8 },
+    { id: 'SE18', category: 'Counting', question: 'What comes before 10?', answer: 9 },
+    // More counting variety
+    { id: 'SE19', category: 'Counting', question: 'What number is after 0?', answer: 1 },
+    { id: 'SE20', category: 'Counting', question: 'What number is before 1?', answer: 0 },
+    { id: 'SE21', category: 'Counting', question: 'Count: 1, 2, ...?', answer: 3 },
+    { id: 'SE22', category: 'Counting', question: 'Count: 2, 3, ...?', answer: 4 },
+    { id: 'SE23', category: 'Counting', question: 'Count: 3, 4, ...?', answer: 5 },
+    { id: 'SE24', category: 'Counting', question: 'Count: 4, 5, ...?', answer: 6 },
+    { id: 'SE25', category: 'Counting', question: 'Count: 5, 6, ...?', answer: 7 },
+    { id: 'SE26', category: 'Counting', question: 'Count: 6, 7, ...?', answer: 8 },
+    { id: 'SE27', category: 'Counting', question: 'Count: 7, 8, ...?', answer: 9 },
+    { id: 'SE28', category: 'Counting', question: 'Count: 8, 9, ...?', answer: 10 },
+    { id: 'SE29', category: 'Counting', question: 'What comes after 0?', answer: 1 },
+    { id: 'SE30', category: 'Counting', question: 'Count: 0, 1, ...?', answer: 2 }
+  ],
+  'very-easy': [
+    // Addition +1 or +2 only (ages 5-7)
+    { id: 'VE1', category: 'Addition', question: '1 + 1', answer: 2 },
+    { id: 'VE2', category: 'Addition', question: '2 + 1', answer: 3 },
+    { id: 'VE3', category: 'Addition', question: '3 + 1', answer: 4 },
+    { id: 'VE4', category: 'Addition', question: '4 + 1', answer: 5 },
+    { id: 'VE5', category: 'Addition', question: '5 + 1', answer: 6 },
+    { id: 'VE6', category: 'Addition', question: '6 + 1', answer: 7 },
+    { id: 'VE7', category: 'Addition', question: '7 + 1', answer: 8 },
+    { id: 'VE8', category: 'Addition', question: '8 + 1', answer: 9 },
+    { id: 'VE9', category: 'Addition', question: '9 + 1', answer: 10 },
+    { id: 'VE10', category: 'Addition', question: '10 + 1', answer: 11 },
+    { id: 'VE11', category: 'Addition', question: '1 + 2', answer: 3 },
+    { id: 'VE12', category: 'Addition', question: '2 + 2', answer: 4 },
+    { id: 'VE13', category: 'Addition', question: '3 + 2', answer: 5 },
+    { id: 'VE14', category: 'Addition', question: '4 + 2', answer: 6 },
+    { id: 'VE15', category: 'Addition', question: '5 + 2', answer: 7 },
+    { id: 'VE16', category: 'Addition', question: '6 + 2', answer: 8 },
+    { id: 'VE17', category: 'Addition', question: '7 + 2', answer: 9 },
+    { id: 'VE18', category: 'Addition', question: '8 + 2', answer: 10 },
+    { id: 'VE19', category: 'Addition', question: '9 + 2', answer: 11 },
+    { id: 'VE20', category: 'Addition', question: '10 + 2', answer: 12 },
+    // Subtraction -1 or -2 only
+    { id: 'VE21', category: 'Subtraction', question: '3 - 1', answer: 2 },
+    { id: 'VE22', category: 'Subtraction', question: '4 - 1', answer: 3 },
+    { id: 'VE23', category: 'Subtraction', question: '5 - 1', answer: 4 },
+    { id: 'VE24', category: 'Subtraction', question: '6 - 1', answer: 5 },
+    { id: 'VE25', category: 'Subtraction', question: '7 - 1', answer: 6 },
+    { id: 'VE26', category: 'Subtraction', question: '8 - 1', answer: 7 },
+    { id: 'VE27', category: 'Subtraction', question: '9 - 1', answer: 8 },
+    { id: 'VE28', category: 'Subtraction', question: '10 - 1', answer: 9 },
+    { id: 'VE29', category: 'Subtraction', question: '5 - 2', answer: 3 },
+    { id: 'VE30', category: 'Subtraction', question: '6 - 2', answer: 4 },
+    { id: 'VE31', category: 'Subtraction', question: '7 - 2', answer: 5 },
+    { id: 'VE32', category: 'Subtraction', question: '8 - 2', answer: 6 },
+    { id: 'VE33', category: 'Subtraction', question: '9 - 2', answer: 7 },
+    { id: 'VE34', category: 'Subtraction', question: '10 - 2', answer: 8 },
+    { id: 'VE35', category: 'Subtraction', question: '11 - 2', answer: 9 },
+    { id: 'VE36', category: 'Subtraction', question: '12 - 2', answer: 10 }
+  ],
+  'easy': [
+    // Addition up to 100, adding no more than 10 (ages 8-11)
+    { id: 'E1', category: 'Addition', question: '10 + 5', answer: 15 },
+    { id: 'E2', category: 'Addition', question: '15 + 5', answer: 20 },
+    { id: 'E3', category: 'Addition', question: '20 + 10', answer: 30 },
+    { id: 'E4', category: 'Addition', question: '25 + 5', answer: 30 },
+    { id: 'E5', category: 'Addition', question: '30 + 10', answer: 40 },
+    { id: 'E6', category: 'Addition', question: '45 + 5', answer: 50 },
+    { id: 'E7', category: 'Addition', question: '50 + 10', answer: 60 },
+    { id: 'E8', category: 'Addition', question: '55 + 5', answer: 60 },
+    { id: 'E9', category: 'Addition', question: '60 + 10', answer: 70 },
+    { id: 'E10', category: 'Addition', question: '75 + 5', answer: 80 },
+    { id: 'E11', category: 'Addition', question: '80 + 10', answer: 90 },
+    { id: 'E12', category: 'Addition', question: '90 + 10', answer: 100 },
+    // Subtraction up to 100, subtracting no more than 10
+    { id: 'E13', category: 'Subtraction', question: '20 - 5', answer: 15 },
+    { id: 'E14', category: 'Subtraction', question: '30 - 10', answer: 20 },
+    { id: 'E15', category: 'Subtraction', question: '40 - 5', answer: 35 },
+    { id: 'E16', category: 'Subtraction', question: '50 - 10', answer: 40 },
+    { id: 'E17', category: 'Subtraction', question: '55 - 5', answer: 50 },
+    { id: 'E18', category: 'Subtraction', question: '60 - 10', answer: 50 },
+    { id: 'E19', category: 'Subtraction', question: '75 - 5', answer: 70 },
+    { id: 'E20', category: 'Subtraction', question: '80 - 10', answer: 70 },
+    { id: 'E21', category: 'Subtraction', question: '90 - 5', answer: 85 },
+    { id: 'E22', category: 'Subtraction', question: '100 - 10', answer: 90 },
+    // Basic multiplication (simple times tables)
+    { id: 'E23', category: 'Multiplication', question: '2 x 2', answer: 4 },
+    { id: 'E24', category: 'Multiplication', question: '3 x 2', answer: 6 },
+    { id: 'E25', category: 'Multiplication', question: '5 x 2', answer: 10 },
+    { id: 'E26', category: 'Multiplication', question: '6 x 1', answer: 6 },
+    { id: 'E27', category: 'Multiplication', question: '4 x 2', answer: 8 },
+    { id: 'E28', category: 'Multiplication', question: '5 x 1', answer: 5 },
+    // Easy division
+    { id: 'E29', category: 'Division', question: '4 / 2', answer: 2 },
+    { id: 'E30', category: 'Division', question: '2 / 1', answer: 2 },
+    { id: 'E31', category: 'Division', question: '3 / 3', answer: 1 },
+    { id: 'E32', category: 'Division', question: '6 / 2', answer: 3 },
+    { id: 'E33', category: 'Division', question: '8 / 2', answer: 4 },
+    { id: 'E34', category: 'Division', question: '10 / 2', answer: 5 }
+  ],
+  'medium': [
+    // Harder addition (ages 12-15)
+    { id: 'M1', category: 'Addition', question: '24 + 85', answer: 109 },
+    { id: 'M2', category: 'Addition', question: '37 + 48', answer: 85 },
+    { id: 'M3', category: 'Addition', question: '56 + 67', answer: 123 },
+    { id: 'M4', category: 'Addition', question: '78 + 45', answer: 123 },
+    { id: 'M5', category: 'Addition', question: '89 + 34', answer: 123 },
+    { id: 'M6', category: 'Addition', question: '65 + 78', answer: 143 },
+    { id: 'M7', category: 'Addition', question: '47 + 86', answer: 133 },
+    { id: 'M8', category: 'Addition', question: '93 + 58', answer: 151 },
+    // Harder subtraction
+    { id: 'M9', category: 'Subtraction', question: '200 - 120', answer: 80 },
+    { id: 'M10', category: 'Subtraction', question: '321 - 29', answer: 292 },
+    { id: 'M11', category: 'Subtraction', question: '150 - 75', answer: 75 },
+    { id: 'M12', category: 'Subtraction', question: '245 - 67', answer: 178 },
+    { id: 'M13', category: 'Subtraction', question: '180 - 95', answer: 85 },
+    { id: 'M14', category: 'Subtraction', question: '300 - 145', answer: 155 },
+    { id: 'M15', category: 'Subtraction', question: '275 - 89', answer: 186 },
+    { id: 'M16', category: 'Subtraction', question: '400 - 225', answer: 175 },
+    // Medium multiplication
+    { id: 'M17', category: 'Multiplication', question: '6 x 7', answer: 42 },
+    { id: 'M18', category: 'Multiplication', question: '8 x 6', answer: 48 },
+    { id: 'M19', category: 'Multiplication', question: '7 x 8', answer: 56 },
+    { id: 'M20', category: 'Multiplication', question: '9 x 6', answer: 54 },
+    { id: 'M21', category: 'Multiplication', question: '8 x 7', answer: 56 },
+    { id: 'M22', category: 'Multiplication', question: '9 x 7', answer: 63 },
+    { id: 'M23', category: 'Multiplication', question: '12 x 5', answer: 60 },
+    { id: 'M24', category: 'Multiplication', question: '11 x 6', answer: 66 },
+    // Medium division
+    { id: 'M25', category: 'Division', question: '24 / 3', answer: 8 },
+    { id: 'M26', category: 'Division', question: '64 / 8', answer: 8 },
+    { id: 'M27', category: 'Division', question: '42 / 6', answer: 7 },
+    { id: 'M28', category: 'Division', question: '56 / 7', answer: 8 },
+    { id: 'M29', category: 'Division', question: '72 / 9', answer: 8 },
+    { id: 'M30', category: 'Division', question: '48 / 6', answer: 8 }
+  ],
+  'hard': [
+    // Three-digit addition (ages 16-18)
+    { id: 'H1', category: 'Addition', question: '125 + 275', answer: 400 },
+    { id: 'H2', category: 'Addition', question: '348 + 152', answer: 500 },
+    { id: 'H3', category: 'Addition', question: '467 + 233', answer: 700 },
+    { id: 'H4', category: 'Addition', question: '189 + 211', answer: 400 },
+    { id: 'H5', category: 'Addition', question: '356 + 244', answer: 600 },
+    { id: 'H6', category: 'Addition', question: '478 + 322', answer: 800 },
+    { id: 'H7', category: 'Addition', question: '567 + 233', answer: 800 },
+    // Three-digit subtraction
+    { id: 'H8', category: 'Subtraction', question: '500 - 237', answer: 263 },
+    { id: 'H9', category: 'Subtraction', question: '600 - 345', answer: 255 },
+    { id: 'H10', category: 'Subtraction', question: '700 - 428', answer: 272 },
+    { id: 'H11', category: 'Subtraction', question: '800 - 456', answer: 344 },
+    { id: 'H12', category: 'Subtraction', question: '450 - 178', answer: 272 },
+    { id: 'H13', category: 'Subtraction', question: '625 - 389', answer: 236 },
+    { id: 'H14', category: 'Subtraction', question: '750 - 467', answer: 283 },
+    // Advanced times tables (11-15)
+    { id: 'H15', category: 'Multiplication', question: '12 x 11', answer: 132 },
+    { id: 'H16', category: 'Multiplication', question: '13 x 7', answer: 91 },
+    { id: 'H17', category: 'Multiplication', question: '14 x 6', answer: 84 },
+    { id: 'H18', category: 'Multiplication', question: '15 x 8', answer: 120 },
+    { id: 'H19', category: 'Multiplication', question: '12 x 12', answer: 144 },
+    { id: 'H20', category: 'Multiplication', question: '13 x 9', answer: 117 },
+    { id: 'H21', category: 'Multiplication', question: '14 x 7', answer: 98 },
+    { id: 'H22', category: 'Multiplication', question: '15 x 9', answer: 135 },
+    // Division with larger numbers
+    { id: 'H23', category: 'Division', question: '144 / 12', answer: 12 },
+    { id: 'H24', category: 'Division', question: '117 / 9', answer: 13 },
+    { id: 'H25', category: 'Division', question: '98 / 7', answer: 14 },
+    { id: 'H26', category: 'Division', question: '120 / 8', answer: 15 },
+    { id: 'H27', category: 'Division', question: '132 / 11', answer: 12 },
+    { id: 'H28', category: 'Division', question: '91 / 7', answer: 13 },
+    { id: 'H29', category: 'Division', question: '108 / 9', answer: 12 },
+    { id: 'H30', category: 'Division', question: '156 / 12', answer: 13 }
+  ],
+  'very-hard': [
+    // Large number operations (ages 19+)
+    { id: 'VH1', category: 'Addition', question: '789 + 456', answer: 1245 },
+    { id: 'VH2', category: 'Addition', question: '867 + 589', answer: 1456 },
+    { id: 'VH3', category: 'Addition', question: '945 + 678', answer: 1623 },
+    { id: 'VH4', category: 'Addition', question: '1250 + 875', answer: 2125 },
+    { id: 'VH5', category: 'Addition', question: '1456 + 789', answer: 2245 },
+    // Four-digit subtraction
+    { id: 'VH6', category: 'Subtraction', question: '1000 - 673', answer: 327 },
+    { id: 'VH7', category: 'Subtraction', question: '1500 - 867', answer: 633 },
+    { id: 'VH8', category: 'Subtraction', question: '2000 - 1234', answer: 766 },
+    { id: 'VH9', category: 'Subtraction', question: '1750 - 975', answer: 775 },
+    { id: 'VH10', category: 'Subtraction', question: '2500 - 1678', answer: 822 },
+    // Two-digit multiplication
+    { id: 'VH11', category: 'Multiplication', question: '17 x 14', answer: 238 },
+    { id: 'VH12', category: 'Multiplication', question: '19 x 13', answer: 247 },
+    { id: 'VH13', category: 'Multiplication', question: '23 x 15', answer: 345 },
+    { id: 'VH14', category: 'Multiplication', question: '25 x 18', answer: 450 },
+    { id: 'VH15', category: 'Multiplication', question: '32 x 16', answer: 512 },
+    { id: 'VH16', category: 'Multiplication', question: '24 x 24', answer: 576 },
+    { id: 'VH17', category: 'Multiplication', question: '35 x 25', answer: 875 },
+    // Percentages
+    { id: 'VH18', category: 'Percentage', question: '15% of 400', answer: 60 },
+    { id: 'VH19', category: 'Percentage', question: '25% of 360', answer: 90 },
+    { id: 'VH20', category: 'Percentage', question: '30% of 250', answer: 75 },
+    { id: 'VH21', category: 'Percentage', question: '40% of 175', answer: 70 },
+    { id: 'VH22', category: 'Percentage', question: '75% of 120', answer: 90 },
+    // Division with larger numbers
+    { id: 'VH23', category: 'Division', question: '225 / 15', answer: 15 },
+    { id: 'VH24', category: 'Division', question: '324 / 18', answer: 18 },
+    { id: 'VH25', category: 'Division', question: '400 / 25', answer: 16 },
+    { id: 'VH26', category: 'Division', question: '576 / 24', answer: 24 },
+    { id: 'VH27', category: 'Division', question: '625 / 25', answer: 25 },
+    // Squares
+    { id: 'VH28', category: 'Squares', question: '15 squared', answer: 225 },
+    { id: 'VH29', category: 'Squares', question: '18 squared', answer: 324 },
+    { id: 'VH30', category: 'Squares', question: '22 squared', answer: 484 }
+  ],
+  'genius': [
+    // Complex multiplication (shifted from old master)
+    { id: 'G1', category: 'Multiplication', question: '37 x 43', answer: 1591 },
+    { id: 'G2', category: 'Multiplication', question: '56 x 78', answer: 4368 },
+    { id: 'G3', category: 'Multiplication', question: '64 x 125', answer: 8000 },
+    { id: 'G4', category: 'Multiplication', question: '99 x 99', answer: 9801 },
+    { id: 'G5', category: 'Multiplication', question: '125 x 8', answer: 1000 },
+    // Squares and cubes
+    { id: 'G6', category: 'Squares', question: '17 squared', answer: 289 },
+    { id: 'G7', category: 'Squares', question: '19 squared', answer: 361 },
+    { id: 'G8', category: 'Squares', question: '21 squared', answer: 441 },
+    { id: 'G9', category: 'Cubes', question: '5 cubed', answer: 125 },
+    { id: 'G10', category: 'Cubes', question: '6 cubed', answer: 216 },
+    // Complex percentages
+    { id: 'G11', category: 'Percentage', question: '35% of 240', answer: 84 },
+    { id: 'G12', category: 'Percentage', question: '12.5% of 400', answer: 50 },
+    { id: 'G13', category: 'Percentage', question: '75% of 320', answer: 240 },
+    { id: 'G14', category: 'Percentage', question: '8% of 1250', answer: 100 },
+    { id: 'G15', category: 'Percentage', question: '125% of 80', answer: 100 },
+    // Square roots
+    { id: 'G16', category: 'Square Roots', question: 'Square root of 169', answer: 13 },
+    { id: 'G17', category: 'Square Roots', question: 'Square root of 225', answer: 15 },
+    { id: 'G18', category: 'Square Roots', question: 'Square root of 289', answer: 17 },
+    { id: 'G19', category: 'Square Roots', question: 'Square root of 324', answer: 18 },
+    { id: 'G20', category: 'Square Roots', question: 'Square root of 400', answer: 20 },
+    // Complex division
+    { id: 'G21', category: 'Division', question: '1728 / 12', answer: 144 },
+    { id: 'G22', category: 'Division', question: '2025 / 45', answer: 45 },
+    { id: 'G23', category: 'Division', question: '3600 / 75', answer: 48 },
+    { id: 'G24', category: 'Division', question: '4096 / 64', answer: 64 },
+    // Mixed operations
+    { id: 'G25', category: 'Mixed', question: '(15 x 12) + 20', answer: 200 },
+    { id: 'G26', category: 'Mixed', question: '(144 / 12) x 5', answer: 60 },
+    { id: 'G27', category: 'Mixed', question: '(25 x 4) - 50', answer: 50 },
+    { id: 'G28', category: 'Mixed', question: '(100 - 36) / 8', answer: 8 },
+    { id: 'G29', category: 'Mixed', question: '(7 x 8) + (9 x 6)', answer: 110 },
+    { id: 'G30', category: 'Mixed', question: '(12 x 12) - 44', answer: 100 }
+  ]
+};
+
+// Legacy flat list for backwards compatibility
+const MATH_QUESTIONS = [...MATH_QUESTIONS_BY_DIFFICULTY['medium']];
 
 // Fisher-Yates shuffle helper
 function shuffleArray(array) {
@@ -204,14 +589,103 @@ function shuffleArray(array) {
 // status: 'online' | 'inRoom' | 'inGame'
 const onlineUsers = new Map();
 
-// Word list for Pictionary
-const PICTIONARY_WORDS = [
-  'ELEPHANT', 'PIZZA', 'RAINBOW', 'ROCKET', 'CASTLE', 'GUITAR', 'ROBOT',
-  'TREASURE', 'UNICORN', 'DRAGON', 'MOUNTAIN', 'AIRPLANE', 'BIRTHDAY',
-  'TELESCOPE', 'WATERFALL', 'DINOSAUR', 'BUTTERFLY', 'SNOWMAN', 'PIRATE',
-  'VOLCANO', 'BANANA', 'LIGHTHOUSE', 'SKATEBOARD', 'MERMAID', 'TORNADO',
-  'SUNFLOWER', 'SPACESHIP', 'CAMPFIRE', 'PENGUIN', 'JELLYFISH'
-];
+// Pictionary word banks by difficulty
+const PICTIONARY_WORDS_BY_DIFFICULTY = {
+  'super-easy': [
+    // Very simple shapes and objects for toddlers
+    'SUN', 'MOON', 'STAR', 'BALL', 'HEART', 'CIRCLE',
+    'CAT', 'DOG', 'FISH', 'BIRD', 'BUG',
+    'TREE', 'FLOWER', 'HOUSE', 'CAR',
+    'APPLE', 'BANANA', 'COOKIE',
+    'HAT', 'SHOE', 'BABY', 'MOM', 'DAD',
+    'BED', 'CUP', 'EGG', 'RAIN', 'CLOUD'
+  ],
+  'very-easy': [
+    // Animals
+    'CAT', 'DOG', 'FISH', 'BIRD', 'COW', 'PIG', 'DUCK', 'FROG', 'BEE', 'ANT',
+    // Objects
+    'BALL', 'SUN', 'MOON', 'STAR', 'TREE', 'FLOWER', 'HOUSE', 'CAR', 'BUS', 'BOAT',
+    // Food
+    'APPLE', 'BANANA', 'PIZZA', 'ICE CREAM', 'COOKIE', 'CAKE', 'EGG', 'BREAD', 'MILK', 'JUICE',
+    // Body parts
+    'HAND', 'FOOT', 'EYE', 'NOSE', 'MOUTH', 'EAR', 'HAIR', 'TEETH', 'ARM', 'LEG',
+    // Simple items
+    'BED', 'CHAIR', 'TABLE', 'DOOR', 'WINDOW', 'BOOK', 'PEN', 'CUP', 'SPOON', 'FORK',
+    // Nature
+    'RAIN', 'CLOUD', 'SNOW', 'RAINBOW', 'LEAF', 'GRASS', 'ROCK', 'WATER', 'FIRE', 'WIND'
+  ],
+  'easy': [
+    // Animals
+    'ELEPHANT', 'GIRAFFE', 'LION', 'MONKEY', 'SNAKE', 'TURTLE', 'RABBIT', 'BUTTERFLY', 'SPIDER', 'DOLPHIN',
+    'PENGUIN', 'KANGAROO', 'BEAR', 'HORSE', 'SHEEP', 'CHICKEN', 'OWL', 'SHARK', 'WHALE', 'OCTOPUS',
+    // Objects
+    'BICYCLE', 'AIRPLANE', 'HELICOPTER', 'ROCKET', 'TRAIN', 'UMBRELLA', 'CAMERA', 'TELEPHONE', 'COMPUTER', 'GUITAR',
+    'PIANO', 'DRUM', 'CLOCK', 'LAMP', 'MIRROR', 'SCISSORS', 'HAMMER', 'LADDER', 'TELESCOPE', 'ROBOT',
+    // Places/Things
+    'CASTLE', 'MOUNTAIN', 'BEACH', 'ISLAND', 'VOLCANO', 'WATERFALL', 'BRIDGE', 'LIGHTHOUSE', 'TENT', 'IGLOO',
+    // Food
+    'HAMBURGER', 'HOT DOG', 'SANDWICH', 'POPCORN', 'DONUT', 'CUPCAKE', 'PANCAKE', 'SPAGHETTI', 'TACO', 'SUSHI',
+    // Activities
+    'SWIMMING', 'RUNNING', 'SLEEPING', 'READING', 'DANCING', 'SINGING', 'COOKING', 'PAINTING', 'FISHING', 'CAMPING'
+  ],
+  'medium': [
+    'TREASURE', 'UNICORN', 'DRAGON', 'PIRATE', 'NINJA', 'ASTRONAUT', 'MERMAID', 'WIZARD', 'VAMPIRE', 'ZOMBIE',
+    'DINOSAUR', 'TORNADO', 'EARTHQUAKE', 'AVALANCHE', 'HURRICANE', 'LIGHTNING', 'METEOR', 'ECLIPSE', 'CONSTELLATION', 'GALAXY',
+    'SKATEBOARD', 'SURFBOARD', 'PARACHUTE', 'TRAMPOLINE', 'ROLLERCOASTER', 'FERRIS WHEEL', 'BOWLING', 'ARCHERY', 'KARATE', 'GYMNASTICS',
+    'BIRTHDAY PARTY', 'WEDDING', 'GRADUATION', 'HALLOWEEN', 'CHRISTMAS TREE', 'FIREWORKS', 'PARADE', 'CARNIVAL', 'CIRCUS', 'CONCERT',
+    'JUGGLING', 'SNOWBOARDING', 'SKYDIVING', 'SCUBA DIVING', 'ROCK CLIMBING', 'BUNGEE JUMPING', 'HORSEBACK RIDING', 'ICE SKATING', 'SURFING', 'SKIING',
+    'MAGICIAN', 'SUPERHERO', 'DETECTIVE', 'SCIENTIST', 'FIREFIGHTER', 'CHEF', 'PHOTOGRAPHER', 'ARTIST', 'MUSICIAN', 'ATHLETE'
+  ],
+  'hard': [
+    // Abstract concepts
+    'JEALOUSY', 'FREEDOM', 'CURIOSITY', 'PATIENCE', 'COURAGE', 'WISDOM', 'CHAOS', 'HARMONY', 'NOSTALGIA', 'AMBITION',
+    // Phrases - Actions
+    'RUNNING LATE', 'WAKING UP EARLY', 'STUCK IN TRAFFIC', 'WAITING IN LINE', 'LOSING YOUR KEYS', 'CHECKING YOUR PHONE', 'MAKING A WISH', 'BREAKING A PROMISE', 'KEEPING A SECRET', 'TELLING A LIE',
+    // Phrases - Situations
+    'FIRST DATE', 'JOB INTERVIEW', 'AWKWARD SILENCE', 'SURPRISE PARTY', 'BLIND DATE', 'ROAD TRIP', 'POWER OUTAGE', 'TRAFFIC JAM', 'FIRE DRILL', 'FLASH MOB',
+    // Phrases - States
+    'HAVING A BAD DAY', 'FEELING HOMESICK', 'STAGE FRIGHT', 'WRITERS BLOCK', 'MONDAY MORNING', 'FRIDAY NIGHT', 'SLEEPWALKING', 'DAYDREAMING', 'MULTITASKING', 'PROCRASTINATING',
+    // Compound concepts
+    'TIME TRAVEL', 'GLOBAL WARMING', 'SOCIAL MEDIA', 'VIRTUAL REALITY', 'ARTIFICIAL INTELLIGENCE', 'SPACE STATION', 'BLACK HOLE', 'PARALLEL UNIVERSE', 'DEJA VU', 'KARMA',
+    // Scenarios
+    'CATCHING A FLIGHT', 'MISSING THE BUS', 'ORDERING TAKEOUT', 'WORKING FROM HOME', 'BINGE WATCHING', 'ONLINE SHOPPING', 'VIDEO CALL', 'SELFIE STICK', 'ESCAPE ROOM', 'TREASURE HUNT'
+  ],
+  'very-hard': [
+    // Abstract concepts
+    'JEALOUSY', 'FREEDOM', 'CURIOSITY', 'PATIENCE', 'COURAGE', 'WISDOM', 'CHAOS', 'HARMONY', 'NOSTALGIA', 'AMBITION',
+    // Complex scenarios
+    'TIME TRAVEL', 'GLOBAL WARMING', 'SOCIAL MEDIA', 'VIRTUAL REALITY', 'ARTIFICIAL INTELLIGENCE', 'SPACE STATION', 'BLACK HOLE', 'PARALLEL UNIVERSE', 'DEJA VU', 'KARMA',
+    // Phrases
+    'HAVING A BAD DAY', 'FEELING HOMESICK', 'STAGE FRIGHT', 'WRITERS BLOCK', 'MONDAY MORNING', 'FRIDAY NIGHT', 'SLEEPWALKING', 'DAYDREAMING', 'MULTITASKING', 'PROCRASTINATING',
+    // Scenarios
+    'CATCHING A FLIGHT', 'MISSING THE BUS', 'ORDERING TAKEOUT', 'WORKING FROM HOME', 'BINGE WATCHING', 'ONLINE SHOPPING', 'VIDEO CALL', 'SELFIE STICK', 'ESCAPE ROOM', 'TREASURE HUNT'
+  ],
+  'genius': [
+    // Idioms and sayings
+    'THE EARLY BIRD CATCHES THE WORM', 'DONT CRY OVER SPILLED MILK', 'WALKING ON THIN ICE', 'PIECE OF CAKE', 'BREAK A LEG', 'COSTS AN ARM AND A LEG', 'ELEPHANT IN THE ROOM', 'RAINING CATS AND DOGS', 'WHEN PIGS FLY', 'KILL TWO BIRDS WITH ONE STONE',
+    'LET THE CAT OUT OF THE BAG', 'BARKING UP THE WRONG TREE', 'BITE THE BULLET', 'BURNING THE MIDNIGHT OIL', 'HIT THE NAIL ON THE HEAD', 'JUMP ON THE BANDWAGON', 'ONCE IN A BLUE MOON', 'SPILL THE BEANS', 'THE BALL IS IN YOUR COURT', 'THROW IN THE TOWEL',
+    // Complex scenarios
+    'CAUGHT BETWEEN A ROCK AND A HARD PLACE', 'TURNING OVER A NEW LEAF', 'BURNING BRIDGES', 'CROSSING THE FINISH LINE', 'CLIMBING THE CORPORATE LADDER', 'PASSING THE TORCH', 'OPENING A CAN OF WORMS', 'STIRRING THE POT', 'READING BETWEEN THE LINES', 'THINKING OUTSIDE THE BOX',
+    // Abstract phrases
+    'DIAMOND IN THE ROUGH', 'NEEDLE IN A HAYSTACK', 'TIP OF THE ICEBERG', 'LIGHT AT THE END OF THE TUNNEL', 'WOLF IN SHEEPS CLOTHING', 'BLESSING IN DISGUISE', 'SILVER LINING', 'DOUBLE EDGED SWORD', 'SLIPPERY SLOPE', 'DOMINO EFFECT',
+    // Complex actions
+    'PUTTING ALL YOUR EGGS IN ONE BASKET', 'BEATING AROUND THE BUSH', 'BITING OFF MORE THAN YOU CAN CHEW', 'GETTING YOUR DUCKS IN A ROW', 'HITTING THE GROUND RUNNING', 'LEAVING NO STONE UNTURNED', 'PLAYING DEVILS ADVOCATE', 'SEEING EYE TO EYE', 'STEALING SOMEONES THUNDER', 'TAKING THE BULL BY THE HORNS'
+  ]
+};
+
+// Difficulty labels for word options
+const DIFFICULTY_LABELS = {
+  'super-easy': 'Super Easy',
+  'very-easy': 'Very Easy',
+  'easy': 'Easy',
+  'medium': 'Medium',
+  'hard': 'Hard',
+  'very-hard': 'Very Hard',
+  'genius': 'Genius'
+};
+
+// Legacy word list (fallback)
+const PICTIONARY_WORDS = PICTIONARY_WORDS_BY_DIFFICULTY['medium'];
 
 // Track disconnected players in their grace period so we can cancel removal on rejoin
 // Key: "roomId:playerName", Value: { timer }
@@ -237,14 +711,112 @@ function computeDrawingOrder(players) {
     .map(({ name, avatar }) => ({ name, avatar }));
 }
 
-function pickWord(usedWords) {
-  const available = PICTIONARY_WORDS.filter(w => !usedWords.includes(w));
-  const pool = available.length > 0 ? available : PICTIONARY_WORDS;
+function pickWord(usedWords, difficulty = 'medium') {
+  const words = PICTIONARY_WORDS_BY_DIFFICULTY[difficulty] || PICTIONARY_WORDS_BY_DIFFICULTY['medium'];
+  const available = words.filter(w => !usedWords.includes(w));
+  const pool = available.length > 0 ? available : words;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Get player's effective difficulty (individual override or room default)
+function getPlayerDifficulty(playerName, room) {
+  if (room.playerDifficulties && room.playerDifficulties[playerName]) {
+    return room.playerDifficulties[playerName];
+  }
+  return room.difficulty || DEFAULT_DIFFICULTY;
+}
+
+// Get difficulty range for all active players in the room
+function getDifficultyRange(room) {
+  const activePlayers = room.players.filter(p => p.connected !== false);
+  if (activePlayers.length === 0) {
+    return { lowest: 'medium', highest: 'medium' };
+  }
+
+  const difficulties = activePlayers.map(p => getPlayerDifficulty(p.name, room));
+  const indices = difficulties.map(d => DIFFICULTY_LEVELS.indexOf(d));
+  const minIdx = Math.min(...indices);
+  const maxIdx = Math.max(...indices);
+
+  return {
+    lowest: DIFFICULTY_LEVELS[minIdx >= 0 ? minIdx : 2],
+    highest: DIFFICULTY_LEVELS[maxIdx >= 0 ? maxIdx : 2]
+  };
+}
+
+// Generate word options for drawer spanning difficulty range
+function getWordOptions(room, usedWords = [], count = 3) {
+  const { lowest, highest } = getDifficultyRange(room);
+  const lowestIdx = DIFFICULTY_LEVELS.indexOf(lowest);
+  const highestIdx = DIFFICULTY_LEVELS.indexOf(highest);
+
+  // Build list of difficulties to pull from
+  const difficultiesToUse = [];
+  for (let i = lowestIdx; i <= highestIdx; i++) {
+    difficultiesToUse.push(DIFFICULTY_LEVELS[i]);
+  }
+
+  // If not enough difficulties, expand range
+  while (difficultiesToUse.length < count && difficultiesToUse.length < DIFFICULTY_LEVELS.length) {
+    const lastIdx = DIFFICULTY_LEVELS.indexOf(difficultiesToUse[difficultiesToUse.length - 1]);
+    if (lastIdx < DIFFICULTY_LEVELS.length - 1) {
+      difficultiesToUse.push(DIFFICULTY_LEVELS[lastIdx + 1]);
+    } else {
+      const firstIdx = DIFFICULTY_LEVELS.indexOf(difficultiesToUse[0]);
+      if (firstIdx > 0) {
+        difficultiesToUse.unshift(DIFFICULTY_LEVELS[firstIdx - 1]);
+      } else {
+        break;
+      }
+    }
+  }
+
+  const options = [];
+  const usedInOptions = [...usedWords];
+
+  // Try to get one word from each difficulty first
+  for (const diff of difficultiesToUse) {
+    if (options.length >= count) break;
+    const word = pickWord(usedInOptions, diff);
+    if (word) {
+      options.push({
+        word,
+        difficulty: diff,
+        difficultyLabel: DIFFICULTY_LABELS[diff] || diff
+      });
+      usedInOptions.push(word);
+    }
+  }
+
+  // Fill remaining slots if needed
+  while (options.length < count) {
+    const diff = difficultiesToUse[Math.floor(Math.random() * difficultiesToUse.length)];
+    const word = pickWord(usedInOptions, diff);
+    if (word) {
+      options.push({
+        word,
+        difficulty: diff,
+        difficultyLabel: DIFFICULTY_LABELS[diff] || diff
+      });
+      usedInOptions.push(word);
+    } else {
+      break; // No more words available
+    }
+  }
+
+  // Sort by difficulty (easiest first)
+  options.sort((a, b) => DIFFICULTY_LEVELS.indexOf(a.difficulty) - DIFFICULTY_LEVELS.indexOf(b.difficulty));
+
+  return options;
+}
+
 function startRound(io, room, roomId) {
-  // Word and drawer are already set on room.game before this is called
+  // Generate word options for the drawer
+  const wordOptions = getWordOptions(room, room.game.usedWords);
+  room.game.wordOptions = wordOptions;
+  room.game.wordSelected = false;
+  room.game.currentWord = null; // Word not set until drawer picks
+
   io.to(roomId).emit('gameStarted', {
     drawerName: room.game.drawerName,
     currentRound: room.game.currentRound,
@@ -254,18 +826,35 @@ function startRound(io, room, roomId) {
 
   const drawerPlayer = room.players.find(p => p.name === room.game.drawerName);
   if (drawerPlayer) {
-    io.to(drawerPlayer.socketId).emit('yourWord', { word: room.game.currentWord });
+    // Send word options instead of a single word
+    io.to(drawerPlayer.socketId).emit('wordOptions', { options: wordOptions });
   }
 
-  // After 10s rules countdown, signal all clients to start game timer in sync
-  setTimeout(() => {
-    if (room.game) {
-      const endTime = Date.now() + 60000;
-      room.game.timerEndTime = endTime;
-      room.game.timerRemainingMs = null;
-      io.to(roomId).emit('gameTimerStart', { endTime });
+  // Timer starts when drawer selects a word (handled in selectWord handler)
+  // But set a backup timeout in case drawer doesn't select
+  room.game.wordSelectionTimeout = setTimeout(() => {
+    if (room.game && !room.game.wordSelected) {
+      // Auto-select the first (easiest) word if drawer doesn't pick
+      const autoWord = wordOptions[0];
+      if (autoWord) {
+        room.game.currentWord = autoWord.word;
+        room.game.wordSelected = true;
+        room.game.usedWords.push(autoWord.word);
+        room.game.drawerLockedDifficulty = autoWord.difficulty; // Lock drawer to auto-selected difficulty
+
+        const drawer = room.players.find(p => p.name === room.game.drawerName);
+        if (drawer) {
+          io.to(drawer.socketId).emit('yourWord', { word: autoWord.word, autoSelected: true });
+        }
+
+        // Now start the game timer
+        const endTime = Date.now() + 60000;
+        room.game.timerEndTime = endTime;
+        room.game.timerRemainingMs = null;
+        io.to(roomId).emit('gameTimerStart', { endTime });
+      }
     }
-  }, 10000);
+  }, 15000); // 15 seconds to pick (10s countdown + 5s buffer)
 }
 
 function advanceRound(io, room, roomId) {
@@ -317,10 +906,19 @@ function advanceRound(io, room, roomId) {
   }
 
   const drawer = room.game.drawingOrder[room.game.currentDrawerIndex];
-  const word = pickWord(room.game.usedWords);
-  room.game.usedWords.push(word);
+
+  // Clear any existing word selection timeout
+  if (room.game.wordSelectionTimeout) {
+    clearTimeout(room.game.wordSelectionTimeout);
+  }
+
+  // Generate word options for the new drawer
+  const wordOptions = getWordOptions(room, room.game.usedWords);
+  room.game.wordOptions = wordOptions;
+  room.game.wordSelected = false;
+  room.game.currentWord = null;
   room.game.drawerName = drawer.name;
-  room.game.currentWord = word;
+  room.game.drawerLockedDifficulty = null; // Reset locked difficulty for new drawer
   room.game.currentPickValue = 100;
 
   io.to(roomId).emit('nextRound', {
@@ -332,18 +930,35 @@ function advanceRound(io, room, roomId) {
 
   const drawerPlayer = room.players.find(p => p.name === drawer.name);
   if (drawerPlayer) {
-    io.to(drawerPlayer.socketId).emit('yourWord', { word });
+    // Send word options instead of a single word
+    io.to(drawerPlayer.socketId).emit('wordOptions', { options: wordOptions });
   }
 
-  // After 10s rules countdown, signal all clients to start game timer in sync
-  setTimeout(() => {
-    if (room.game) {
-      const endTime = Date.now() + 60000;
-      room.game.timerEndTime = endTime;
-      room.game.timerRemainingMs = null;
-      io.to(roomId).emit('gameTimerStart', { endTime });
+  // Timer starts when drawer selects a word (handled in selectWord handler)
+  // Set a backup timeout in case drawer doesn't select
+  room.game.wordSelectionTimeout = setTimeout(() => {
+    if (room.game && !room.game.wordSelected) {
+      // Auto-select the first (easiest) word if drawer doesn't pick
+      const autoWord = wordOptions[0];
+      if (autoWord) {
+        room.game.currentWord = autoWord.word;
+        room.game.wordSelected = true;
+        room.game.usedWords.push(autoWord.word);
+        room.game.drawerLockedDifficulty = autoWord.difficulty; // Lock drawer to auto-selected difficulty
+
+        const newDrawer = room.players.find(p => p.name === room.game.drawerName);
+        if (newDrawer) {
+          io.to(newDrawer.socketId).emit('yourWord', { word: autoWord.word, autoSelected: true });
+        }
+
+        // Now start the game timer
+        const endTime = Date.now() + 60000;
+        room.game.timerEndTime = endTime;
+        room.game.timerRemainingMs = null;
+        io.to(roomId).emit('gameTimerStart', { endTime });
+      }
     }
-  }, 10000);
+  }, 15000);
 }
 
 // Helper to broadcast friend status changes
@@ -358,11 +973,79 @@ function broadcastToFriends(io, userId, friendIds, event, data) {
 
 // --- Trivia Game Helpers ---
 
-function getRandomTriviaQuestions(count, usedIds = []) {
-  const available = TRIVIA_QUESTIONS.filter(q => !usedIds.includes(q.id));
-  const pool = available.length >= count ? available : TRIVIA_QUESTIONS;
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+function getRandomTriviaQuestions(countOrDifficulty, countOrUsedIds = [], usedIdsParam = []) {
+  // Support both old signature (count, usedIds) and new signature (difficulty, count, usedIds)
+  let difficulty, count, usedIds;
+
+  if (typeof countOrDifficulty === 'string') {
+    // New signature: getRandomTriviaQuestions(difficulty, count, usedIds)
+    difficulty = countOrDifficulty;
+    count = countOrUsedIds;
+    usedIds = usedIdsParam;
+  } else {
+    // Legacy signature: getRandomTriviaQuestions(count, usedIds)
+    difficulty = null;
+    count = countOrDifficulty;
+    usedIds = countOrUsedIds;
+  }
+
+  // Get question pool based on difficulty
+  let pool;
+  if (difficulty && TRIVIA_QUESTIONS_BY_DIFFICULTY[difficulty]) {
+    pool = TRIVIA_QUESTIONS_BY_DIFFICULTY[difficulty];
+  } else {
+    // Use all questions for legacy or unknown difficulty
+    pool = TRIVIA_QUESTIONS;
+  }
+
+  const available = pool.filter(q => !usedIds.includes(q.id));
+  const finalPool = available.length >= count ? available : pool;
+  const shuffled = [...finalPool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
+}
+
+// Group players by their difficulty setting and return sorted groups (easiest first)
+function getPlayersGroupedByDifficulty(room) {
+  const activePlayers = room.players.filter(p => p.connected !== false);
+  const groups = {};
+
+  // Initialize groups for all difficulty levels
+  DIFFICULTY_LEVELS.forEach(diff => {
+    groups[diff] = [];
+  });
+
+  // Assign players to groups based on their difficulty
+  activePlayers.forEach(player => {
+    const playerDiff = getPlayerDifficulty(player.name, room);
+    groups[playerDiff].push(player);
+  });
+
+  // Return only non-empty groups, sorted by difficulty (easiest first)
+  const sortedGroups = [];
+  DIFFICULTY_LEVELS.forEach(diff => {
+    if (groups[diff].length > 0) {
+      sortedGroups.push({
+        difficulty: diff,
+        players: groups[diff],
+        playerNames: groups[diff].map(p => p.name)
+      });
+    }
+  });
+
+  return sortedGroups;
+}
+
+// Get display label for difficulty
+function getDifficultyLabel(difficulty) {
+  const labels = {
+    'very-easy': 'Very Easy',
+    'easy': 'Easy',
+    'medium': 'Medium',
+    'hard': 'Hard',
+    'very-hard': 'Very Hard',
+    'genius': 'Genius'
+  };
+  return labels[difficulty] || 'Medium';
 }
 
 function calculateTriviaPoints(answerTimestamp, questionStartTime, questionDuration, isSpeedRound) {
@@ -377,6 +1060,14 @@ function calculateTriviaPoints(answerTimestamp, questionStartTime, questionDurat
   return isSpeedRound ? basePoints * TRIVIA_SPEED_MULTIPLIER : basePoints;
 }
 
+// Helper function to determine questions per round based on group count
+function getQuestionsPerRoundForGroupCount(groupCount) {
+  if (groupCount === 1) return 10;
+  if (groupCount === 2) return 8;
+  if (groupCount === 3) return 6;
+  return 5; // 4+ groups minimum
+}
+
 function startTriviaRound(io, room, roomId) {
   if (!room.game || room.game.gameType !== 'trivia') return;
 
@@ -388,38 +1079,82 @@ function startTriviaRound(io, room, roomId) {
   game.currentQuestionIndex = 0;
   game.phase = 'rules';
 
-  // For speed round, get more questions (we'll use as many as fit in 60s)
-  // For normal rounds, use the preset count
-  const questionsInRound = isSpeedRound ? 30 : game.questionsPerRound[roundIndex];  // 30 is plenty for 60s
-  const roundQuestions = getRandomTriviaQuestions(questionsInRound, game.usedQuestionIds);
-  game.roundQuestions = roundQuestions;
-  roundQuestions.forEach(q => game.usedQuestionIds.push(q.id));
+  // Set up difficulty groups for non-speed rounds
+  if (!isSpeedRound) {
+    game.difficultyGroups = getPlayersGroupedByDifficulty(room);
+    game.currentGroupIndex = 0;
+    game.groupAnswers = {};  // Track answers per group: { groupIndex: { playerName: answer } }
+    console.log(`[TRIVIA] Difficulty groups: ${game.difficultyGroups.map(g => `${g.difficulty}(${g.players.length})`).join(', ')}`);
 
-  // Pre-shuffle all answers once for speed round (same order for all players)
+    // Dynamic question count based on number of groups
+    const groupCount = game.difficultyGroups.length;
+    const questionsPerGroup = getQuestionsPerRoundForGroupCount(groupCount);
+    console.log(`[TRIVIA] Group count: ${groupCount}, questions per group: ${questionsPerGroup}`);
+
+    // Generate questions for each group from their difficulty pool
+    game.roundQuestionsByGroup = {};
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const difficulty = group.difficulty;
+      const usedIds = game.usedQuestionIdsByDifficulty[difficulty] || [];
+      const questions = getRandomTriviaQuestions(difficulty, questionsPerGroup, usedIds);
+      game.roundQuestionsByGroup[groupIndex] = questions;
+
+      // Track used IDs per difficulty
+      questions.forEach(q => {
+        if (!game.usedQuestionIdsByDifficulty[difficulty]) {
+          game.usedQuestionIdsByDifficulty[difficulty] = [];
+        }
+        game.usedQuestionIdsByDifficulty[difficulty].push(q.id);
+      });
+
+      console.log(`[TRIVIA] Group ${groupIndex} (${difficulty}): ${questions.length} questions`);
+    });
+
+    // Also keep a reference to total questions in round (based on first group, they should all be same)
+    game.questionsInRound = questionsPerGroup;
+    game.roundQuestions = game.roundQuestionsByGroup[0] || [];  // Legacy reference for recap
+  }
+
+  // For speed round, generate per-difficulty question pools
   if (isSpeedRound) {
-    game.shuffledQuestions = roundQuestions.map(q => {
-      const correctAnswer = q.answers[q.correctIndex];
-      const shuffledAnswers = shuffleArray(q.answers);
-      const shuffledCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
-      return {
-        ...q,
-        shuffledAnswers,
-        shuffledCorrectIndex,
-        correctAnswer
-      };
+    // Generate 30 questions for each difficulty level
+    game.speedRoundQuestionsByDifficulty = {};
+    DIFFICULTY_LEVELS.forEach(difficulty => {
+      const usedIds = game.usedQuestionIdsByDifficulty[difficulty] || [];
+      const questions = getRandomTriviaQuestions(difficulty, 30, usedIds);
+
+      // Pre-shuffle answers for each question
+      game.speedRoundQuestionsByDifficulty[difficulty] = questions.map(q => {
+        const correctAnswer = q.answers[q.correctIndex];
+        const shuffledAnswers = shuffleArray(q.answers);
+        const shuffledCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
+        return {
+          ...q,
+          shuffledAnswers,
+          shuffledCorrectIndex,
+          correctAnswer
+        };
+      });
+
+      console.log(`[TRIVIA] Speed round: ${questions.length} questions for ${difficulty}`);
     });
 
     // Initialize per-player progress tracking for speed round
     game.playerProgress = {};
     room.players.forEach(p => {
+      const playerDifficulty = getPlayerDifficulty(p.name, room);
       game.playerProgress[p.name] = {
         currentQuestionIndex: 0,
         correctAnswers: [],  // Array of { questionIndex, points }
         wrongAnswers: [],    // Array of { questionIndex }
         totalPoints: 0,
-        isWaiting: false     // True when player is in 2s wrong answer delay
+        isWaiting: false,    // True when player is in 2s wrong answer delay
+        difficulty: playerDifficulty  // Track player's difficulty for speed round
       };
     });
+
+    // Keep legacy shuffledQuestions as reference (use medium difficulty as fallback)
+    game.shuffledQuestions = game.speedRoundQuestionsByDifficulty['medium'] || [];
   }
 
   // Dynamic rules duration based on round
@@ -443,14 +1178,25 @@ function startTriviaRound(io, room, roomId) {
   const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + TRIVIA_SPEED_ROUND_DURATION : null;
   game.speedRoundEndTime = speedRoundEndTime;
 
+  // Include difficulty groups info for client display
+  const difficultyGroupsInfo = !isSpeedRound && game.difficultyGroups ?
+    game.difficultyGroups.map(g => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames
+    })) : null;
+
+  const questionsInRound = isSpeedRound ? '∞' : (game.questionsInRound || game.questionsPerRound[roundIndex]);
+
   io.to(roomId).emit('triviaRulesStart', {
     rulesEndTime,
     round: game.currentRound,
     totalRounds: game.totalRounds,
     isSpeedRound,
-    questionsInRound: isSpeedRound ? '∞' : questionsInRound,
+    questionsInRound,
     speedRoundEndTime,
-    readyPlayers: []
+    readyPlayers: [],
+    difficultyGroups: difficultyGroupsInfo
   });
 
   // After rules countdown, start questions (store timer so we can cancel if all ready)
@@ -479,72 +1225,228 @@ function advanceTriviaQuestion(io, room, roomId) {
   if (game.isSpeedRound && game.speedRoundEndTime) {
     const timeRemaining = game.speedRoundEndTime - Date.now();
     if (timeRemaining <= 0) {
-      // Speed round time is up - show recap
       showTriviaRecap(io, room, roomId);
       return;
     }
   }
 
-  // Check if round is complete (for non-speed rounds, or if we ran out of questions)
-  if (questionIndex >= game.roundQuestions.length) {
-    // Show recap for this round
-    showTriviaRecap(io, room, roomId);
+  // For non-speed rounds with difficulty groups
+  if (!game.isSpeedRound && game.difficultyGroups && game.difficultyGroups.length > 0) {
+    // Check if round is complete (use questions per group, not single array)
+    const questionsPerGroup = game.questionsInRound || 5;
+    if (questionIndex >= questionsPerGroup) {
+      showTriviaRecap(io, room, roomId);
+      return;
+    }
+
+    // Prepare shuffled questions for ALL groups at this question index
+    game.currentQuestionsByGroup = {};
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const groupQuestions = game.roundQuestionsByGroup[groupIndex];
+      if (groupQuestions && groupQuestions[questionIndex]) {
+        const question = groupQuestions[questionIndex];
+        const correctAnswer = question.answers[question.correctIndex];
+        const shuffledAnswers = shuffleArray(question.answers);
+        const shuffledCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
+
+        game.currentQuestionsByGroup[groupIndex] = {
+          ...question,
+          shuffledAnswers,
+          shuffledCorrectIndex,
+          correctAnswer,
+          difficulty: group.difficulty,
+          difficultyLabel: getDifficultyLabel(group.difficulty)
+        };
+      }
+    });
+
+    // Legacy: set currentQuestion to first group's question for backwards compatibility
+    game.currentQuestion = game.currentQuestionsByGroup[0];
+    game.questionStartTime = Date.now();
+    game.answers = {};
+    game.phase = 'question';
+
+    game.currentGroupIndex = 0;
+    startGroupTurn(io, room, roomId);
+  } else {
+    // Speed round or no groups: legacy behavior
+    // Check if round is complete
+    if (questionIndex >= game.roundQuestions.length) {
+      showTriviaRecap(io, room, roomId);
+      return;
+    }
+
+    const question = game.roundQuestions[questionIndex];
+
+    // Shuffle answers and track new correct index
+    const correctAnswer = question.answers[question.correctIndex];
+    const shuffledAnswers = shuffleArray(question.answers);
+    const shuffledCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
+
+    // Store question with shuffled data
+    game.currentQuestion = {
+      ...question,
+      shuffledAnswers,
+      shuffledCorrectIndex
+    };
+    game.questionStartTime = Date.now();
+    game.answers = {};
+    game.phase = 'question';
+
+    let questionDuration;
+    if (game.isSpeedRound && game.speedRoundEndTime) {
+      const timeRemaining = game.speedRoundEndTime - Date.now();
+      questionDuration = Math.min(TRIVIA_SPEED_QUESTION_DURATION, timeRemaining);
+      if (questionDuration <= 0) {
+        showTriviaRecap(io, room, roomId);
+        return;
+      }
+    } else {
+      questionDuration = TRIVIA_QUESTION_DURATION;
+    }
+
+    const questionEndTime = Date.now() + questionDuration;
+    game.questionEndTime = questionEndTime;
+
+    io.to(roomId).emit('triviaQuestion', {
+      question: question.question,
+      answers: shuffledAnswers,
+      category: question.category,
+      questionEndTime,
+      questionNumber: questionIndex + 1,
+      totalQuestions: game.isSpeedRound ? '∞' : game.roundQuestions.length,
+      round: game.currentRound,
+      totalRounds: game.totalRounds,
+      isSpeedRound: game.isSpeedRound,
+      speedRoundEndTime: game.speedRoundEndTime
+    });
+
+    game.questionTimer = setTimeout(() => {
+      if (room.game && room.game.gameType === 'trivia') {
+        revealTriviaAnswer(io, room, roomId);
+      }
+    }, questionDuration);
+  }
+}
+
+// Start a turn for the current difficulty group
+function startGroupTurn(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'trivia') return;
+
+  const game = room.game;
+  const groups = game.difficultyGroups;
+  const currentGroupIdx = game.currentGroupIndex;
+
+  if (currentGroupIdx >= groups.length) {
+    // All groups have answered - reveal the answer
+    revealTriviaAnswer(io, room, roomId);
     return;
   }
 
-  const question = game.roundQuestions[questionIndex];
-
-  // For speed round, question duration is shorter but capped by remaining time
-  let questionDuration;
-  if (game.isSpeedRound && game.speedRoundEndTime) {
-    const timeRemaining = game.speedRoundEndTime - Date.now();
-    questionDuration = Math.min(TRIVIA_SPEED_QUESTION_DURATION, timeRemaining);
-    if (questionDuration <= 0) {
-      // No time left, end the round
-      showTriviaRecap(io, room, roomId);
-      return;
-    }
-  } else {
-    questionDuration = TRIVIA_QUESTION_DURATION;
-  }
-
+  const currentGroup = groups[currentGroupIdx];
+  const questionDuration = TRIVIA_QUESTION_DURATION;
   const questionEndTime = Date.now() + questionDuration;
-
-  // Shuffle answers and track new correct index
-  const correctAnswer = question.answers[question.correctIndex];
-  const shuffledAnswers = shuffleArray(question.answers);
-  const shuffledCorrectIndex = shuffledAnswers.indexOf(correctAnswer);
-
-  // Store question with shuffled data for this round
-  game.currentQuestion = {
-    ...question,
-    shuffledAnswers,
-    shuffledCorrectIndex
-  };
   game.questionEndTime = questionEndTime;
-  game.questionStartTime = Date.now();
-  game.answers = {};
-  game.phase = 'question';
+  game.groupStartTime = Date.now();  // Track when this group's turn started
 
-  io.to(roomId).emit('triviaQuestion', {
-    question: question.question,
-    answers: shuffledAnswers,
-    category: question.category,
-    questionEndTime,
-    questionNumber: questionIndex + 1,
-    totalQuestions: game.isSpeedRound ? '∞' : game.roundQuestions.length,
-    round: game.currentRound,
-    totalRounds: game.totalRounds,
-    isSpeedRound: game.isSpeedRound,
-    speedRoundEndTime: game.speedRoundEndTime
+  console.log(`[TRIVIA] Starting turn for group ${currentGroup.difficulty} (${currentGroup.players.length} players)`);
+
+  // Build group info for all players
+  const groupInfo = {
+    currentGroup: {
+      difficulty: currentGroup.difficulty,
+      label: getDifficultyLabel(currentGroup.difficulty),
+      playerNames: currentGroup.playerNames
+    },
+    currentGroupIndex: currentGroupIdx,
+    totalGroups: groups.length,
+    allGroups: groups.map((g, idx) => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames,
+      isActive: idx === currentGroupIdx,
+      isCompleted: idx < currentGroupIdx
+    }))
+  };
+
+  // Get group-specific question from currentQuestionsByGroup
+  const question = game.currentQuestionsByGroup[currentGroupIdx] || game.currentQuestion;
+  const totalQuestionsInRound = game.questionsInRound || game.roundQuestions.length;
+
+  // Send question to active group players (with their difficulty-specific question)
+  currentGroup.players.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('triviaQuestion', {
+        question: question.question,
+        answers: question.shuffledAnswers,
+        category: question.category,
+        questionEndTime,
+        questionNumber: game.currentQuestionIndex + 1,
+        totalQuestions: totalQuestionsInRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        isSpeedRound: false,
+        isActiveGroup: true,
+        groupInfo,
+        difficulty: question.difficulty,
+        difficultyLabel: question.difficultyLabel
+      });
+    }
   });
 
-  // Set timer to reveal answer
+  // Send waiting state to players NOT in current group
+  const waitingPlayers = room.players.filter(p =>
+    p.connected !== false && !currentGroup.playerNames.includes(p.name)
+  );
+
+  waitingPlayers.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('triviaGroupWaiting', {
+        questionNumber: game.currentQuestionIndex + 1,
+        totalQuestions: totalQuestionsInRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        groupInfo,
+        waitingFor: {
+          difficulty: currentGroup.difficulty,
+          label: getDifficultyLabel(currentGroup.difficulty),
+          playerNames: currentGroup.playerNames
+        }
+      });
+    }
+  });
+
+  // Set timer for group timeout
   game.questionTimer = setTimeout(() => {
     if (room.game && room.game.gameType === 'trivia') {
-      revealTriviaAnswer(io, room, roomId);
+      advanceToNextGroup(io, room, roomId);
     }
   }, questionDuration);
+}
+
+// Advance to the next difficulty group or reveal answer
+function advanceToNextGroup(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'trivia') return;
+
+  const game = room.game;
+
+  // Clear any existing timer
+  if (game.questionTimer) {
+    clearTimeout(game.questionTimer);
+    game.questionTimer = null;
+  }
+
+  game.currentGroupIndex++;
+
+  console.log(`[TRIVIA] Advancing to group ${game.currentGroupIndex} of ${game.difficultyGroups.length}`);
+
+  if (game.currentGroupIndex >= game.difficultyGroups.length) {
+    // All groups have answered - reveal the answer
+    revealTriviaAnswer(io, room, roomId);
+  } else {
+    // Start next group's turn
+    startGroupTurn(io, room, roomId);
+  }
 }
 
 function revealTriviaAnswer(io, room, roomId) {
@@ -557,16 +1459,35 @@ function revealTriviaAnswer(io, room, roomId) {
   }
 
   game.phase = 'reveal';
-  const question = game.currentQuestion;
-  // Use shuffled correct index for validation
-  const correctIndex = question.shuffledCorrectIndex;
-  const correctAnswer = question.shuffledAnswers[correctIndex];
 
-  // Calculate points for each player who answered correctly
-  const playerResults = {};
+  // For difficulty groups, validate each player against their group's question
   const questionDuration = game.isSpeedRound ? TRIVIA_SPEED_QUESTION_DURATION : TRIVIA_QUESTION_DURATION;
+  const hasGroupQuestions = !game.isSpeedRound && game.currentQuestionsByGroup && game.difficultyGroups;
 
+  // Build a map of player to their group index
+  const playerToGroupIndex = {};
+  if (hasGroupQuestions) {
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      group.playerNames.forEach(name => {
+        playerToGroupIndex[name] = groupIndex;
+      });
+    });
+  }
+
+  // Calculate points for each player - validate against their group's question
+  const playerResults = {};
   Object.entries(game.answers).forEach(([playerName, answerData]) => {
+    let correctIndex, question;
+
+    if (hasGroupQuestions) {
+      const groupIndex = playerToGroupIndex[playerName];
+      question = game.currentQuestionsByGroup[groupIndex] || game.currentQuestion;
+      correctIndex = question.shuffledCorrectIndex;
+    } else {
+      question = game.currentQuestion;
+      correctIndex = question.shuffledCorrectIndex;
+    }
+
     const isCorrect = answerData.answerIndex === correctIndex;
     let pointsEarned = 0;
 
@@ -588,30 +1509,97 @@ function revealTriviaAnswer(io, room, roomId) {
     playerResults[playerName] = {
       answerIndex: answerData.answerIndex,
       isCorrect,
-      pointsEarned
+      pointsEarned,
+      groupIndex: playerToGroupIndex[playerName]
     };
   });
 
-  // Track question in history (with shuffled data for recap animation)
-  game.questionHistory.push({
-    question: question.question,
-    category: question.category,
-    correctIndex,
-    correctAnswer,
-    answers: question.shuffledAnswers,
-    playerResults
-  });
+  // Track question in history with per-group data for recap
+  if (hasGroupQuestions) {
+    // New structure: groupData array with each group's question and results
+    const groupData = game.difficultyGroups.map((group, groupIndex) => {
+      const groupQuestion = game.currentQuestionsByGroup[groupIndex];
+      const groupPlayerResults = {};
+
+      // Get results for players in this group
+      group.playerNames.forEach(name => {
+        if (playerResults[name]) {
+          groupPlayerResults[name] = playerResults[name];
+        }
+      });
+
+      return {
+        groupIndex,
+        difficulty: group.difficulty,
+        difficultyLabel: getDifficultyLabel(group.difficulty),
+        question: groupQuestion.question,
+        category: groupQuestion.category,
+        correctAnswer: groupQuestion.correctAnswer,
+        correctIndex: groupQuestion.shuffledCorrectIndex,
+        answers: groupQuestion.shuffledAnswers,
+        playerResults: groupPlayerResults,
+        playerNames: group.playerNames
+      };
+    });
+
+    game.questionHistory.push({
+      questionNumber: game.currentQuestionIndex + 1,
+      groupData
+    });
+  } else {
+    // Legacy structure for speed round or no groups
+    const question = game.currentQuestion;
+    game.questionHistory.push({
+      question: question.question,
+      category: question.category,
+      correctIndex: question.shuffledCorrectIndex,
+      correctAnswer: question.shuffledAnswers[question.shuffledCorrectIndex],
+      answers: question.shuffledAnswers,
+      playerResults
+    });
+  }
 
   // Broadcast updated scores
   io.to(roomId).emit('scoresUpdated', { players: room.players });
 
-  io.to(roomId).emit('triviaReveal', {
-    correctIndex,
-    correctAnswer,
-    playerResults,
-    questionNumber: game.currentQuestionIndex + 1,
-    totalQuestions: game.isSpeedRound ? '∞' : game.roundQuestions.length
-  });
+  // For reveal, send per-group data if applicable
+  const totalQuestionsInRound = game.questionsInRound || game.roundQuestions.length;
+
+  if (hasGroupQuestions) {
+    // Send group-specific reveal data to each player
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const groupQuestion = game.currentQuestionsByGroup[groupIndex];
+      const groupPlayerResults = {};
+      group.playerNames.forEach(name => {
+        if (playerResults[name]) {
+          groupPlayerResults[name] = playerResults[name];
+        }
+      });
+
+      group.players.forEach(player => {
+        if (player.socketId) {
+          io.to(player.socketId).emit('triviaReveal', {
+            correctIndex: groupQuestion.shuffledCorrectIndex,
+            correctAnswer: groupQuestion.correctAnswer,
+            playerResults: groupPlayerResults,
+            questionNumber: game.currentQuestionIndex + 1,
+            totalQuestions: totalQuestionsInRound,
+            difficulty: group.difficulty,
+            difficultyLabel: getDifficultyLabel(group.difficulty)
+          });
+        }
+      });
+    });
+  } else {
+    const question = game.currentQuestion;
+    io.to(roomId).emit('triviaReveal', {
+      correctIndex: question.shuffledCorrectIndex,
+      correctAnswer: question.shuffledAnswers[question.shuffledCorrectIndex],
+      playerResults,
+      questionNumber: game.currentQuestionIndex + 1,
+      totalQuestions: game.isSpeedRound ? '∞' : game.roundQuestions.length
+    });
+  }
 
   // Use shorter reveal duration for speed round to fit more questions
   const revealDuration = game.isSpeedRound ? TRIVIA_SPEED_REVEAL_DURATION : TRIVIA_REVEAL_DURATION;
@@ -682,7 +1670,8 @@ function endTriviaGame(io, room, roomId) {
   const roundScores = {};
   let currentRound = 1;
   let questionsInRound = 0;
-  const questionsPerRound = 5; // Normal rounds have 5 questions each
+  // Use dynamic questions per round based on group count, default to 5
+  const questionsPerRound = game.questionsInRound || 5;
 
   game.questionHistory.forEach((qh) => {
     if (qh.type === 'speedRound') {
@@ -695,8 +1684,23 @@ function endTriviaGame(io, room, roomId) {
           }
         });
       }
+    } else if (qh.groupData) {
+      // New structure: per-group question data
+      qh.groupData.forEach(gd => {
+        Object.entries(gd.playerResults || {}).forEach(([playerName, result]) => {
+          if (result.pointsEarned > 0) {
+            if (!roundScores[playerName]) roundScores[playerName] = [];
+            roundScores[playerName].push({ round: currentRound, points: result.pointsEarned });
+          }
+        });
+      });
+      questionsInRound++;
+      if (questionsInRound >= questionsPerRound && currentRound < 3) {
+        currentRound++;
+        questionsInRound = 0;
+      }
     } else if (qh.playerResults) {
-      // Normal question - track by round
+      // Legacy structure for backwards compatibility
       Object.entries(qh.playerResults).forEach(([playerName, result]) => {
         if (result.pointsEarned > 0) {
           if (!roundScores[playerName]) roundScores[playerName] = [];
@@ -785,10 +1789,15 @@ function sendSpeedRoundQuestion(io, room, roomId, player) {
     console.log(`[SPEED] No progress found for ${player.name}`);
     return;
   }
-  console.log(`[SPEED] ${player.name} progress: questionIndex=${progress.currentQuestionIndex}, totalQuestions=${game.shuffledQuestions?.length}`);
+
+  // Get player's difficulty and their question pool
+  const playerDifficulty = progress.difficulty || 'medium';
+  const playerQuestions = game.speedRoundQuestionsByDifficulty[playerDifficulty] || game.shuffledQuestions || [];
+
+  console.log(`[SPEED] ${player.name} (${playerDifficulty}): questionIndex=${progress.currentQuestionIndex}, totalQuestions=${playerQuestions.length}`);
 
   // Check if player has completed all questions
-  if (progress.currentQuestionIndex >= game.shuffledQuestions.length) {
+  if (progress.currentQuestionIndex >= playerQuestions.length) {
     // Player finished all questions - they wait for others/timer
     io.to(player.socketId).emit('speedRoundWaiting', {
       message: 'All questions answered! Waiting for time to run out...',
@@ -799,14 +1808,16 @@ function sendSpeedRoundQuestion(io, room, roomId, player) {
     return;
   }
 
-  const question = game.shuffledQuestions[progress.currentQuestionIndex];
+  const question = playerQuestions[progress.currentQuestionIndex];
 
   io.to(player.socketId).emit('speedRoundQuestion', {
     question: question.question,
     answers: question.shuffledAnswers,
     category: question.category,
     questionNumber: progress.currentQuestionIndex + 1,
-    speedRoundEndTime: game.speedRoundEndTime
+    speedRoundEndTime: game.speedRoundEndTime,
+    difficulty: playerDifficulty,
+    difficultyLabel: getDifficultyLabel(playerDifficulty)
   });
 }
 
@@ -817,10 +1828,14 @@ function handleSpeedRoundAnswer(io, room, roomId, player, answerIndex) {
   const progress = game.playerProgress[player.name];
   if (!progress || progress.isWaiting) return;  // Ignore if player is in wrong answer delay
 
-  const questionIndex = progress.currentQuestionIndex;
-  if (questionIndex >= game.shuffledQuestions.length) return;
+  // Get player's difficulty and their question pool
+  const playerDifficulty = progress.difficulty || 'medium';
+  const playerQuestions = game.speedRoundQuestionsByDifficulty[playerDifficulty] || game.shuffledQuestions || [];
 
-  const question = game.shuffledQuestions[questionIndex];
+  const questionIndex = progress.currentQuestionIndex;
+  if (questionIndex >= playerQuestions.length) return;
+
+  const question = playerQuestions[questionIndex];
   const isCorrect = answerIndex === question.shuffledCorrectIndex;
 
   if (isCorrect) {
@@ -943,9 +1958,23 @@ function endSpeedRound(io, room, roomId) {
 
 // --- Quick Math Game Helpers ---
 
-function getRandomMathQuestions(count, usedIds = []) {
-  const available = MATH_QUESTIONS.filter(q => !usedIds.includes(q.id));
-  const pool = available.length >= count ? available : MATH_QUESTIONS;
+function getRandomMathQuestions(difficultyOrCount, countOrUsedIds = [], usedIds = []) {
+  // Handle legacy call signature (count, usedIds)
+  if (typeof difficultyOrCount === 'number') {
+    const count = difficultyOrCount;
+    const legacyUsedIds = countOrUsedIds || [];
+    const available = MATH_QUESTIONS.filter(q => !legacyUsedIds.includes(q.id));
+    const pool = available.length >= count ? available : MATH_QUESTIONS;
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
+  }
+
+  // New signature: (difficulty, count, usedIds)
+  const difficulty = difficultyOrCount;
+  const count = countOrUsedIds;
+  const questions = MATH_QUESTIONS_BY_DIFFICULTY[difficulty] || MATH_QUESTIONS_BY_DIFFICULTY['medium'];
+  const available = questions.filter(q => !usedIds.includes(q.id));
+  const pool = available.length >= count ? available : questions;
   const shuffled = [...pool].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, count);
 }
@@ -996,31 +2025,79 @@ function startMathRound(io, room, roomId) {
   game.currentQuestionIndex = 0;
   game.phase = 'rules';
 
-  const questionsInRound = isSpeedRound ? 30 : game.questionsPerRound[roundIndex];
-  const roundQuestions = getRandomMathQuestions(questionsInRound, game.usedQuestionIds);
-  game.roundQuestions = roundQuestions;
-  roundQuestions.forEach(q => game.usedQuestionIds.push(q.id));
-
-  if (isSpeedRound) {
-    game.shuffledQuestions = roundQuestions.map(q => {
-      const options = generateSpeedRoundOptions(q.answer);
-      const correctIndex = options.indexOf(q.answer);
-      return {
-        ...q,
-        options,
-        correctIndex
-      };
+  // Set up difficulty groups for non-speed rounds
+  if (!isSpeedRound) {
+    // Log player difficulties for debugging
+    console.log(`[MATH] Room difficulty: ${room.difficulty}, playerDifficulties:`, room.playerDifficulties);
+    room.players.forEach(p => {
+      console.log(`[MATH] Player ${p.name} effective difficulty: ${getPlayerDifficulty(p.name, room)}`);
     });
 
+    game.difficultyGroups = getPlayersGroupedByDifficulty(room);
+    game.currentGroupIndex = 0;
+    game.groupAnswers = {};
+    console.log(`[MATH] Difficulty groups: ${game.difficultyGroups.map(g => `${g.difficulty}(${g.players.length}: ${g.playerNames.join(', ')})`).join(', ')}`);
+
+    // Calculate questions per round based on group count (same as Trivia)
+    const groupCount = game.difficultyGroups.length;
+    const questionsPerGroup = getQuestionsPerRoundForGroupCount(groupCount);
+    game.questionsPerRound[roundIndex] = questionsPerGroup;
+
+    // Generate questions per group from their difficulty pool
+    game.roundQuestionsByGroup = {};
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const difficulty = group.difficulty;
+      const usedIds = game.usedQuestionIdsByDifficulty[difficulty] || [];
+      const groupQuestions = getRandomMathQuestions(difficulty, questionsPerGroup, usedIds);
+
+      game.roundQuestionsByGroup[groupIndex] = groupQuestions;
+      console.log(`[MATH] Group ${groupIndex} (${difficulty}): Generated ${groupQuestions.length} questions - first: "${groupQuestions[0]?.question}"`);
+
+      // Track used question IDs per difficulty
+      groupQuestions.forEach(q => {
+        if (!game.usedQuestionIdsByDifficulty[difficulty]) {
+          game.usedQuestionIdsByDifficulty[difficulty] = [];
+        }
+        game.usedQuestionIdsByDifficulty[difficulty].push(q.id);
+      });
+    });
+
+    console.log(`[MATH] Generated ${questionsPerGroup} questions per group for ${groupCount} groups`);
+  }
+
+  const questionsInRound = isSpeedRound ? 30 : game.questionsPerRound[roundIndex];
+
+  if (isSpeedRound) {
+    // Log room difficulty settings for debugging
+    console.log(`[MATH SPEED] Room difficulty: ${room.difficulty}, playerDifficulties:`, JSON.stringify(room.playerDifficulties));
+
+    // Speed round: generate individual shuffled question lists per player
+    // This ensures each player gets their own sequence even if they share the same difficulty
     game.playerProgress = {};
     room.players.forEach(p => {
+      const playerDifficulty = getPlayerDifficulty(p.name, room);
+      console.log(`[MATH SPEED] Player ${p.name} assigned difficulty: ${playerDifficulty} (override: ${room.playerDifficulties?.[p.name] || 'none'})`);
+
+      // Get questions for this player's difficulty and shuffle them
+      const usedIds = game.usedQuestionIdsByDifficulty[playerDifficulty] || [];
+      const questions = getRandomMathQuestions(playerDifficulty, 30, usedIds);
+      const playerQuestions = questions.map(q => {
+        const options = generateSpeedRoundOptions(q.answer);
+        const correctIndex = options.indexOf(q.answer);
+        return { ...q, options, correctIndex };
+      });
+
       game.playerProgress[p.name] = {
         currentQuestionIndex: 0,
         correctAnswers: [],
         wrongAnswers: [],
         totalPoints: 0,
-        isWaiting: false
+        isWaiting: false,
+        difficulty: playerDifficulty,
+        questions: playerQuestions  // Each player gets their own shuffled question list
       };
+
+      console.log(`[MATH SPEED] ${p.name} first question: "${playerQuestions[0]?.question}"`);
     });
   }
 
@@ -1040,6 +2117,14 @@ function startMathRound(io, room, roomId) {
   const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + MATH_SPEED_ROUND_DURATION : null;
   game.speedRoundEndTime = speedRoundEndTime;
 
+  // Include difficulty groups info for client display
+  const difficultyGroupsInfo = !isSpeedRound && game.difficultyGroups ?
+    game.difficultyGroups.map(g => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames
+    })) : null;
+
   io.to(roomId).emit('mathRulesStart', {
     rulesEndTime,
     round: game.currentRound,
@@ -1047,7 +2132,8 @@ function startMathRound(io, room, roomId) {
     isSpeedRound,
     questionsInRound: isSpeedRound ? 30 : questionsInRound,
     speedRoundEndTime,
-    readyPlayers: []
+    readyPlayers: [],
+    difficultyGroups: difficultyGroupsInfo
   });
 
   game.rulesTimer = setTimeout(() => {
@@ -1067,37 +2153,190 @@ function advanceMathQuestion(io, room, roomId) {
   const game = room.game;
   const questionIndex = game.currentQuestionIndex;
 
-  if (questionIndex >= game.roundQuestions.length) {
+  // Check end condition - use per-group questions if available
+  const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || 0;
+  if (questionIndex >= questionsInRound) {
     showMathRecap(io, room, roomId);
     return;
   }
 
-  const question = game.roundQuestions[questionIndex];
-  const questionDuration = MATH_QUESTION_DURATION;
-  const questionEndTime = Date.now() + questionDuration;
-
-  game.currentQuestion = question;
-  game.questionEndTime = questionEndTime;
   game.questionStartTime = Date.now();
   game.answers = {};
   game.phase = 'question';
 
-  io.to(roomId).emit('mathQuestion', {
-    question: question.question,
-    category: question.category,
-    questionEndTime,
-    questionNumber: questionIndex + 1,
-    totalQuestions: game.roundQuestions.length,
-    round: game.currentRound,
-    totalRounds: game.totalRounds,
-    isSpeedRound: false
+  // For non-speed rounds with difficulty groups, prepare per-group questions
+  if (!game.isSpeedRound && game.difficultyGroups && game.difficultyGroups.length > 0) {
+    // Prepare currentQuestionsByGroup for this question index
+    game.currentQuestionsByGroup = {};
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const groupQuestions = game.roundQuestionsByGroup[groupIndex];
+      if (groupQuestions && groupQuestions[questionIndex]) {
+        const question = groupQuestions[questionIndex];
+        game.currentQuestionsByGroup[groupIndex] = {
+          question,
+          difficulty: group.difficulty,
+          difficultyLabel: getDifficultyLabel(group.difficulty)
+        };
+      }
+    });
+
+    game.currentGroupIndex = 0;
+    startMathGroupTurn(io, room, roomId);
+  } else {
+    // Speed round or no groups: send to everyone (legacy behavior)
+    const question = game.roundQuestions ? game.roundQuestions[questionIndex] : null;
+    if (!question) return;
+
+    game.currentQuestion = question;
+    const questionDuration = MATH_QUESTION_DURATION;
+    const questionEndTime = Date.now() + questionDuration;
+    game.questionEndTime = questionEndTime;
+
+    io.to(roomId).emit('mathQuestion', {
+      question: question.question,
+      category: question.category,
+      questionEndTime,
+      questionNumber: questionIndex + 1,
+      totalQuestions: game.roundQuestions.length,
+      round: game.currentRound,
+      totalRounds: game.totalRounds,
+      isSpeedRound: false
+    });
+
+    game.questionTimer = setTimeout(() => {
+      if (room.game && room.game.gameType === 'quickmath') {
+        revealMathAnswer(io, room, roomId);
+      }
+    }, questionDuration);
+  }
+}
+
+// Start a turn for the current difficulty group (Math)
+function startMathGroupTurn(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'quickmath') return;
+
+  const game = room.game;
+  const groups = game.difficultyGroups;
+  const currentGroupIdx = game.currentGroupIndex;
+
+  if (currentGroupIdx >= groups.length) {
+    // All groups have answered - reveal the answer
+    revealMathAnswer(io, room, roomId);
+    return;
+  }
+
+  const currentGroup = groups[currentGroupIdx];
+  const questionDuration = MATH_QUESTION_DURATION;
+  const questionEndTime = Date.now() + questionDuration;
+  game.questionEndTime = questionEndTime;
+  game.groupStartTime = Date.now();
+
+  console.log(`[MATH] Starting turn for group ${currentGroup.difficulty} (${currentGroup.players.length} players)`);
+
+  // Build group info for all players
+  const groupInfo = {
+    currentGroup: {
+      difficulty: currentGroup.difficulty,
+      label: getDifficultyLabel(currentGroup.difficulty),
+      playerNames: currentGroup.playerNames
+    },
+    currentGroupIndex: currentGroupIdx,
+    totalGroups: groups.length,
+    allGroups: groups.map((g, idx) => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames,
+      isActive: idx === currentGroupIdx,
+      isCompleted: idx < currentGroupIdx
+    }))
+  };
+
+  // Get the group-specific question
+  const groupQuestionData = game.currentQuestionsByGroup[currentGroupIdx];
+  const question = groupQuestionData?.question;
+  const totalQuestionsInRound = game.roundQuestionsByGroup[0]?.length || game.questionsPerRound[game.currentRound - 1];
+
+  if (!question) {
+    console.log(`[MATH] No question found for group ${currentGroupIdx}`);
+    advanceToNextMathGroup(io, room, roomId);
+    return;
+  }
+
+  console.log(`[MATH] Sending Q${game.currentQuestionIndex + 1} to group ${currentGroupIdx} (${groupQuestionData.difficulty}): "${question.question}" -> ${currentGroup.playerNames.join(', ')}`);
+
+  // Send question to active group players with their difficulty-specific question
+  currentGroup.players.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('mathQuestion', {
+        question: question.question,
+        category: question.category,
+        questionEndTime,
+        questionNumber: game.currentQuestionIndex + 1,
+        totalQuestions: totalQuestionsInRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        isSpeedRound: false,
+        isActiveGroup: true,
+        groupInfo,
+        difficulty: groupQuestionData.difficulty,
+        difficultyLabel: groupQuestionData.difficultyLabel
+      });
+    }
   });
 
+  // Send waiting state to players NOT in current group
+  const waitingPlayers = room.players.filter(p =>
+    p.connected !== false && !currentGroup.playerNames.includes(p.name)
+  );
+
+  waitingPlayers.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('mathGroupWaiting', {
+        questionNumber: game.currentQuestionIndex + 1,
+        totalQuestions: totalQuestionsInRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        groupInfo,
+        waitingFor: {
+          difficulty: currentGroup.difficulty,
+          label: getDifficultyLabel(currentGroup.difficulty),
+          playerNames: currentGroup.playerNames
+        }
+      });
+    }
+  });
+
+  // Set timer for group timeout
   game.questionTimer = setTimeout(() => {
     if (room.game && room.game.gameType === 'quickmath') {
-      revealMathAnswer(io, room, roomId);
+      advanceToNextMathGroup(io, room, roomId);
     }
   }, questionDuration);
+}
+
+// Advance to the next difficulty group or reveal answer (Math)
+function advanceToNextMathGroup(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'quickmath') return;
+
+  const game = room.game;
+
+  // Clear any existing timer
+  if (game.questionTimer) {
+    clearTimeout(game.questionTimer);
+    game.questionTimer = null;
+  }
+
+  game.currentGroupIndex++;
+
+  console.log(`[MATH] Advancing to group ${game.currentGroupIndex} of ${game.difficultyGroups.length}`);
+
+  if (game.currentGroupIndex >= game.difficultyGroups.length) {
+    // All groups have answered - reveal the answer
+    revealMathAnswer(io, room, roomId);
+  } else {
+    // Start next group's turn
+    startMathGroupTurn(io, room, roomId);
+  }
 }
 
 function revealMathAnswer(io, room, roomId) {
@@ -1110,51 +2349,128 @@ function revealMathAnswer(io, room, roomId) {
   }
 
   game.phase = 'reveal';
-  const question = game.currentQuestion;
-  const correctAnswer = question.answer;
-
-  const playerResults = {};
   const questionDuration = MATH_QUESTION_DURATION;
 
-  Object.entries(game.answers).forEach(([playerName, answerData]) => {
-    const isCorrect = answerData.answer === correctAnswer;
-    let pointsEarned = 0;
+  // Build per-group results for the new structure
+  const groupData = [];
+  const allPlayerResults = {};
 
-    if (isCorrect) {
-      pointsEarned = calculateMathPoints(
-        answerData.timestamp,
-        game.questionStartTime,
-        questionDuration,
-        false
-      );
+  if (game.difficultyGroups && game.currentQuestionsByGroup) {
+    // Per-group questions - validate against each group's specific question
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const groupQuestionData = game.currentQuestionsByGroup[groupIndex];
+      if (!groupQuestionData) return;
 
-      const player = room.players.find(p => p.name === playerName);
-      if (player) {
-        player.score = (player.score || 0) + pointsEarned;
+      const question = groupQuestionData.question;
+      const correctAnswer = question.answer;
+      const groupPlayerResults = {};
+
+      group.playerNames.forEach(playerName => {
+        const answerData = game.answers[playerName];
+        let isCorrect = false;
+        let pointsEarned = 0;
+
+        if (answerData) {
+          isCorrect = answerData.answer === correctAnswer;
+          if (isCorrect) {
+            pointsEarned = calculateMathPoints(
+              answerData.timestamp,
+              game.questionStartTime,
+              questionDuration,
+              false
+            );
+            const player = room.players.find(p => p.name === playerName);
+            if (player) {
+              player.score = (player.score || 0) + pointsEarned;
+            }
+          }
+        }
+
+        groupPlayerResults[playerName] = {
+          answer: answerData?.answer,
+          isCorrect,
+          pointsEarned
+        };
+        allPlayerResults[playerName] = groupPlayerResults[playerName];
+      });
+
+      groupData.push({
+        groupIndex,
+        difficulty: groupQuestionData.difficulty,
+        difficultyLabel: groupQuestionData.difficultyLabel,
+        question: question.question,
+        category: question.category,
+        correctAnswer,
+        playerResults: groupPlayerResults
+      });
+    });
+
+    game.questionHistory.push({
+      questionNumber: game.currentQuestionIndex + 1,
+      groupData
+    });
+  } else {
+    // Legacy single question for all
+    const question = game.currentQuestion;
+    const correctAnswer = question?.answer;
+
+    Object.entries(game.answers).forEach(([playerName, answerData]) => {
+      const isCorrect = answerData.answer === correctAnswer;
+      let pointsEarned = 0;
+
+      if (isCorrect) {
+        pointsEarned = calculateMathPoints(
+          answerData.timestamp,
+          game.questionStartTime,
+          questionDuration,
+          false
+        );
+
+        const player = room.players.find(p => p.name === playerName);
+        if (player) {
+          player.score = (player.score || 0) + pointsEarned;
+        }
       }
-    }
 
-    playerResults[playerName] = {
-      answer: answerData.answer,
-      isCorrect,
-      pointsEarned
-    };
-  });
+      allPlayerResults[playerName] = {
+        answer: answerData.answer,
+        isCorrect,
+        pointsEarned
+      };
+    });
 
-  game.questionHistory.push({
-    question: question.question,
-    category: question.category,
-    correctAnswer,
-    playerResults
-  });
+    game.questionHistory.push({
+      question: question?.question,
+      category: question?.category,
+      correctAnswer,
+      playerResults: allPlayerResults
+    });
+  }
 
   io.to(roomId).emit('scoresUpdated', { players: room.players });
 
+  const totalQuestionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound[game.currentRound - 1];
+
+  // Build correct answers by player for individual display
+  const correctAnswersByPlayer = {};
+  if (groupData.length > 0) {
+    groupData.forEach(gd => {
+      Object.keys(gd.playerResults || {}).forEach(playerName => {
+        correctAnswersByPlayer[playerName] = gd.correctAnswer;
+      });
+    });
+  } else if (game.currentQuestion) {
+    room.players.forEach(p => {
+      correctAnswersByPlayer[p.name] = game.currentQuestion.answer;
+    });
+  }
+
   io.to(roomId).emit('mathReveal', {
-    correctAnswer,
-    playerResults,
+    groupData: groupData.length > 0 ? groupData : null,
+    playerResults: allPlayerResults,
+    correctAnswersByPlayer,
     questionNumber: game.currentQuestionIndex + 1,
-    totalQuestions: game.roundQuestions.length
+    totalQuestions: totalQuestionsInRound
   });
 
   setTimeout(() => {
@@ -1175,7 +2491,9 @@ function showMathRecap(io, room, roomId) {
     .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
     .sort((a, b) => b.score - a.score);
 
-  const roundStartIndex = game.questionHistory.length - game.roundQuestions.length;
+  // Calculate questions in this round
+  const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound[game.currentRound - 1];
+  const roundStartIndex = game.questionHistory.length - questionsInRound;
   const roundHistory = game.questionHistory.slice(roundStartIndex);
 
   io.to(roomId).emit('mathRecap', {
@@ -1183,7 +2501,12 @@ function showMathRecap(io, room, roomId) {
     totalRounds: game.totalRounds,
     standings,
     questionHistory: roundHistory,
-    isLastRound: game.currentRound >= game.totalRounds
+    isLastRound: game.currentRound >= game.totalRounds,
+    difficultyGroups: game.difficultyGroups ? game.difficultyGroups.map(g => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames
+    })) : null
   });
 }
 
@@ -1218,7 +2541,10 @@ function endMathGame(io, room, roomId) {
   const roundScores = {};
   let currentRound = 1;
   let questionsInRound = 0;
-  const questionsPerRound = 5; // Normal rounds have 5 questions each
+  // Dynamic questions per round based on group count
+  const firstRoundQuestionsCount = game.questionHistory.find(qh => qh.groupData || qh.playerResults)?.groupData
+    ? game.roundQuestionsByGroup?.[0]?.length || 5
+    : 5;
 
   game.questionHistory.forEach((qh) => {
     if (qh.type === 'speedRound') {
@@ -1231,8 +2557,23 @@ function endMathGame(io, room, roomId) {
           }
         });
       }
+    } else if (qh.groupData) {
+      // New per-group question structure
+      qh.groupData.forEach(gd => {
+        Object.entries(gd.playerResults || {}).forEach(([playerName, result]) => {
+          if (result.pointsEarned > 0) {
+            if (!roundScores[playerName]) roundScores[playerName] = [];
+            roundScores[playerName].push({ round: currentRound, points: result.pointsEarned });
+          }
+        });
+      });
+      questionsInRound++;
+      if (questionsInRound >= firstRoundQuestionsCount && currentRound < 3) {
+        currentRound++;
+        questionsInRound = 0;
+      }
     } else if (qh.playerResults) {
-      // Normal question - track by round
+      // Legacy single question structure
       Object.entries(qh.playerResults).forEach(([playerName, result]) => {
         if (result.pointsEarned > 0) {
           if (!roundScores[playerName]) roundScores[playerName] = [];
@@ -1240,7 +2581,7 @@ function endMathGame(io, room, roomId) {
         }
       });
       questionsInRound++;
-      if (questionsInRound >= questionsPerRound && currentRound < 3) {
+      if (questionsInRound >= firstRoundQuestionsCount && currentRound < 3) {
         currentRound++;
         questionsInRound = 0;
       }
@@ -1297,7 +2638,13 @@ function sendMathSpeedRoundQuestion(io, room, roomId, player) {
   const progress = game.playerProgress[player.name];
   if (!progress) return;
 
-  if (progress.currentQuestionIndex >= game.shuffledQuestions.length) {
+  // Use the player's individual question list
+  const playerDifficulty = progress.difficulty || 'medium';
+  const playerQuestions = progress.questions || [];
+
+  console.log(`[MATH SPEED SEND] ${player.name}: difficulty=${playerDifficulty}, questionCount=${playerQuestions.length}`);
+
+  if (progress.currentQuestionIndex >= playerQuestions.length) {
     io.to(player.socketId).emit('speedRoundWaiting', {
       message: 'All questions answered! Waiting for time to run out...',
       questionsAnswered: progress.correctAnswers.length + progress.wrongAnswers.length,
@@ -1307,14 +2654,18 @@ function sendMathSpeedRoundQuestion(io, room, roomId, player) {
     return;
   }
 
-  const question = game.shuffledQuestions[progress.currentQuestionIndex];
+  const question = playerQuestions[progress.currentQuestionIndex];
+
+  console.log(`[MATH SPEED] Sending Q${progress.currentQuestionIndex + 1} to ${player.name} (${playerDifficulty}): "${question.question}"`);
 
   io.to(player.socketId).emit('speedRoundQuestion', {
     question: question.question,
     answers: question.options,
     category: question.category,
     questionNumber: progress.currentQuestionIndex + 1,
-    speedRoundEndTime: game.speedRoundEndTime
+    speedRoundEndTime: game.speedRoundEndTime,
+    difficulty: playerDifficulty,
+    difficultyLabel: getDifficultyLabel(playerDifficulty)
   });
 }
 
@@ -1325,10 +2676,13 @@ function handleMathSpeedRoundAnswer(io, room, roomId, player, answerIndex) {
   const progress = game.playerProgress[player.name];
   if (!progress || progress.isWaiting) return;
 
-  const questionIndex = progress.currentQuestionIndex;
-  if (questionIndex >= game.shuffledQuestions.length) return;
+  // Use the player's individual question list
+  const playerQuestions = progress.questions || [];
 
-  const question = game.shuffledQuestions[questionIndex];
+  const questionIndex = progress.currentQuestionIndex;
+  if (questionIndex >= playerQuestions.length) return;
+
+  const question = playerQuestions[questionIndex];
   const isCorrect = answerIndex === question.correctIndex;
 
   if (isCorrect) {
@@ -1554,7 +2908,9 @@ function setupSockets(io) {
         name: data.roomName,
         master: data.playerName,
         players: [{ name: data.playerName, isMaster: true, avatar: data.avatar || 'meta', socketId: socket.id, connected: true, score: 0 }],
-        selectedGames: []
+        selectedGames: [],
+        difficulty: DEFAULT_DIFFICULTY,
+        playerDifficulties: {}  // Map of playerName -> difficultyId for individual overrides
       };
 
       rooms.set(roomId, room);
@@ -1767,6 +3123,40 @@ function setupSockets(io) {
           triviaSync.category = game.currentQuestion.category;
         }
 
+        // Include group info if using difficulty groups
+        if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          const isActiveGroup = currentGroup && currentGroup.playerNames.includes(player.name);
+
+          triviaSync.groupInfo = {
+            currentGroup: currentGroup ? {
+              difficulty: currentGroup.difficulty,
+              label: getDifficultyLabel(currentGroup.difficulty),
+              playerNames: currentGroup.playerNames
+            } : null,
+            currentGroupIndex: game.currentGroupIndex,
+            totalGroups: game.difficultyGroups.length,
+            allGroups: game.difficultyGroups.map((g, idx) => ({
+              difficulty: g.difficulty,
+              label: getDifficultyLabel(g.difficulty),
+              playerNames: g.playerNames,
+              isActive: idx === game.currentGroupIndex,
+              isCompleted: idx < game.currentGroupIndex
+            }))
+          };
+          triviaSync.isActiveGroup = isActiveGroup;
+
+          // If player is not in active group, set phase to groupWaiting
+          if (!isActiveGroup && game.phase === 'question') {
+            triviaSync.phase = 'groupWaiting';
+            triviaSync.waitingFor = {
+              difficulty: currentGroup?.difficulty,
+              label: currentGroup ? getDifficultyLabel(currentGroup.difficulty) : 'Unknown',
+              playerNames: currentGroup?.playerNames || []
+            };
+          }
+        }
+
         // Include standings
         triviaSync.standings = room.players
           .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
@@ -1811,6 +3201,40 @@ function setupSockets(io) {
           }
         }
 
+        // Include group info if using difficulty groups
+        if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          const isActiveGroup = currentGroup && currentGroup.playerNames.includes(player.name);
+
+          mathSync.groupInfo = {
+            currentGroup: currentGroup ? {
+              difficulty: currentGroup.difficulty,
+              label: getDifficultyLabel(currentGroup.difficulty),
+              playerNames: currentGroup.playerNames
+            } : null,
+            currentGroupIndex: game.currentGroupIndex,
+            totalGroups: game.difficultyGroups.length,
+            allGroups: game.difficultyGroups.map((g, idx) => ({
+              difficulty: g.difficulty,
+              label: getDifficultyLabel(g.difficulty),
+              playerNames: g.playerNames,
+              isActive: idx === game.currentGroupIndex,
+              isCompleted: idx < game.currentGroupIndex
+            }))
+          };
+          mathSync.isActiveGroup = isActiveGroup;
+
+          // If player is not in active group, set phase to groupWaiting
+          if (!isActiveGroup && game.phase === 'question') {
+            mathSync.phase = 'groupWaiting';
+            mathSync.waitingFor = {
+              difficulty: currentGroup?.difficulty,
+              label: currentGroup ? getDifficultyLabel(currentGroup.difficulty) : 'Unknown',
+              playerNames: currentGroup?.playerNames || []
+            };
+          }
+        }
+
         // Include standings
         mathSync.standings = room.players
           .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
@@ -1838,6 +3262,103 @@ function setupSockets(io) {
           socket.emit('yourWord', { word: game.currentWord });
         }
       }
+    });
+
+    // --- Set Room Difficulty (Master only) ---
+    socket.on('setRoomDifficulty', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Only master can change difficulty
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player || player.name !== room.master) {
+        socket.emit('error', { message: 'Only the room master can change difficulty' });
+        return;
+      }
+
+      // Cannot change during game
+      if (room.game) {
+        socket.emit('error', { message: 'Cannot change difficulty during a game' });
+        return;
+      }
+
+      // Validate difficulty
+      if (!DIFFICULTY_LEVELS.includes(data.difficulty)) {
+        socket.emit('error', { message: 'Invalid difficulty level' });
+        return;
+      }
+
+      room.difficulty = data.difficulty;
+
+      // If applyToAll is true, clear individual overrides
+      if (data.applyToAll) {
+        room.playerDifficulties = {};
+      }
+
+      io.to(data.roomId).emit('difficultyUpdated', {
+        roomId: data.roomId,
+        roomDifficulty: room.difficulty,
+        playerDifficulties: room.playerDifficulties
+      });
+
+      console.log(`Room ${data.roomId} difficulty set to ${data.difficulty} by ${player.name}`);
+    });
+
+    // --- Set Player Difficulty (Master only) ---
+    socket.on('setPlayerDifficulty', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Only master can change difficulty
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player || player.name !== room.master) {
+        socket.emit('error', { message: 'Only the room master can change player difficulty' });
+        return;
+      }
+
+      // Cannot change during game
+      if (room.game) {
+        socket.emit('error', { message: 'Cannot change difficulty during a game' });
+        return;
+      }
+
+      // Check target player exists
+      const targetPlayer = room.players.find(p => p.name === data.playerName);
+      if (!targetPlayer) {
+        socket.emit('error', { message: 'Player not found' });
+        return;
+      }
+
+      // Validate difficulty
+      if (!DIFFICULTY_LEVELS.includes(data.difficulty)) {
+        socket.emit('error', { message: 'Invalid difficulty level' });
+        return;
+      }
+
+      // Set individual difficulty (or remove override if same as room default)
+      if (data.difficulty === room.difficulty) {
+        delete room.playerDifficulties[data.playerName];
+        console.log(`[DIFFICULTY] Player ${data.playerName} set to room default (${room.difficulty}) - removed override`);
+      } else {
+        room.playerDifficulties[data.playerName] = data.difficulty;
+        console.log(`[DIFFICULTY] Player ${data.playerName} set to ${data.difficulty} (room default: ${room.difficulty})`);
+      }
+
+      console.log(`[DIFFICULTY] Current playerDifficulties:`, room.playerDifficulties);
+
+      io.to(data.roomId).emit('difficultyUpdated', {
+        roomId: data.roomId,
+        roomDifficulty: room.difficulty,
+        playerDifficulties: room.playerDifficulties
+      });
+
+      console.log(`Player ${data.playerName} difficulty set to ${data.difficulty} in room ${data.roomId}`);
     });
 
     // --- Toggle Game Selection ---
@@ -1873,7 +3394,7 @@ function setupSockets(io) {
       }
 
       if (gameType === 'quickmath') {
-        // Initialize Quick Math game
+        // Initialize Quick Math game with per-difficulty question tracking
         room.game = {
           gameType: 'quickmath',
           currentRound: 1,
@@ -1888,7 +3409,12 @@ function setupSockets(io) {
           questionHistory: [],
           roundQuestions: [],
           isSpeedRound: false,
-          usedQuestionIds: [],
+          usedQuestionIdsByDifficulty: {
+            'super-easy': [], 'very-easy': [], 'easy': [], 'medium': [], 'hard': [], 'very-hard': [], 'genius': []
+          },
+          currentQuestionsByGroup: {},
+          roundQuestionsByGroup: {},
+          speedRoundQuestionsByDifficulty: {},
           questionStartTime: null,
           questionTimer: null
         };
@@ -1912,22 +3438,33 @@ function setupSockets(io) {
         }, 4000);
 
       } else if (gameType === 'trivia') {
-        // Initialize Trivia game
+        // Initialize Trivia game with per-difficulty question tracking
         room.game = {
           gameType: 'trivia',
           currentRound: 1,
           totalRounds: 4,
-          questionsPerRound: [5, 5, 5, 10],  // Rounds 1-3: 5 questions, Round 4: 10 questions
+          questionsPerRound: [5, 5, 5, 10],  // Default - will be overridden based on group count
           currentQuestionIndex: 0,
           currentQuestion: null,
+          currentQuestionsByGroup: {},  // Per-group questions at current index
           questionEndTime: null,
           rulesEndTime: null,
           phase: 'rules',
           answers: {},
           questionHistory: [],
           roundQuestions: [],
+          roundQuestionsByGroup: {},  // Per-group question arrays
           isSpeedRound: false,
-          usedQuestionIds: [],
+          usedQuestionIdsByDifficulty: {
+            'super-easy': [],
+            'very-easy': [],
+            'easy': [],
+            'medium': [],
+            'hard': [],
+            'very-hard': [],
+            'genius': []
+          },
+          speedRoundQuestionsByDifficulty: {},  // Per-difficulty question pools for speed round
           questionStartTime: null,
           questionTimer: null
         };
@@ -1953,7 +3490,6 @@ function setupSockets(io) {
       } else {
         // Existing Pictionary logic
         const drawingOrder = computeDrawingOrder(room.players);
-        const firstWord = pickWord([]);
 
         // Reset player scores
         room.players.forEach(p => { p.score = 0; });
@@ -1965,12 +3501,15 @@ function setupSockets(io) {
           currentRound: 1,
           totalRounds: drawingOrder.length,
           drawerName: drawingOrder[0].name,
-          currentWord: firstWord,
-          usedWords: [firstWord],
+          currentWord: null,  // Word set when drawer picks from options
+          usedWords: [],
+          wordOptions: null,
+          wordSelected: false,
           roundScores: {},
           currentPickValue: 100,
           timerEndTime: null,
-          timerRemainingMs: null
+          timerRemainingMs: null,
+          wordSelectionTimeout: null
         };
 
         // Emit countdown to all with drawing order info
@@ -1989,6 +3528,46 @@ function setupSockets(io) {
           }
         }, 4000);
       }
+    });
+
+    // --- Select Word (Pictionary - drawer picks from options) ---
+    socket.on('selectWord', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'pictionary') return;
+
+      // Validate sender is the drawer
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || sender.name !== room.game.drawerName) return;
+
+      // Check if word already selected
+      if (room.game.wordSelected) return;
+
+      // Validate the selected word is from the options
+      const selectedOption = room.game.wordOptions?.find(opt => opt.word === data.word);
+      if (!selectedOption) return;
+
+      // Clear the auto-selection timeout
+      if (room.game.wordSelectionTimeout) {
+        clearTimeout(room.game.wordSelectionTimeout);
+        room.game.wordSelectionTimeout = null;
+      }
+
+      // Set the word and lock the drawer to this difficulty for the rest of their turn
+      room.game.currentWord = data.word;
+      room.game.wordSelected = true;
+      room.game.usedWords.push(data.word);
+      room.game.drawerLockedDifficulty = selectedOption.difficulty;
+
+      // Send the selected word back to the drawer
+      io.to(sender.socketId).emit('yourWord', { word: data.word });
+
+      // Start the game timer now
+      const endTime = Date.now() + 60000;
+      room.game.timerEndTime = endTime;
+      room.game.timerRemainingMs = null;
+      io.to(data.roomId).emit('gameTimerStart', { endTime });
+
+      console.log(`Drawer ${sender.name} selected word: ${data.word} (${selectedOption.difficultyLabel}) - locked to ${selectedOption.difficulty} difficulty`);
     });
 
     // --- Draw Line (Pictionary) ---
@@ -2117,16 +3696,20 @@ function setupSockets(io) {
         return;
       }
 
-      // After 2s announcement, pick new word and continue drawing
+      // After 2s announcement, pick new word from the drawer's locked difficulty and continue drawing
       setTimeout(() => {
         if (!room.game) return;
         room.game.paused = false;
         const endTime = Date.now() + (room.game.timerRemainingMs || 0);
         room.game.timerEndTime = endTime;
         room.game.timerRemainingMs = null;
-        const newWord = pickWord(room.game.usedWords);
+        // Use the drawer's locked difficulty for subsequent words
+        const lockedDiff = room.game.drawerLockedDifficulty || 'medium';
+        const newWord = pickWord(room.game.usedWords, lockedDiff);
         room.game.usedWords.push(newWord);
         room.game.currentWord = newWord;
+
+        console.log(`[PICTIONARY] New word for ${room.game.drawerName} (locked to ${lockedDiff}): ${newWord}`);
 
         io.to(data.roomId).emit('continueDrawing', { nextPickValue: room.game.currentPickValue, endTime });
 
@@ -2175,6 +3758,11 @@ function setupSockets(io) {
 
       // Remove player from room
       room.players = room.players.filter(p => p.name !== data.playerName);
+
+      // Clean up player's difficulty override
+      if (room.playerDifficulties) {
+        delete room.playerDifficulties[data.playerName];
+      }
 
       // Notify the kicked player
       io.to(playerToKick.socketId).emit('youWereKicked', { roomId: data.roomId });
@@ -2342,6 +3930,11 @@ function setupSockets(io) {
       // Remove player from room
       room.players = room.players.filter(p => p.name !== playerName);
 
+      // Clean up player's difficulty override
+      if (room.playerDifficulties) {
+        delete room.playerDifficulties[playerName];
+      }
+
       // Leave the socket room
       socket.leave(data.roomId);
 
@@ -2423,6 +4016,16 @@ function setupSockets(io) {
       // Don't allow duplicate answers
       if (game.answers[sender.name]) return;
 
+      // For group turns, verify sender is in active group
+      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+        if (!currentGroup || !currentGroup.playerNames.includes(sender.name)) {
+          // Player is not in active group, ignore answer
+          console.log(`[TRIVIA] Ignoring answer from ${sender.name} - not in active group ${currentGroup?.difficulty}`);
+          return;
+        }
+      }
+
       // Record answer with timestamp
       game.answers[sender.name] = {
         answerIndex: data.answerIndex,
@@ -2434,7 +4037,22 @@ function setupSockets(io) {
         playerName: sender.name
       });
 
-      // Check if all connected players have answered
+      // For group turns, check if all players in current group have answered
+      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+        const groupPlayerNames = currentGroup.playerNames;
+        const groupAnsweredCount = groupPlayerNames.filter(name => game.answers[name]).length;
+
+        console.log(`[TRIVIA] Group ${currentGroup.difficulty}: ${groupAnsweredCount}/${groupPlayerNames.length} answered`);
+
+        if (groupAnsweredCount >= groupPlayerNames.length) {
+          // All players in current group answered, advance to next group
+          advanceToNextGroup(io, room, data.roomId);
+        }
+        return;
+      }
+
+      // Legacy behavior: check if all connected players have answered
       const connectedPlayers = room.players.filter(p => p.connected !== false);
       const answeredCount = Object.keys(game.answers).length;
 
@@ -2623,43 +4241,39 @@ function setupSockets(io) {
         startTriviaRound(io, room, data.roomId);
       } else if (gameType === 'quickmath') {
         console.log(`[DEV] Starting quickmath speed round`);
+        console.log(`[DEV] Room difficulty: ${room.difficulty}, playerDifficulties:`, JSON.stringify(room.playerDifficulties));
 
-        // Generate speed round questions (30 questions for 60 seconds)
-        const roundQuestions = getRandomMathQuestions(30, game.usedQuestionIds || []);
-        game.roundQuestions = roundQuestions;
-        roundQuestions.forEach(q => {
-          if (!game.usedQuestionIds) game.usedQuestionIds = [];
-          game.usedQuestionIds.push(q.id);
-        });
-
-        // Create shuffled questions with multiple choice options
-        game.shuffledQuestions = roundQuestions.map(q => {
-          const options = generateSpeedRoundOptions(q.answer);
-          const correctIndex = options.indexOf(q.answer);
-          return {
-            ...q,
-            options,
-            correctIndex
-          };
-        });
-
-        // Initialize player progress for speed round
+        // Initialize player progress with individual question lists per player
         game.playerProgress = {};
         room.players.forEach(player => {
+          const playerDifficulty = getPlayerDifficulty(player.name, room);
+          console.log(`[DEV] Player ${player.name} difficulty: ${playerDifficulty}`);
+
+          // Get questions for this player's difficulty and shuffle them
+          const usedIds = game.usedQuestionIdsByDifficulty?.[playerDifficulty] || [];
+          const questions = getRandomMathQuestions(playerDifficulty, 30, usedIds);
+          const playerQuestions = questions.map(q => {
+            const options = generateSpeedRoundOptions(q.answer);
+            const correctIndex = options.indexOf(q.answer);
+            return { ...q, options, correctIndex };
+          });
+
           game.playerProgress[player.name] = {
             currentQuestionIndex: 0,
             correctAnswers: [],
             wrongAnswers: [],
             totalPoints: 0,
-            isWaiting: false
+            isWaiting: false,
+            difficulty: playerDifficulty,
+            questions: playerQuestions
           };
+
+          console.log(`[DEV] ${player.name} first question: "${playerQuestions[0]?.question}"`);
         });
 
         // Initialize speed round state
         game.phase = 'speedRound';
         game.speedRoundEndTime = Date.now() + MATH_SPEED_ROUND_DURATION;
-
-        console.log(`[DEV] Generated ${game.shuffledQuestions.length} questions for speed round`);
 
         startMathSpeedRound(io, room, data.roomId);
       }
@@ -2699,6 +4313,16 @@ function setupSockets(io) {
       // Don't allow duplicate answers
       if (game.answers[sender.name]) return;
 
+      // For group turns, verify sender is in active group
+      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+        if (!currentGroup || !currentGroup.playerNames.includes(sender.name)) {
+          // Player is not in active group, ignore answer
+          console.log(`[MATH] Ignoring answer from ${sender.name} - not in active group ${currentGroup?.difficulty}`);
+          return;
+        }
+      }
+
       // Record answer with timestamp (answer is a number, not an index)
       game.answers[sender.name] = {
         answer: data.answer,
@@ -2710,7 +4334,22 @@ function setupSockets(io) {
         playerName: sender.name
       });
 
-      // Check if all connected players have answered
+      // For group turns, check if all players in current group have answered
+      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+        const groupPlayerNames = currentGroup.playerNames;
+        const groupAnsweredCount = groupPlayerNames.filter(name => game.answers[name]).length;
+
+        console.log(`[MATH] Group ${currentGroup.difficulty}: ${groupAnsweredCount}/${groupPlayerNames.length} answered`);
+
+        if (groupAnsweredCount >= groupPlayerNames.length) {
+          // All players in current group answered, advance to next group
+          advanceToNextMathGroup(io, room, data.roomId);
+        }
+        return;
+      }
+
+      // Legacy behavior: check if all connected players have answered
       const connectedPlayers = room.players.filter(p => p.connected !== false);
       const answeredCount = Object.keys(game.answers).length;
 

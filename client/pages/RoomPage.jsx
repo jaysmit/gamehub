@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Crown, Gamepad2, Play, Star, Check, Info, Youtube, MessageCircle, ChevronDown, X } from '../icons/UIIcons';
 import CharacterSVG from '../icons/CharacterSVGs';
+import CharacterAvatar from '../components/CharacterAvatar';
 import { MOCK_GAMES } from '../data/games';
 import { rarityConfig } from '../data/themes';
 import { socket } from '../socket';
+import { getDifficultyById } from '../data/difficulty';
 
 function RoomPage({
     theme,
@@ -83,7 +85,16 @@ function RoomPage({
     completedGames = [],
     setCompletedGames,
     // Accumulated scores across all games
-    accumulatedScores = {}
+    accumulatedScores = {},
+    // Difficulty settings
+    roomDifficulty = 'medium',
+    playerDifficulties = {},
+    showDifficultyModal,
+    setShowDifficultyModal,
+    handleSetRoomDifficulty,
+    handleSetPlayerDifficulty,
+    DIFFICULTY_LEVELS = [],
+    getPlayerDifficulty
 }) {
     // State for kick confirmation
     const [confirmKick, setConfirmKick] = useState(null); // { playerName: string }
@@ -198,9 +209,34 @@ function RoomPage({
 
                         {/* Character Avatars Row - scaled to 80% on md/landscape */}
                         <div id="room-players" className={`${theme === 'tron' ? 'bg-gray-900/50 border border-cyan-500/30' : theme === 'kids' ? 'bg-white/70 border-2 md:border-4 border-purple-300' : 'bg-gray-950/80 border-2 border-orange-700/50 shadow-[0_0_30px_rgba(194,65,12,0.3)]'} rounded-xl md:rounded-2xl p-3 md:p-4 mb-2 landscape:p-2 landscape:mb-1`}>
-                            <h3 className={`text-sm md:text-base lg:text-lg font-bold ${currentTheme.text} mb-2 md:mb-3 text-center ${currentTheme.font}`}>
-                                {theme === 'tron' ? 'CONNECTED_PLAYERS' : theme === 'kids' ? 'Players in the Room' : 'SUMMONED SOULS'} ({currentRoom?.players.length})
-                            </h3>
+                            <div className="flex items-center justify-center gap-2 mb-2 md:mb-3">
+                                <h3 className={`text-sm md:text-base lg:text-lg font-bold ${currentTheme.text} text-center ${currentTheme.font}`}>
+                                    {theme === 'tron' ? 'CONNECTED_PLAYERS' : theme === 'kids' ? 'Players in the Room' : 'SUMMONED SOULS'} ({currentRoom?.players.length})
+                                </h3>
+                                {/* Difficulty Settings Button */}
+                                {isMaster && (
+                                    <button
+                                        onClick={() => setShowDifficultyModal(true)}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[0.6rem] md:text-xs font-bold transition-all ${
+                                            theme === 'tron'
+                                                ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
+                                                : theme === 'kids'
+                                                    ? 'bg-purple-200 hover:bg-purple-300 text-purple-700 border border-purple-400'
+                                                    : 'bg-orange-900/30 hover:bg-orange-900/50 text-orange-400 border border-orange-700/50'
+                                        }`}
+                                        title="Set difficulty levels"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                            <path d="M12 1v6m0 6v10"></path>
+                                            <path d="m15.5 8.5 4.2-4.2M4.3 19.7l4.2-4.2"></path>
+                                            <path d="M1 12h6m6 0h10"></path>
+                                            <path d="m8.5 15.5-4.2 4.2M19.7 4.3l-4.2 4.2"></path>
+                                        </svg>
+                                        {theme === 'tron' ? 'DIFFICULTY' : 'Difficulty'}
+                                    </button>
+                                )}
+                            </div>
                             <div className="flex flex-wrap justify-center gap-2 md:gap-4">
                                 {[...(currentRoom?.players || [])].sort((a, b) => (accumulatedScores[b.name] || 0) - (accumulatedScores[a.name] || 0)).map((player, idx) => {
                                     const isMeta = player.avatar === 'meta';
@@ -285,7 +321,7 @@ function RoomPage({
 
                                             {/* Character Card */}
                                             <div
-                                                className={`w-28 h-32 md:w-28 md:h-32 lg:w-32 lg:h-36 landscape:w-24 landscape:h-28 rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center ${
+                                                className={`w-28 h-32 md:w-28 md:h-32 lg:w-32 lg:h-36 landscape:w-24 landscape:h-28 rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center overflow-visible ${
                                                     isMeta
                                                         ? 'bg-green-500/10 border border-green-500/30'
                                                         : theme === 'tron'
@@ -305,8 +341,8 @@ function RoomPage({
                                                 }}
                                             >
                                                 {/* Character SVG */}
-                                                <div className={`flex-1 flex items-center justify-center w-full min-h-0 ${player.isAfk && !isOwnAvatar ? 'grayscale' : ''}`}>
-                                                    <CharacterSVG characterId={character.id} size={80} color={character.color} />
+                                                <div className={`flex-1 flex items-center justify-center w-full min-h-0 overflow-visible ${player.isAfk && !isOwnAvatar ? 'grayscale' : ''}`}>
+                                                    <CharacterAvatar characterId={character.id} size={80} rarity={character.rarity} showGlow={!player.isAfk || isOwnAvatar} />
                                                 </div>
                                             </div>
 
@@ -340,6 +376,38 @@ function RoomPage({
                                             }`}>
                                                 pts: {accumulatedScores[player.name] || 0}
                                             </div>
+
+                                            {/* Difficulty Label */}
+                                            {!isMeta && (() => {
+                                                const playerDiff = getPlayerDifficulty ? getPlayerDifficulty(player.name, playerDifficulties, roomDifficulty) : roomDifficulty;
+                                                const diffInfo = getDifficultyById(playerDiff);
+                                                const isOverride = playerDifficulties[player.name] && playerDifficulties[player.name] !== roomDifficulty;
+                                                // Use consistent theme-based colors for all difficulty labels
+                                                const labelColors = theme === 'tron'
+                                                    ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50'
+                                                    : theme === 'kids'
+                                                    ? 'bg-purple-100 text-purple-600 border-purple-300'
+                                                    : 'bg-orange-900/30 text-orange-400 border-orange-700/50';
+                                                return (
+                                                    <button
+                                                        className={`mt-0.5 px-2 py-0.5 rounded-full font-semibold text-[0.5rem] md:text-[0.55rem] flex items-center gap-1 transition-all ${labelColors} border ${isMaster ? 'hover:scale-105 cursor-pointer' : 'cursor-default'}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (isMaster) {
+                                                                setShowDifficultyModal(true);
+                                                            } else {
+                                                                // Show toast for non-masters
+                                                                setAvatarTakenToast('Ask the Game Master to change difficulty');
+                                                                setTimeout(() => setAvatarTakenToast(''), 3000);
+                                                            }
+                                                        }}
+                                                        title={isMaster ? 'Click to change difficulty' : 'Ask Game Master to change'}
+                                                    >
+                                                        {diffInfo?.shortLabel || 'Medium'}
+                                                        {isOverride && <span className="text-[0.45rem] opacity-70">*</span>}
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                         </div>
                                     );
@@ -555,7 +623,7 @@ function RoomPage({
                                                     <div key={idx} className={`${theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50'} rounded-lg p-2`}>
                                                         <div className="flex items-start gap-2">
                                                             <div className="w-7 h-7 flex-shrink-0">
-                                                                <CharacterSVG characterId={msg.avatar} size={28} color={character.color} />
+                                                                <CharacterAvatar characterId={msg.avatar} size={28} rarity={character.rarity} showGlow={false} />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <span className={`font-bold text-xs ${currentTheme.text}`}>{msg.player}</span>
@@ -690,7 +758,7 @@ function RoomPage({
                                             <div key={idx} className={`${theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50'} rounded-lg p-2`}>
                                                 <div className="flex items-start gap-2">
                                                     <div className="w-7 h-7 flex-shrink-0">
-                                                        <CharacterSVG characterId={msg.avatar} size={28} color={character.color} />
+                                                        <CharacterAvatar characterId={msg.avatar} size={28} rarity={character.rarity} showGlow={false} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <span className={`font-bold text-xs ${currentTheme.text}`}>{msg.player}</span>
@@ -1067,7 +1135,7 @@ function RoomPage({
                                                                     </span>
                                                                 )}
                                                                 <div className="w-6 h-6 flex-shrink-0">
-                                                                    <CharacterSVG characterId={player.avatar} size={24} color={character.color} />
+                                                                    <CharacterAvatar characterId={player.avatar} size={24} rarity={character.rarity} />
                                                                 </div>
                                                                 <span className={`${currentTheme.text} text-sm font-semibold truncate max-w-[100px]`}>{player.name}</span>
                                                             </div>

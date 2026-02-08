@@ -12,9 +12,9 @@ function LoginPage({
     error: externalError
 }) {
     const [isRegister, setIsRegister] = useState(false);
+    const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -26,7 +26,7 @@ function LoginPage({
 
         try {
             if (isRegister) {
-                if (!name.trim()) {
+                if (!username.trim()) {
                     setError('Username is required');
                     setIsLoading(false);
                     return;
@@ -36,9 +36,11 @@ function LoginPage({
                     setIsLoading(false);
                     return;
                 }
-                await onRegister(name.trim(), email.trim(), password);
+                // Email is optional for registration
+                await onRegister(username.trim(), email.trim() || null, password);
             } else {
-                await onLogin(email.trim(), password);
+                // Login with username
+                await onLogin(username.trim(), password);
             }
             navigateTo('landing');
         } catch (err) {
@@ -72,36 +74,40 @@ function LoginPage({
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {isRegister && (
-                        <div>
-                            <label className={`block text-sm font-medium ${currentTheme.text} mb-1`}>Username</label>
-                            <div className="relative">
-                                <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${currentTheme.textSecondary}`} />
-                                <input
-                                    type="text"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    placeholder="Choose a username"
-                                    className={`w-full pl-10 pr-4 py-3 rounded-xl ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30 focus:border-cyan-400' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300 focus:border-purple-500' : 'bg-gray-900 text-orange-400 border border-orange-700/50 focus:border-orange-500'} focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400/50' : theme === 'kids' ? 'focus:ring-purple-400/50' : 'focus:ring-orange-500/50'}`}
-                                />
-                            </div>
-                        </div>
-                    )}
-
+                    {/* Username field - always shown */}
                     <div>
-                        <label className={`block text-sm font-medium ${currentTheme.text} mb-1`}>Email</label>
+                        <label className={`block text-sm font-medium ${currentTheme.text} mb-1`}>Username</label>
                         <div className="relative">
-                            <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${currentTheme.textSecondary}`} />
+                            <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${currentTheme.textSecondary}`} />
                             <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Enter your email"
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder={isRegister ? "Choose a username" : "Enter your username"}
                                 required
                                 className={`w-full pl-10 pr-4 py-3 rounded-xl ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30 focus:border-cyan-400' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300 focus:border-purple-500' : 'bg-gray-900 text-orange-400 border border-orange-700/50 focus:border-orange-500'} focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400/50' : theme === 'kids' ? 'focus:ring-purple-400/50' : 'focus:ring-orange-500/50'}`}
                             />
                         </div>
                     </div>
+
+                    {/* Email field - only shown during registration and optional */}
+                    {isRegister && (
+                        <div>
+                            <label className={`block text-sm font-medium ${currentTheme.text} mb-1`}>
+                                Email <span className={`${currentTheme.textSecondary} font-normal`}>(optional)</span>
+                            </label>
+                            <div className="relative">
+                                <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${currentTheme.textSecondary}`} />
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter your email (optional)"
+                                    className={`w-full pl-10 pr-4 py-3 rounded-xl ${theme === 'tron' ? 'bg-gray-900 text-cyan-400 border border-cyan-500/30 focus:border-cyan-400' : theme === 'kids' ? 'bg-white text-purple-900 border-2 border-purple-300 focus:border-purple-500' : 'bg-gray-900 text-orange-400 border border-orange-700/50 focus:border-orange-500'} focus:outline-none focus:ring-2 ${theme === 'tron' ? 'focus:ring-cyan-400/50' : theme === 'kids' ? 'focus:ring-purple-400/50' : 'focus:ring-orange-500/50'}`}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     <div>
                         <label className={`block text-sm font-medium ${currentTheme.text} mb-1`}>Password</label>

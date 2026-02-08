@@ -41,6 +41,16 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     const [correctGuesses, setCorrectGuesses] = useState([]);
     const [guessCooldown, setGuessCooldown] = useState(false);
 
+    // Winner celebration state
+    const [showWinnerCelebration, setShowWinnerCelebration] = useState(false);
+    const [finalScores, setFinalScores] = useState([]);
+    const [celebrationCountdown, setCelebrationCountdown] = useState(8);
+
+    // Word picker state (drawer chooses from difficulty-based options)
+    const [wordOptions, setWordOptions] = useState([]);
+    const [showWordPicker, setShowWordPicker] = useState(false);
+    const [wordSelected, setWordSelected] = useState(false);
+
     // Keep roomIdRef in sync so timer callbacks never have stale closure
     useEffect(() => { roomIdRef.current = currentRoom?.id; }, [currentRoom?.id]);
 
@@ -130,6 +140,10 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             setGuessCooldown(false);
             clearInterval(pauseCountdownRef.current);
             setPauseCountdown(0);
+            // Reset word picker state
+            setWordOptions([]);
+            setShowWordPicker(false);
+            setWordSelected(false);
             // Clear canvas
             const canvas = canvasRef.current;
             if (canvas) {
@@ -138,8 +152,21 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             }
         };
 
-        const onYourWord = ({ word }) => {
+        const onYourWord = ({ word, autoSelected }) => {
             setCurrentWord(word);
+            setWordSelected(true);
+            setShowWordPicker(false);
+            if (autoSelected) {
+                // Word was auto-selected because drawer didn't pick in time
+                console.log('Word auto-selected:', word);
+            }
+        };
+
+        const onWordOptions = ({ options }) => {
+            // Drawer receives word options to choose from
+            setWordOptions(options || []);
+            setWordSelected(false);
+            setShowWordPicker(true);
         };
 
         const onDrawLine = ({ x0, y0, x1, y1, color, size }) => {
@@ -195,6 +222,10 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             clearInterval(pauseCountdownRef.current);
             setPauseCountdown(0);
             setCurrentPickValue(cpv || 100);
+            // Reset word picker state
+            setWordOptions([]);
+            setShowWordPicker(false);
+            setWordSelected(false);
             // Clear canvas
             const canvas = canvasRef.current;
             if (canvas) {
@@ -269,7 +300,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             setPauseCountdown(0);
         };
 
-        const onGameEnded = () => {
+        const onGameEnded = ({ finalScores: scores, cancelled }) => {
             // Clean up all timers and state
             timerEndTimeRef.current = null;
             clearInterval(pickTimerRef.current);
@@ -286,6 +317,13 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             setShowEndGameConfirm(false);
             setServerTimerStarted(false);
             setCorrectGuesses([]);
+
+            // Show winner celebration if game wasn't cancelled and has scores
+            if (!cancelled && scores && scores.length > 0) {
+                setFinalScores(scores);
+                setCelebrationCountdown(8);
+                setShowWinnerCelebration(true);
+            }
         };
 
         // Handle game sync for rejoining players mid-game
@@ -329,6 +367,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         socket.on('gameSync', onGameSync);
         socket.on('gameStarted', onGameStarted);
         socket.on('yourWord', onYourWord);
+        socket.on('wordOptions', onWordOptions);
         socket.on('drawLine', onDrawLine);
         socket.on('clearCanvas', onClearCanvas);
         socket.on('gameGuess', onGameGuess);
@@ -346,6 +385,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             socket.off('gameSync', onGameSync);
             socket.off('gameStarted', onGameStarted);
             socket.off('yourWord', onYourWord);
+            socket.off('wordOptions', onWordOptions);
             socket.off('drawLine', onDrawLine);
             socket.off('clearCanvas', onClearCanvas);
             socket.off('gameGuess', onGameGuess);
@@ -393,6 +433,22 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         }
     }, [gameTimer, pointsEarned, isDrawer, countdown, timerPaused, serverTimerStarted]);
 
+    // Winner celebration countdown timer
+    useEffect(() => {
+        if (!showWinnerCelebration) return;
+
+        if (celebrationCountdown <= 0) {
+            setShowWinnerCelebration(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setCelebrationCountdown(prev => prev - 1);
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [showWinnerCelebration, celebrationCountdown]);
+
     // Pick timer helpers
     const startPickTimer = (duration) => {
         clearInterval(pickTimerRef.current);
@@ -431,6 +487,27 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             }
             return prev;
         });
+    };
+
+    // Handle drawer selecting a word from the options
+    const handleSelectWord = (word) => {
+        if (!currentRoom?.id || wordSelected) return;
+        socket.emit('selectWord', { roomId: currentRoom.id, word });
+        setShowWordPicker(false);
+    };
+
+    // Get difficulty colors for word options
+    const getDifficultyColors = (difficulty) => {
+        const colors = {
+            'super-easy': { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-400' },
+            'very-easy': { bg: 'bg-green-500', text: 'text-white', border: 'border-green-400' },
+            'easy': { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-400' },
+            'medium': { bg: 'bg-yellow-500', text: 'text-black', border: 'border-yellow-400' },
+            'hard': { bg: 'bg-orange-500', text: 'text-white', border: 'border-orange-400' },
+            'very-hard': { bg: 'bg-red-500', text: 'text-white', border: 'border-red-400' },
+            'genius': { bg: 'bg-purple-600', text: 'text-white', border: 'border-purple-400' }
+        };
+        return colors[difficulty] || colors['medium'];
     };
 
     // State for kick/skip confirmation
@@ -961,15 +1038,15 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                     <>
                                         <div className="flex items-start gap-3">
                                             <span className="text-lg">✏️</span>
-                                            <p>Your secret word will appear at the top of the screen. <strong className={currentTheme.text}>Draw it</strong> on the canvas for others to guess.</p>
+                                            <p>Choose your word below and <strong className={currentTheme.text}>draw it</strong> on the canvas for others to guess.</p>
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <span className="text-lg">👀</span>
-                                            <p>Watch the guesses come in. When someone gets it right, tap <strong className={currentTheme.text}>"Pick Winner"</strong> — points start at <strong className={currentTheme.text}>100</strong> and increase with each pick. Then you get a new word!</p>
+                                            <p>When someone gets close enough, tap <strong className={currentTheme.text}>"Pick Winner"</strong>. Close guesses count!</p>
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <span className="text-lg">⚡</span>
-                                            <p>Keep drawing new words until time runs out. <strong className={currentTheme.text}>Pick as many winners as you can</strong> for maximum points!</p>
+                                            <p>Points increase with each pick. <strong className={currentTheme.text}>Pick as many winners as you can</strong> for maximum points!</p>
                                         </div>
                                     </>
                                 ) : (
@@ -980,15 +1057,58 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <span className="text-lg">💬</span>
-                                            <p>Type your guesses in the chat on the right and hit <strong className={currentTheme.text}>Send</strong>. You can guess as many times as you want!</p>
+                                            <p>Type your guesses in the chat and hit <strong className={currentTheme.text}>Send</strong>. <strong className={currentTheme.text}>Close guesses count!</strong></p>
                                         </div>
                                         <div className="flex items-start gap-3">
                                             <span className="text-lg">⚡</span>
-                                            <p>Points start at <strong className={currentTheme.text}>100</strong> and increase with each pick for you and the drawer. The drawer picks new words until time runs out!</p>
+                                            <p>Points increase with each pick for you and the drawer. Keep guessing until time runs out!</p>
                                         </div>
                                     </>
                                 )}
                             </div>
+
+                            {/* Word Picker for Drawer */}
+                            {isDrawer && showWordPicker && wordOptions.length > 0 && !wordSelected && (
+                                <div className={`mb-6 p-4 rounded-xl ${theme === 'tron' ? 'bg-gray-800/50 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-gray-900/50 border border-orange-700/30'}`}>
+                                    <p className={`text-sm font-bold ${currentTheme.text} mb-3 text-center`}>
+                                        {theme === 'tron' ? '> SELECT_YOUR_WORD' : 'Pick your word:'}
+                                    </p>
+                                    <div className="space-y-2">
+                                        {wordOptions.map((option, idx) => {
+                                            const colors = getDifficultyColors(option.difficulty);
+                                            return (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => handleSelectWord(option.word)}
+                                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold transition-all transform hover:scale-[1.02] ${
+                                                        theme === 'tron'
+                                                            ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
+                                                            : theme === 'kids'
+                                                                ? 'bg-white hover:bg-purple-50 text-purple-900 border-2 border-purple-300'
+                                                                : 'bg-gray-800 hover:bg-gray-700 text-orange-400 border border-orange-700/50'
+                                                    }`}
+                                                >
+                                                    <span className="text-left flex-1">{option.word}</span>
+                                                    <span className={`text-xs px-2 py-1 rounded-lg ${colors.bg} ${colors.text}`}>
+                                                        {option.difficultyLabel}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Word Selected Confirmation for Drawer */}
+                            {isDrawer && wordSelected && currentWord && (
+                                <div className={`mb-6 p-4 rounded-xl text-center ${theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500/50' : theme === 'kids' ? 'bg-green-100 border-2 border-green-400' : 'bg-green-900/30 border border-green-700/50'}`}>
+                                    <p className={`text-sm ${currentTheme.textSecondary} mb-1`}>Your word:</p>
+                                    <p className={`text-2xl font-black ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-green-600' : 'text-green-400'}`}>
+                                        {currentWord}
+                                    </p>
+                                </div>
+                            )}
+
                             <button
                                 onClick={() => setShowRulesModal(false)}
                                 className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg`}
@@ -1254,6 +1374,195 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                     </div>
                 )}
             </div>
+
+            {/* Winner Celebration Modal - Podium Style */}
+            {showWinnerCelebration && finalScores.length > 0 && (() => {
+                const winner = finalScores[0];
+                const second = finalScores[1];
+                const third = finalScores[2];
+                const isWinner = winner?.name === playerName;
+                const winnerChar = availableCharacters?.find(c => c.id === winner?.avatar) || availableCharacters?.[0];
+                const secondChar = second ? availableCharacters?.find(c => c.id === second?.avatar) || availableCharacters?.[0] : null;
+                const thirdChar = third ? availableCharacters?.find(c => c.id === third?.avatar) || availableCharacters?.[0] : null;
+
+                // Generate confetti items
+                const confettiItems = [...Array(30)].map((_, i) => ({
+                    id: i,
+                    emoji: ['🎉', '🎊', '⭐', '✨', '🏆', '🎨', '✏️'][Math.floor(Math.random() * 7)],
+                    left: `${Math.random() * 100}%`,
+                    delay: `${Math.random() * 2}s`,
+                    duration: `${2 + Math.random() * 2}s`
+                }));
+
+                // Generate gold coins
+                const goldCoins = [...Array(15)].map((_, i) => ({
+                    id: i,
+                    left: `${Math.random() * 100}%`,
+                    delay: `${Math.random() * 2.5}s`,
+                    duration: `${2.5 + Math.random() * 1.5}s`
+                }));
+
+                return (
+                    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 animate-fadeIn">
+                        {/* Confetti effect */}
+                        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                            {confettiItems.map((item) => (
+                                <div
+                                    key={`confetti-${item.id}`}
+                                    className="absolute text-2xl animate-confetti"
+                                    style={{
+                                        left: item.left,
+                                        animationDelay: item.delay,
+                                        animationDuration: item.duration
+                                    }}
+                                >
+                                    {item.emoji}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Gold coins effect */}
+                        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                            {goldCoins.map((coin) => (
+                                <div
+                                    key={`coin-${coin.id}`}
+                                    className="absolute text-3xl animate-goldCoin"
+                                    style={{
+                                        left: coin.left,
+                                        animationDelay: coin.delay,
+                                        animationDuration: coin.duration
+                                    }}
+                                >
+                                    🪙
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="text-center p-4 md:p-6 animate-scaleIn max-w-2xl w-full">
+                            {/* Header */}
+                            <div className="text-5xl md:text-7xl mb-2 animate-bounce">🏆</div>
+                            <h1
+                                className={`text-2xl md:text-4xl font-black mb-1 ${
+                                    theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                                } ${currentTheme.font}`}
+                                style={{ textShadow: '0 0 30px currentColor' }}
+                            >
+                                {theme === 'tron' ? '> GAME_OVER' : 'Game Over!'}
+                            </h1>
+                            <p className={`text-lg md:text-xl font-bold mb-6 ${currentTheme.text}`}>
+                                {isWinner ? 'Congratulations, you won!' : `${winner?.name} wins!`}
+                            </p>
+
+                            {/* Podium */}
+                            <div className="flex items-end justify-center gap-2 md:gap-4 mb-6">
+                                {/* 2nd Place - Left */}
+                                {second && (
+                                    <div className="flex flex-col items-center animate-slideUp" style={{ animationDelay: '0.3s' }}>
+                                        <div className="text-2xl md:text-3xl mb-1">🥈</div>
+                                        <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center ring-3 ${
+                                            theme === 'tron' ? 'ring-gray-400 bg-gray-500/20' : theme === 'kids' ? 'ring-gray-400 bg-gray-200' : 'ring-gray-500 bg-gray-800/50'
+                                        } mb-2`}>
+                                            <CharacterSVG characterId={second.avatar} size={theme === 'tron' ? 56 : 50} color={secondChar?.color || '#9ca3af'} />
+                                        </div>
+                                        <div className={`font-bold text-sm md:text-base ${currentTheme.text} truncate max-w-20 md:max-w-24`}>
+                                            {second.name}
+                                        </div>
+                                        <div className="text-gray-400 font-bold text-xs md:text-sm">{second.score} pts</div>
+                                        {/* Podium block */}
+                                        <div className={`w-20 md:w-24 h-16 md:h-20 mt-2 rounded-t-lg ${
+                                            theme === 'tron' ? 'bg-gray-600/50 border-t-2 border-x-2 border-gray-500' : theme === 'kids' ? 'bg-gray-300' : 'bg-gray-700'
+                                        } flex items-center justify-center`}>
+                                            <span className="text-2xl md:text-3xl font-black text-gray-400">2</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 1st Place - Center */}
+                                <div className="flex flex-col items-center animate-slideUp" style={{ animationDelay: '0.1s' }}>
+                                    <div className="text-3xl md:text-4xl mb-1 animate-pulse">🥇</div>
+                                    <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center ring-4 ${
+                                        theme === 'tron' ? 'ring-yellow-400 bg-yellow-500/20' : theme === 'kids' ? 'ring-yellow-400 bg-yellow-200' : 'ring-yellow-500 bg-yellow-900/30'
+                                    } mb-2 relative`}>
+                                        <CharacterSVG characterId={winner.avatar} size={theme === 'tron' ? 88 : 80} color={winnerChar?.color || '#fbbf24'} />
+                                        {/* Crown */}
+                                        <div className="absolute -top-3 text-2xl md:text-3xl animate-bounce">👑</div>
+                                    </div>
+                                    <div className={`font-black text-lg md:text-xl ${
+                                        theme === 'tron' ? 'text-yellow-400' : theme === 'kids' ? 'text-yellow-600' : 'text-yellow-400'
+                                    } truncate max-w-28 md:max-w-32`}>
+                                        {winner.name}
+                                    </div>
+                                    <div className={`font-black text-xl md:text-2xl ${
+                                        theme === 'tron' ? 'text-yellow-300' : theme === 'kids' ? 'text-yellow-500' : 'text-yellow-300'
+                                    }`}>
+                                        {winner.score} pts
+                                    </div>
+                                    {/* Podium block */}
+                                    <div className={`w-24 md:w-32 h-24 md:h-28 mt-2 rounded-t-lg ${
+                                        theme === 'tron' ? 'bg-yellow-600/30 border-t-2 border-x-2 border-yellow-500' : theme === 'kids' ? 'bg-yellow-300' : 'bg-yellow-800/50'
+                                    } flex items-center justify-center`}>
+                                        <span className={`text-3xl md:text-4xl font-black ${
+                                            theme === 'tron' ? 'text-yellow-400' : theme === 'kids' ? 'text-yellow-700' : 'text-yellow-400'
+                                        }`}>1</span>
+                                    </div>
+                                </div>
+
+                                {/* 3rd Place - Right */}
+                                {third && (
+                                    <div className="flex flex-col items-center animate-slideUp" style={{ animationDelay: '0.5s' }}>
+                                        <div className="text-xl md:text-2xl mb-1">🥉</div>
+                                        <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center ring-2 ${
+                                            theme === 'tron' ? 'ring-orange-600 bg-orange-600/20' : theme === 'kids' ? 'ring-orange-400 bg-orange-200' : 'ring-orange-700 bg-orange-900/30'
+                                        } mb-2`}>
+                                            <CharacterSVG characterId={third.avatar} size={theme === 'tron' ? 44 : 40} color={thirdChar?.color || '#ea580c'} />
+                                        </div>
+                                        <div className={`font-bold text-xs md:text-sm ${currentTheme.text} truncate max-w-16 md:max-w-20`}>
+                                            {third.name}
+                                        </div>
+                                        <div className="text-orange-400 font-bold text-xs">{third.score} pts</div>
+                                        {/* Podium block */}
+                                        <div className={`w-16 md:w-20 h-12 md:h-14 mt-2 rounded-t-lg ${
+                                            theme === 'tron' ? 'bg-orange-700/30 border-t-2 border-x-2 border-orange-600' : theme === 'kids' ? 'bg-orange-300' : 'bg-orange-900/50'
+                                        } flex items-center justify-center`}>
+                                            <span className="text-xl md:text-2xl font-black text-orange-500">3</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Other players (4th onwards) */}
+                            {finalScores.length > 3 && (
+                                <div className={`${currentTheme.cardBg} rounded-xl p-3 mb-4 max-w-md mx-auto`}>
+                                    <div className="flex flex-wrap justify-center gap-2">
+                                        {finalScores.slice(3).map((player, idx) => (
+                                            <div key={player.name} className={`${
+                                                theme === 'tron' ? 'bg-gray-800/50 border border-gray-700' : theme === 'kids' ? 'bg-purple-100 border border-purple-200' : 'bg-gray-800 border border-gray-700'
+                                            } rounded-lg px-3 py-1.5 flex items-center gap-2`}>
+                                                <span className={`text-xs font-bold ${currentTheme.textSecondary}`}>#{idx + 4}</span>
+                                                <span className={`text-sm font-bold ${currentTheme.text}`}>{player.name}</span>
+                                                <span className="text-xs text-yellow-400">{player.score}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Countdown and button */}
+                            <div className={`text-sm mb-3 ${currentTheme.textSecondary}`}>
+                                Returning to room in {celebrationCountdown}...
+                            </div>
+                            <button
+                                onClick={() => setShowWinnerCelebration(false)}
+                                className={`px-8 py-3 rounded-xl font-bold text-lg transition-all ${
+                                    theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-600 hover:bg-orange-500 text-white'
+                                }`}
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };

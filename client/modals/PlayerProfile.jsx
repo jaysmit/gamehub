@@ -2,32 +2,20 @@ import React from 'react';
 import { Crown } from '../icons/UIIcons';
 import CharacterSVG from '../icons/CharacterSVGs';
 import { rarityConfig } from '../data/themes';
+import { DEFAULT_STATS } from '../data/achievements';
 
-// Dummy profile data (dev placeholder — will be replaced with real data later)
-const DEV_LEVEL = { level: 12, xp: 7400, xpNext: 10000 };
-
-const DEV_STATS = [
-    { id: 'games_played', label: 'Games Played', value: 47 },
-    { id: 'wins', label: 'Wins', value: 18 },
-    { id: 'win_rate', label: 'Win Rate', value: '38%' },
-    { id: 'best_streak', label: 'Best Streak', value: 5 },
-    { id: 'total_points', label: 'Total Points', value: '12.4k' },
-    { id: 'fav_game', label: 'Fav Game', value: 'Pictionary' },
+// Medal definitions with unlock conditions
+const MEDAL_DEFINITIONS = [
+    { id: 'first_win', label: 'First Victory', icon: '🥇', desc: 'Win your first game', check: (s) => s.wins >= 1 },
+    { id: 'streak_3', label: 'Hat Trick', icon: '🔥', desc: '3 wins in a row', check: (s) => s.bestWinStreak >= 3 },
+    { id: 'social', label: 'Social Butterfly', icon: '💬', desc: 'Send 25 chat messages', check: (s) => s.chatMessagesSent >= 25 },
+    { id: 'streak_5', label: 'On Fire', icon: '🔥', desc: '5 wins in a row', check: (s) => s.bestWinStreak >= 5 },
+    { id: 'streak_10', label: 'Unstoppable', icon: '💎', desc: '10 wins in a row', check: (s) => s.bestWinStreak >= 10 },
+    { id: 'veteran', label: 'Veteran', icon: '🎖️', desc: 'Play 50 games', check: (s) => s.gamesPlayed >= 50 },
+    { id: 'champion', label: 'Champion', icon: '🏆', desc: 'Win 25 games', check: (s) => s.wins >= 25 },
+    { id: 'big_room', label: 'Party Animal', icon: '🎉', desc: 'Win in 6+ player room', check: (s) => s.winsInLargeRooms >= 1 },
+    { id: 'collector', label: 'Collector', icon: '🃏', desc: 'Unlock 10 characters', check: (s, u) => u.length >= 10 },
 ];
-
-const DEV_MEDALS = [
-    { id: 'first_win', label: 'First Victory', icon: '🥇', earned: true, desc: 'Win your first game' },
-    { id: 'sharp_eye', label: 'Sharp Eye', icon: '👁️', earned: true, desc: 'Guess in under 10s' },
-    { id: 'artist', label: 'Picasso', icon: '🎨', earned: true, desc: 'Draw a winning round' },
-    { id: 'streak_3', label: 'Hat Trick', icon: '🔥', earned: true, desc: '3 wins in a row' },
-    { id: 'social', label: 'Social Butterfly', icon: '💬', earned: true, desc: 'Send 50 chat messages' },
-    { id: 'streak_10', label: 'Unstoppable', icon: '💎', earned: false, desc: '10 wins in a row' },
-    { id: 'veteran', label: 'Veteran', icon: '🎖️', earned: false, desc: 'Play 100 games' },
-    { id: 'perfectionist', label: 'Perfectionist', icon: '✨', earned: false, desc: 'Win 5 games with max points' },
-    { id: 'collector', label: 'Collector', icon: '🃏', earned: false, desc: 'Unlock 20 characters' },
-];
-
-const DEV_MEMBER_SINCE = 'Jan 2026';
 
 function ordinalSuffix(n) {
     const s = ['th', 'st', 'nd', 'rd'];
@@ -41,13 +29,42 @@ function PlayerProfile({
     playerProfileModal,
     setPlayerProfileModal,
     gameHistory = [],
+    playerStats = DEFAULT_STATS,
+    unlockedCharacters = [],
 }) {
     const p = playerProfileModal;
     const char = p.character;
     const rarity = char?.rarity || 'common';
     const rc = rarityConfig[rarity];
-    const xpPercent = Math.round((DEV_LEVEL.xp / DEV_LEVEL.xpNext) * 100);
-    const earnedCount = DEV_MEDALS.filter(m => m.earned).length;
+
+    // Calculate real stats
+    const stats = playerStats || DEFAULT_STATS;
+    const winRate = stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0;
+    const formatPoints = (pts) => pts >= 1000 ? `${(pts / 1000).toFixed(1)}k` : pts;
+
+    // Determine favorite game from gameTypesPlayed
+    const favGame = stats.gameTypesPlayed?.length > 0 ? stats.gameTypesPlayed[0] : 'None';
+    const formatGameName = (id) => {
+        const names = { pictionary: 'Pictionary', trivia: 'Trivia', quickmath: 'Quick Math' };
+        return names[id] || id;
+    };
+
+    // Build stats display
+    const displayStats = [
+        { id: 'games_played', label: 'Games Played', value: stats.gamesPlayed || 0 },
+        { id: 'wins', label: 'Wins', value: stats.wins || 0 },
+        { id: 'win_rate', label: 'Win Rate', value: `${winRate}%` },
+        { id: 'best_streak', label: 'Best Streak', value: stats.bestWinStreak || 0 },
+        { id: 'total_points', label: 'Total Points', value: formatPoints(stats.totalPoints || 0) },
+        { id: 'messages', label: 'Messages', value: stats.chatMessagesSent || 0 },
+    ];
+
+    // Build medals with earned status
+    const medals = MEDAL_DEFINITIONS.map(m => ({
+        ...m,
+        earned: m.check(stats, unlockedCharacters)
+    }));
+    const earnedCount = medals.filter(m => m.earned).length;
 
     const cardCls = theme === 'tron' ? 'bg-gray-900 border border-cyan-500/30' : theme === 'kids' ? 'bg-white border-2 border-purple-300' : 'bg-gray-900 border border-orange-700/50';
     const accentColor = theme === 'tron' ? '#06b6d4' : theme === 'kids' ? '#a855f7' : '#ea580c';
@@ -110,7 +127,7 @@ function PlayerProfile({
                                 <span className={`text-xs font-semibold ${currentTheme.text}`} style={{ color: rc?.color }}>{char?.name || 'Unknown'}</span>
                                 {rc && <span className="text-[0.55rem] font-semibold uppercase tracking-wider" style={{ color: rc.color, opacity: 0.7 }}>{rc.label}</span>}
                             </div>
-                            <div className={`text-[0.6rem] ${currentTheme.textSecondary}`}>Member since {DEV_MEMBER_SINCE}</div>
+                            <div className={`text-[0.6rem] ${currentTheme.textSecondary}`}>{unlockedCharacters.length} characters unlocked</div>
                         </div>
                     </div>
 
@@ -138,23 +155,9 @@ function PlayerProfile({
                         </div>
                     )}
 
-                    {/* Level + XP bar */}
-                    <div className={`${cardCls} rounded-xl p-3 mb-3`}>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <span className={`text-xs font-bold ${currentTheme.text}`}>Level {DEV_LEVEL.level}</span>
-                            <span className={`text-[0.6rem] ${currentTheme.textSecondary}`}>{DEV_LEVEL.xp.toLocaleString()} / {DEV_LEVEL.xpNext.toLocaleString()} XP</span>
-                        </div>
-                        <div className={`w-full h-2.5 rounded-full ${theme === 'tron' ? 'bg-gray-800' : theme === 'kids' ? 'bg-purple-100' : 'bg-gray-800'}`}>
-                            <div
-                                className="h-full rounded-full transition-all"
-                                style={{ width: `${xpPercent}%`, background: `linear-gradient(90deg, ${accentColor}, ${accentColor}cc)`, boxShadow: `0 0 8px ${accentColor}60` }}
-                            />
-                        </div>
-                    </div>
-
                     {/* Stats grid */}
                     <div className="grid grid-cols-3 gap-2 mb-3">
-                        {DEV_STATS.map(s => (
+                        {displayStats.map(s => (
                             <div key={s.id} className={`text-center px-1 py-2 rounded-xl ${cardCls}`}>
                                 <div className={`text-sm font-bold ${currentTheme.text}`}>{s.value}</div>
                                 <div className={`text-[0.55rem] ${currentTheme.textSecondary} leading-tight`}>{s.label}</div>
@@ -166,11 +169,11 @@ function PlayerProfile({
                     <div className="mb-1">
                         <div className="flex items-center justify-between mb-2">
                             <span className={`text-xs font-bold ${currentTheme.text} uppercase tracking-wider`}>Medals</span>
-                            <span className={`text-[0.6rem] ${currentTheme.textSecondary}`}>{earnedCount}/{DEV_MEDALS.length}</span>
+                            <span className={`text-[0.6rem] ${currentTheme.textSecondary}`}>{earnedCount}/{medals.length}</span>
                         </div>
                         <div className={`max-h-48 overflow-y-auto ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
                             <div className="grid grid-cols-3 gap-2">
-                                {DEV_MEDALS.map(m => (
+                                {medals.map(m => (
                                     <div
                                         key={m.id}
                                         className={`text-center px-1 py-2.5 rounded-xl ${

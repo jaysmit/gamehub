@@ -41,11 +41,47 @@ const userSchema = new mongoose.Schema({
     sparse: true
   },
 
-  // Stats
+  // Stats for avatar unlocks and general tracking
   stats: {
+    // Basic counts
     gamesPlayed: { type: Number, default: 0 },
     wins: { type: Number, default: 0 },
     totalPoints: { type: Number, default: 0 },
+    roomsCreated: { type: Number, default: 0 },
+    chatMessagesSent: { type: Number, default: 0 },
+    roomsJoined: { type: Number, default: 0 },
+
+    // Specific game stats
+    gamesWithFourPlusPlayers: { type: Number, default: 0 },
+    gameTypesPlayed: { type: [String], default: [] },
+    fastWins: { type: Number, default: 0 },
+
+    // Score tracking
+    highestSingleGameScore: { type: Number, default: 0 },
+    highestGameTotalPoints: { type: Number, default: 0 },
+
+    // Streak tracking
+    consecutiveRoundWins: { type: Number, default: 0 },
+    maxConsecutiveRoundWins: { type: Number, default: 0 },
+    currentWinStreak: { type: Number, default: 0 },
+    bestWinStreak: { type: Number, default: 0 },
+
+    // Large room stats
+    winsInLargeRooms: { type: Number, default: 0 },
+
+    // Legendary unlock tracking
+    comebackWins: { type: Number, default: 0 },
+    dominationWins: { type: Number, default: 0 },
+    consecutiveDaysWithWin: { type: Number, default: 0 },
+    lastWinDate: { type: Date, default: null },
+
+    // Unique room tracking
+    uniqueRoomWinCount: { type: Number, default: 0 },
+
+    // Character mastery
+    charactersWonWith: { type: [String], default: [] },
+
+    // Legacy fields
     bestStreak: { type: Number, default: 0 },
     currentStreak: { type: Number, default: 0 },
     favoriteGame: { type: String, default: null }

@@ -30,8 +30,9 @@ router.get('/me', authenticateToken, async (req, res) => {
 // PUT /api/users/me - Update current user profile (requires auth)
 router.put('/me', authenticateToken, async (req, res) => {
   try {
-    const { name, avatar, theme } = req.body;
+    const { name, avatar, theme, email, stats, unlockedCharacters } = req.body;
     const updates = {};
+    let emailAdded = false;
 
     if (name !== undefined) {
       // Check if name is taken by another user
@@ -45,13 +46,57 @@ router.put('/me', authenticateToken, async (req, res) => {
     if (avatar !== undefined) updates.avatar = avatar;
     if (theme !== undefined) updates.theme = theme;
 
+    // Handle email addition (for bonus character unlock)
+    if (email !== undefined) {
+      const currentUser = await User.findById(req.user._id);
+      if (!currentUser.email && email) {
+        // Check if email is taken
+        const existingEmail = await User.findOne({ email: email.toLowerCase(), _id: { $ne: req.user._id } });
+        if (existingEmail) {
+          return res.status(400).json({ error: 'Email already registered' });
+        }
+        updates.email = email.toLowerCase();
+        emailAdded = true;
+      }
+    }
+
+    // Handle stats update (merge with existing)
+    if (stats !== undefined) {
+      const currentUser = await User.findById(req.user._id);
+      const currentStats = currentUser.stats || {};
+
+      // Merge stats - for arrays, combine unique values; for numbers, take max for "highest" stats
+      const maxStats = ['highestSingleGameScore', 'highestGameTotalPoints', 'maxConsecutiveRoundWins', 'bestWinStreak'];
+
+      for (const [key, value] of Object.entries(stats)) {
+        if (Array.isArray(value)) {
+          // Merge arrays with unique values
+          const existing = currentStats[key] || [];
+          updates[`stats.${key}`] = [...new Set([...existing, ...value])];
+        } else if (maxStats.includes(key)) {
+          // Take the maximum value
+          updates[`stats.${key}`] = Math.max(currentStats[key] || 0, value);
+        } else {
+          updates[`stats.${key}`] = value;
+        }
+      }
+    }
+
+    // Handle unlocked characters update (add new ones)
+    if (unlockedCharacters !== undefined) {
+      const currentUser = await User.findById(req.user._id);
+      const currentUnlocked = currentUser.unlockedCharacters || [];
+      updates.unlockedCharacters = [...new Set([...currentUnlocked, ...unlockedCharacters])];
+    }
+
     const user = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updates },
       { new: true, runValidators: true }
     ).select('-passwordHash');
 
-    res.json(user);
+    // Return with flag if email was added (for triggering bonus)
+    res.json({ ...user.toObject(), emailAdded });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

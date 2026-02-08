@@ -37,12 +37,14 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
 
     // Animated recap state
     const [recapQuestionIndex, setRecapQuestionIndex] = useState(-1);
+    const [recapGroupIndex, setRecapGroupIndex] = useState(0);
     const [animatedStandings, setAnimatedStandings] = useState([]);
     const [showingQuestion, setShowingQuestion] = useState(true);
     const [nextRoundCountdown, setNextRoundCountdown] = useState(null);
     const [recapAnimPhase, setRecapAnimPhase] = useState(0);
     const [animatedPointValues, setAnimatedPointValues] = useState({});
     const [flyingPoints, setFlyingPoints] = useState([]);
+    const [speedRoundDifficulty, setSpeedRoundDifficulty] = useState(null);
 
     // Speed round race recap state
     const [raceData, setRaceData] = useState(null);
@@ -60,6 +62,11 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
 
     // Previous round scores (frozen scores shown during question phase)
     const [previousRoundScores, setPreviousRoundScores] = useState({});
+
+    // Difficulty group turn state
+    const [isActiveGroup, setIsActiveGroup] = useState(true);
+    const [groupInfo, setGroupInfo] = useState(null);
+    const [waitingFor, setWaitingFor] = useState(null);
 
     // Final phase winner celebration
     const [showWinnerCelebration, setShowWinnerCelebration] = useState(false);
@@ -140,6 +147,17 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             setIsSpeedRound(data.isSpeedRound);
             questionEndTimeRef.current = data.questionEndTime;
 
+            // Handle group turn info
+            if (data.groupInfo) {
+                setGroupInfo(data.groupInfo);
+                setIsActiveGroup(data.isActiveGroup !== false);
+                setWaitingFor(null);
+            } else {
+                setGroupInfo(null);
+                setIsActiveGroup(true);
+                setWaitingFor(null);
+            }
+
             // Reset answer state
             setCurrentInput('');
             setHasAnswered(false);
@@ -191,6 +209,10 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             setSelectedAnswer(null);
             setHasAnswered(false);
             setSpeedRoundWaiting(false);
+            // Capture player's difficulty for display
+            if (data.difficultyLabel) {
+                setSpeedRoundDifficulty(data.difficultyLabel);
+            }
         };
 
         const onSpeedRoundCorrect = (data) => {
@@ -275,6 +297,17 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                 setStandings(data.standings);
             }
 
+            // Handle group turn info
+            if (data.groupInfo) {
+                setGroupInfo(data.groupInfo);
+                setIsActiveGroup(data.isActiveGroup !== false);
+                setWaitingFor(data.waitingFor || null);
+            } else {
+                setGroupInfo(null);
+                setIsActiveGroup(true);
+                setWaitingFor(null);
+            }
+
             // Restore speed round state if applicable
             if (data.isSpeedRound && data.speedQuestion) {
                 setCurrentQuestion(data.speedQuestion);
@@ -295,6 +328,22 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             setStandings(updated);
         };
 
+        const onMathGroupWaiting = (data) => {
+            // Player is not in active group - show waiting screen
+            setPhase('groupWaiting');
+            setQuestionNumber(data.questionNumber);
+            setTotalQuestions(data.totalQuestions);
+            setCurrentRound(data.round);
+            setTotalRounds(data.totalRounds);
+            setGroupInfo(data.groupInfo);
+            setWaitingFor(data.waitingFor);
+            setIsActiveGroup(false);
+
+            // Reset answer state for this question
+            setCurrentInput('');
+            setHasAnswered(false);
+        };
+
         const onGameEnded = () => {
             setPhase('rules');
             setCurrentRound(1);
@@ -307,10 +356,14 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             setRecapData(null);
             setFinalData(null);
             setShowWinnerCelebration(false);
+            setGroupInfo(null);
+            setIsActiveGroup(true);
+            setWaitingFor(null);
         };
 
         socket.on('mathRulesStart', onMathRulesStart);
         socket.on('mathQuestion', onMathQuestion);
+        socket.on('mathGroupWaiting', onMathGroupWaiting);
         socket.on('mathAnswerReceived', onMathAnswerReceived);
         socket.on('mathReveal', onMathReveal);
         socket.on('mathRecap', onMathRecap);
@@ -328,6 +381,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         return () => {
             socket.off('mathRulesStart', onMathRulesStart);
             socket.off('mathQuestion', onMathQuestion);
+            socket.off('mathGroupWaiting', onMathGroupWaiting);
             socket.off('mathAnswerReceived', onMathAnswerReceived);
             socket.off('mathReveal', onMathReveal);
             socket.off('mathRecap', onMathRecap);
@@ -392,11 +446,12 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         return () => clearInterval(interval);
     }, [isSpeedRound, phase]);
 
-    // Animated recap - reveal questions one by one
+    // Animated recap - reveal questions one by one (with per-group support)
     useEffect(() => {
         if (phase !== 'recap' || !recapData?.questionHistory) return;
 
         setRecapQuestionIndex(-1);
+        setRecapGroupIndex(0);
         setAnimatedStandings([]);
         setShowingQuestion(true);
         setNextRoundCountdown(null);
@@ -414,6 +469,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
 
         const startDelay = setTimeout(() => {
             setRecapQuestionIndex(0);
+            setRecapGroupIndex(0);
             setShowingQuestion(true);
             setRecapAnimPhase(0);
         }, 500);
@@ -421,7 +477,27 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         return () => clearTimeout(startDelay);
     }, [phase, recapData?.questionHistory?.length, currentRoom?.players, previousRoundScores]);
 
-    // Three-phase animation for each question in recap
+    // Helper function to get current group data for recap
+    const getCurrentGroupData = () => {
+        if (!recapData?.questionHistory || recapQuestionIndex < 0) return null;
+        const currentQ = recapData.questionHistory[recapQuestionIndex];
+        if (currentQ?.groupData && currentQ.groupData[recapGroupIndex]) {
+            return currentQ.groupData[recapGroupIndex];
+        }
+        // Legacy format - return as single group
+        if (currentQ?.playerResults) {
+            return {
+                question: currentQ.question,
+                category: currentQ.category,
+                correctAnswer: currentQ.correctAnswer,
+                playerResults: currentQ.playerResults,
+                difficultyLabel: null
+            };
+        }
+        return null;
+    };
+
+    // Three-phase animation for each question/group in recap
     useEffect(() => {
         if (phase !== 'recap' || !recapData?.questionHistory || recapQuestionIndex < 0) return;
 
@@ -429,7 +505,14 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         if (recapQuestionIndex >= questionHistory.length) return;
 
         const currentQ = questionHistory[recapQuestionIndex];
-        const correctPlayerResults = Object.entries(currentQ.playerResults || {})
+        const hasGroupData = currentQ?.groupData && currentQ.groupData.length > 0;
+        const totalGroups = hasGroupData ? currentQ.groupData.length : 1;
+
+        // Get current group's data
+        const groupData = getCurrentGroupData();
+        if (!groupData) return;
+
+        const correctPlayerResults = Object.entries(groupData.playerResults || {})
             .filter(([, result]) => result.isCorrect && result.pointsEarned > 0);
 
         if (recapAnimPhase === 0) {
@@ -472,7 +555,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                     clearInterval(interval);
 
                     const newFlyingPoints = correctPlayerResults.map(([name, result]) => ({
-                        id: `${recapQuestionIndex}-${name}`,
+                        id: `${recapQuestionIndex}-${recapGroupIndex}-${name}`,
                         playerName: name,
                         points: result.pointsEarned
                     }));
@@ -481,7 +564,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                     setTimeout(() => {
                         setAnimatedStandings(prev => {
                             const updated = prev.map(player => {
-                                const result = currentQ.playerResults?.[player.name];
+                                const result = groupData.playerResults?.[player.name];
                                 if (result?.isCorrect) {
                                     return { ...player, score: player.score + result.pointsEarned };
                                 }
@@ -493,12 +576,21 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                     }, 500);
 
                     setTimeout(() => {
-                        if (recapQuestionIndex < questionHistory.length - 1) {
+                        // Check if there are more groups for this question
+                        if (hasGroupData && recapGroupIndex < totalGroups - 1) {
+                            // Move to next group with 1s delay
+                            setRecapGroupIndex(prev => prev + 1);
+                            setRecapAnimPhase(0);
+                            setAnimatedPointValues({});
+                        } else if (recapQuestionIndex < questionHistory.length - 1) {
+                            // Move to next question
                             setRecapQuestionIndex(prev => prev + 1);
+                            setRecapGroupIndex(0);
                             setShowingQuestion(true);
                             setRecapAnimPhase(0);
                             setAnimatedPointValues({});
                         } else {
+                            // All questions done
                             const finalScores = {};
                             standings.forEach(p => { finalScores[p.name] = p.score; });
                             setPreviousRoundScores(finalScores);
@@ -514,7 +606,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
 
             return () => clearInterval(interval);
         }
-    }, [recapQuestionIndex, recapAnimPhase, phase, recapData?.questionHistory, standings, currentRoom?.id]);
+    }, [recapQuestionIndex, recapGroupIndex, recapAnimPhase, phase, recapData?.questionHistory, standings, currentRoom?.id]);
 
     // Next round countdown and auto-advance
     useEffect(() => {
@@ -995,6 +1087,13 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                         </svg>
                         <span className="text-sm font-black">{timer}s</span>
                     </div>
+
+                    {/* Group turn indicator */}
+                    {groupInfo && groupInfo.currentGroup && (
+                        <div className={`${theme === 'tron' ? 'bg-green-500/20 border border-green-500/30 text-green-400' : theme === 'kids' ? 'bg-green-400 text-white' : 'bg-green-700/40 text-green-400 border border-green-700'} px-2 py-0.5 rounded-lg`}>
+                            <span className="text-xs font-bold">{groupInfo.currentGroup.label} Turn</span>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1117,11 +1216,11 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                     {currentQuestion}
                 </h2>
 
-                {/* Correct answer display */}
+                {/* Correct answer display - use player-specific answer for per-group questions */}
                 <div className={`text-center p-4 rounded-xl ${theme === 'tron' ? 'bg-green-500/20 border-2 border-green-500' : theme === 'kids' ? 'bg-green-200 border-4 border-green-400' : 'bg-green-700/30 border-2 border-green-600'}`}>
                     <div className={`text-lg font-semibold ${currentTheme.textSecondary} mb-1`}>Correct Answer:</div>
                     <div className="text-5xl font-black text-green-400">
-                        {revealData?.correctAnswer}
+                        {revealData?.correctAnswersByPlayer?.[playerName] ?? revealData?.correctAnswer}
                     </div>
                 </div>
 
@@ -1180,15 +1279,98 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         </div>
     );
 
+    // Render Group Waiting Phase - shown when player's group is not active
+    const renderGroupWaitingPhase = () => {
+        if (!groupInfo || !waitingFor) return null;
+
+        const allGroups = groupInfo.allGroups || [];
+        const currentGroupIdx = groupInfo.currentGroupIndex;
+        const totalGroups = groupInfo.totalGroups;
+
+        return (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-lg w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'} text-center`}>
+                    {/* Header */}
+                    <div className="mb-6">
+                        <div className="text-5xl mb-4 animate-pulse">⏳</div>
+                        <h2 className={`text-2xl md:text-3xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                            {theme === 'tron' ? '> WAITING_FOR_GROUP' : 'Waiting for Group'}
+                        </h2>
+                        <div className={`text-lg font-bold ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}`}>
+                            Question {questionNumber} of {totalQuestions}
+                        </div>
+                    </div>
+
+                    {/* Current active group */}
+                    <div className={`p-4 rounded-xl mb-4 ${theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500' : theme === 'kids' ? 'bg-purple-200 border-2 border-purple-400' : 'bg-orange-700/30 border border-orange-600'}`}>
+                        <div className={`text-sm ${currentTheme.textSecondary} mb-2`}>Currently answering:</div>
+                        <div className={`text-xl font-black ${theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-700' : 'text-orange-400'}`}>
+                            {waitingFor.label} Group
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2 mt-2">
+                            {waitingFor.playerNames.map((name, idx) => {
+                                const player = currentRoom?.players?.find(p => p.name === name);
+                                const character = availableCharacters.find(c => c.id === player?.avatar) || availableCharacters[0];
+                                return (
+                                    <div key={idx} className={`flex items-center gap-1 px-2 py-1 rounded-full ${theme === 'tron' ? 'bg-cyan-500/20' : theme === 'kids' ? 'bg-purple-300' : 'bg-orange-700/40'}`}>
+                                        <div className="w-4 h-4">
+                                            <CharacterSVG characterId={player?.avatar} size={16} color={character.color} />
+                                        </div>
+                                        <span className={`text-xs font-semibold ${currentTheme.text}`}>{name}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Progress indicator */}
+                    <div className="mb-4">
+                        <div className={`text-sm ${currentTheme.textSecondary} mb-2`}>Group Progress:</div>
+                        <div className="flex justify-center gap-2 flex-wrap">
+                            {allGroups.map((group, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                                        group.isCompleted
+                                            ? 'bg-green-500/30 text-green-400 border border-green-500'
+                                            : group.isActive
+                                            ? `${theme === 'tron' ? 'bg-cyan-500/40 text-cyan-300 border-2 border-cyan-400 animate-pulse' : theme === 'kids' ? 'bg-purple-400 text-white border-2 border-purple-500 animate-pulse' : 'bg-orange-500/40 text-orange-300 border-2 border-orange-400 animate-pulse'}`
+                                            : `${theme === 'tron' ? 'bg-gray-800/50 text-gray-500 border border-gray-700' : theme === 'kids' ? 'bg-gray-200 text-gray-500 border border-gray-300' : 'bg-gray-800/50 text-gray-500 border border-gray-700'}`
+                                    }`}
+                                >
+                                    {group.isCompleted ? '✓ ' : ''}{group.label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Your turn info */}
+                    <div className={`text-sm ${currentTheme.textSecondary}`}>
+                        Your turn is coming up soon!
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // Render Recap Phase
     const renderRecapPhase = () => {
         const questionHistory = recapData?.questionHistory || [];
         const isAnimating = recapQuestionIndex >= 0 && recapQuestionIndex < questionHistory.length;
-        const animationComplete = recapQuestionIndex >= questionHistory.length - 1 && !showingQuestion;
-        const displayStandings = animatedStandings.length > 0 ? animatedStandings : standings;
         const currentQ = isAnimating ? questionHistory[recapQuestionIndex] : null;
+        const hasGroupData = currentQ?.groupData && currentQ.groupData.length > 0;
+        const totalGroups = hasGroupData ? currentQ.groupData.length : 1;
 
-        const correctPlayers = currentQ ? Object.entries(currentQ.playerResults || {})
+        // Check if all groups for the last question are done
+        const lastQuestionDone = recapQuestionIndex >= questionHistory.length - 1;
+        const lastGroupDone = !hasGroupData || recapGroupIndex >= totalGroups - 1;
+        const animationComplete = lastQuestionDone && lastGroupDone && !showingQuestion;
+
+        const displayStandings = animatedStandings.length > 0 ? animatedStandings : standings;
+
+        // Get current group data for display
+        const groupData = getCurrentGroupData();
+        const correctPlayers = groupData ? Object.entries(groupData.playerResults || {})
             .filter(([, result]) => result.isCorrect)
             .map(([name]) => name) : [];
 
@@ -1217,28 +1399,38 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                             </h3>
 
                             <div className="flex-1 flex items-center justify-center">
-                                {currentQ && showingQuestion ? (
+                                {groupData && showingQuestion ? (
                                     <div
                                         className={`w-full transition-all duration-300 ${
                                             theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-400' : theme === 'kids' ? 'bg-purple-200 border-2 border-purple-500' : 'bg-orange-700/30 border-2 border-orange-500'
                                         } p-4 rounded-xl`}
                                     >
-                                        <div className="flex items-center gap-2 mb-3">
+                                        <div className="flex items-center gap-2 mb-3 flex-wrap">
                                             <span className={`inline-block w-8 h-8 rounded-full ${theme === 'tron' ? 'bg-cyan-500/30 text-cyan-400' : theme === 'kids' ? 'bg-purple-400 text-white' : 'bg-orange-700/50 text-orange-300'} text-center text-base font-bold leading-8`}>
                                                 {recapQuestionIndex + 1}
                                             </span>
                                             <span className={`text-sm px-3 py-1 rounded-full ${theme === 'tron' ? 'bg-cyan-500/20 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 text-purple-700' : 'bg-orange-900/30 text-orange-400'}`}>
-                                                {MATH_CATEGORY_ICONS[currentQ.category] || '+'} {currentQ.category}
+                                                {MATH_CATEGORY_ICONS[groupData.category] || '+'} {groupData.category}
                                             </span>
+                                            {groupData.difficultyLabel && (
+                                                <span className={`text-sm px-3 py-1 rounded-full font-bold ${theme === 'tron' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : theme === 'kids' ? 'bg-yellow-200 text-yellow-700 border border-yellow-400' : 'bg-yellow-900/30 text-yellow-400 border border-yellow-700'}`}>
+                                                    {groupData.difficultyLabel}
+                                                </span>
+                                            )}
+                                            {hasGroupData && totalGroups > 1 && (
+                                                <span className={`text-xs ${currentTheme.textSecondary}`}>
+                                                    (Group {recapGroupIndex + 1}/{totalGroups})
+                                                </span>
+                                            )}
                                         </div>
 
                                         <div className={`text-3xl md:text-4xl font-black ${currentTheme.text} mb-4 text-center`}>
-                                            {currentQ.question}
+                                            {groupData.question}
                                         </div>
 
                                         <div className="flex items-center justify-center gap-2 mb-3">
                                             <span className="text-green-400 font-bold text-xl">&#10003;</span>
-                                            <span className="text-green-400 text-2xl font-black">{currentQ.correctAnswer}</span>
+                                            <span className="text-green-400 text-2xl font-black">{groupData.correctAnswer}</span>
                                         </div>
 
                                         <div className="flex flex-wrap gap-2 justify-center min-h-[32px]">
@@ -1247,7 +1439,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                                                     correctPlayers.map((name, pIdx) => {
                                                         const player = currentRoom?.players.find(p => p.name === name);
                                                         const character = availableCharacters.find(c => c.id === player?.avatar) || availableCharacters[0];
-                                                        const targetPoints = currentQ.playerResults[name]?.pointsEarned || 0;
+                                                        const targetPoints = groupData.playerResults[name]?.pointsEarned || 0;
                                                         const displayPoints = recapAnimPhase >= 2 ? (animatedPointValues[name] ?? targetPoints) : 0;
                                                         const showPoints = recapAnimPhase >= 2;
                                                         return (
@@ -1400,6 +1592,12 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                         <div className={`${theme === 'tron' ? 'bg-red-500/20 border border-red-500/30 text-red-400' : theme === 'kids' ? 'bg-red-500 text-white' : 'bg-red-700/40 text-red-400 border border-red-700'} px-3 py-1 rounded-lg`}>
                             <span className="text-sm font-bold">&#9889; SPEED ROUND</span>
                         </div>
+
+                        {speedRoundDifficulty && (
+                            <div className={`${theme === 'tron' ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-400' : theme === 'kids' ? 'bg-yellow-400 text-yellow-900' : 'bg-yellow-700/40 text-yellow-400 border border-yellow-700'} px-3 py-1 rounded-lg`}>
+                                <span className="text-sm font-bold">{speedRoundDifficulty}</span>
+                            </div>
+                        )}
 
                         <div className={`${theme === 'tron' ? 'bg-purple-500/20 border border-purple-500/30 text-purple-400' : theme === 'kids' ? 'bg-pink-500 text-white' : 'bg-purple-700/40 text-purple-400 border border-purple-700'} px-3 py-1 rounded-lg`}>
                             <span className="text-sm font-bold">Q{questionNumber}</span>
@@ -1741,6 +1939,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         <div className={`min-h-screen ${currentTheme.bg} p-2 pt-20 md:pt-24`}>
             {phase === 'rules' && renderRulesPhase()}
             {phase === 'question' && renderQuestionPhase()}
+            {phase === 'groupWaiting' && renderGroupWaitingPhase()}
             {phase === 'reveal' && renderRevealPhase()}
             {phase === 'recap' && renderRecapPhase()}
             {phase === 'speedRound' && renderSpeedRoundPhase()}
