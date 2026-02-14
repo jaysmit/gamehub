@@ -987,29 +987,56 @@ function getRandomTriviaQuestions(countOrDifficulty, countOrUsedIds = [], usedId
     // New signature: getRandomTriviaQuestions(difficulty, count, usedIds)
     difficulty = countOrDifficulty;
     count = countOrUsedIds;
-    usedIds = usedIdsParam;
+    usedIds = usedIdsParam || [];
   } else {
     // Legacy signature: getRandomTriviaQuestions(count, usedIds)
     difficulty = null;
     count = countOrDifficulty;
-    usedIds = countOrUsedIds;
+    usedIds = countOrUsedIds || [];
   }
 
   // Get question pool based on difficulty
   let pool;
   if (difficulty && TRIVIA_QUESTIONS_BY_DIFFICULTY[difficulty]) {
     pool = TRIVIA_QUESTIONS_BY_DIFFICULTY[difficulty];
-    console.log(`[TRIVIA Q-SELECT] Using difficulty pool '${difficulty}' with ${pool.length} questions`);
+    console.log(`[TRIVIA Q-SELECT] Using difficulty pool '${difficulty}' with ${pool.length} questions, ${usedIds.length} already used`);
   } else {
     // Use all questions for legacy or unknown difficulty
     pool = TRIVIA_QUESTIONS;
     console.log(`[TRIVIA Q-SELECT] WARNING: Falling back to ALL questions pool (difficulty: ${difficulty})`);
   }
 
+  // First, get questions that haven't been used yet
   const available = pool.filter(q => !usedIds.includes(q.id));
-  const finalPool = available.length >= count ? available : pool;
-  const shuffled = [...finalPool].sort(() => Math.random() - 0.5);
-  const selected = shuffled.slice(0, count);
+  const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
+
+  let selected = [];
+
+  if (shuffledAvailable.length >= count) {
+    // Enough unused questions - just take what we need
+    selected = shuffledAvailable.slice(0, count);
+  } else {
+    // Not enough unused questions - use all available first, then supplement with oldest used
+    selected = [...shuffledAvailable];
+
+    const stillNeeded = count - selected.length;
+    if (stillNeeded > 0) {
+      // Get questions that were used (prioritize oldest used by order in usedIds)
+      const alreadyUsed = pool.filter(q => usedIds.includes(q.id));
+      // Sort by when they were used (earlier in usedIds = used longer ago)
+      alreadyUsed.sort((a, b) => usedIds.indexOf(a.id) - usedIds.indexOf(b.id));
+
+      // Take the oldest used questions we need
+      const supplemental = alreadyUsed.slice(0, stillNeeded);
+      selected = [...selected, ...supplemental];
+
+      console.log(`[TRIVIA Q-SELECT] WARNING: Pool exhausted for '${difficulty}'. Reusing ${stillNeeded} oldest questions.`);
+    }
+  }
+
+  // Final shuffle to mix any reused questions
+  selected = selected.sort(() => Math.random() - 0.5);
+
   console.log(`[TRIVIA Q-SELECT] Selected ${selected.length} questions for '${difficulty}': ${selected.map(q => q.id).join(', ')}`);
   return selected;
 }
@@ -1977,19 +2004,56 @@ function getRandomMathQuestions(difficultyOrCount, countOrUsedIds = [], usedIds 
     const count = difficultyOrCount;
     const legacyUsedIds = countOrUsedIds || [];
     const available = MATH_QUESTIONS.filter(q => !legacyUsedIds.includes(q.id));
-    const pool = available.length >= count ? available : MATH_QUESTIONS;
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
+    const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
+
+    if (shuffledAvailable.length >= count) {
+      return shuffledAvailable.slice(0, count);
+    }
+
+    // Not enough - supplement with oldest used
+    let selected = [...shuffledAvailable];
+    const stillNeeded = count - selected.length;
+    if (stillNeeded > 0) {
+      const alreadyUsed = MATH_QUESTIONS.filter(q => legacyUsedIds.includes(q.id));
+      alreadyUsed.sort((a, b) => legacyUsedIds.indexOf(a.id) - legacyUsedIds.indexOf(b.id));
+      selected = [...selected, ...alreadyUsed.slice(0, stillNeeded)];
+      console.log(`[MATH Q-SELECT] WARNING: Pool exhausted. Reusing ${stillNeeded} oldest questions.`);
+    }
+    return selected.sort(() => Math.random() - 0.5);
   }
 
   // New signature: (difficulty, count, usedIds)
   const difficulty = difficultyOrCount;
   const count = countOrUsedIds;
-  const questions = MATH_QUESTIONS_BY_DIFFICULTY[difficulty] || MATH_QUESTIONS_BY_DIFFICULTY['medium'];
-  const available = questions.filter(q => !usedIds.includes(q.id));
-  const pool = available.length >= count ? available : questions;
-  const shuffled = [...pool].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+  const pool = MATH_QUESTIONS_BY_DIFFICULTY[difficulty] || MATH_QUESTIONS_BY_DIFFICULTY['medium'];
+  const safeUsedIds = usedIds || [];
+
+  console.log(`[MATH Q-SELECT] Using difficulty pool '${difficulty}' with ${pool.length} questions, ${safeUsedIds.length} already used`);
+
+  const available = pool.filter(q => !safeUsedIds.includes(q.id));
+  const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
+
+  let selected = [];
+
+  if (shuffledAvailable.length >= count) {
+    selected = shuffledAvailable.slice(0, count);
+  } else {
+    // Not enough unused questions - use all available first, then supplement with oldest used
+    selected = [...shuffledAvailable];
+
+    const stillNeeded = count - selected.length;
+    if (stillNeeded > 0) {
+      const alreadyUsed = pool.filter(q => safeUsedIds.includes(q.id));
+      alreadyUsed.sort((a, b) => safeUsedIds.indexOf(a.id) - safeUsedIds.indexOf(b.id));
+      selected = [...selected, ...alreadyUsed.slice(0, stillNeeded)];
+      console.log(`[MATH Q-SELECT] WARNING: Pool exhausted for '${difficulty}'. Reusing ${stillNeeded} oldest questions.`);
+    }
+  }
+
+  // Final shuffle
+  selected = selected.sort(() => Math.random() - 0.5);
+  console.log(`[MATH Q-SELECT] Selected ${selected.length} questions for '${difficulty}': ${selected.map(q => q.id).join(', ')}`);
+  return selected;
 }
 
 function generateSpeedRoundOptions(correctAnswer) {
@@ -3066,24 +3130,119 @@ function setupSockets(io) {
       // Send full room state back to the rejoining player (include gameHistory)
       socket.emit('rejoinSuccess', { ...room, gameHistory: room.gameHistory || [] });
 
-      // If there's an active game, send game sync data to the rejoining player
+      // If there's an active game, send game sync data based on game type
       if (room.game) {
-        const gameSync = {
-          drawerName: room.game.drawerName,
-          currentRound: room.game.currentRound,
-          totalRounds: room.game.totalRounds,
-          currentPickValue: room.game.currentPickValue,
-          paused: room.game.paused || false,
-          timerEndTime: room.game.timerEndTime,
-          timerRemainingMs: room.game.timerRemainingMs
-        };
+        const game = room.game;
 
-        // Send game state sync
-        socket.emit('gameSync', gameSync);
+        if (game.gameType === 'trivia') {
+          // Send Trivia-specific sync data
+          const hasAnswered = game.answers && game.answers[playerName] !== undefined;
+          const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
 
-        // If this player is the drawer, send them their word
-        if (room.game.drawerName === playerName) {
-          socket.emit('yourWord', { word: room.game.currentWord });
+          const triviaSync = {
+            gameType: 'trivia',
+            phase: game.phase,
+            currentRound: game.currentRound,
+            totalRounds: game.totalRounds,
+            isSpeedRound: game.isSpeedRound,
+            questionNumber: game.currentQuestionIndex + 1,
+            totalQuestions: game.isSpeedRound ? '∞' : (game.roundQuestions ? game.roundQuestions.length : 0),
+            hasAnswered,
+            answeredPlayers,
+            standings: room.players
+              .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+              .sort((a, b) => b.score - a.score)
+          };
+
+          // Include question data if in question phase
+          if (game.phase === 'question' && game.currentQuestion) {
+            triviaSync.question = game.currentQuestion.question;
+            triviaSync.category = game.currentQuestion.category;
+            triviaSync.answers = game.currentQuestion.shuffledAnswers;
+            triviaSync.questionEndTime = game.questionEndTime;
+          }
+
+          // Include recap data if in recap phase
+          if (game.phase === 'recap') {
+            const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound[game.currentRound - 1];
+            const roundStartIndex = game.questionHistory.length - questionsInRound;
+            const roundHistory = game.questionHistory.slice(roundStartIndex);
+            triviaSync.recapData = {
+              questionHistory: roundHistory,
+              isLastRound: game.currentRound >= game.totalRounds
+            };
+          }
+
+          socket.emit('triviaSync', triviaSync);
+          console.log(`[REJOIN] Sent triviaSync for ${playerName}, phase: ${game.phase}`);
+
+        } else if (game.gameType === 'quickmath') {
+          // Send Quick Math-specific sync data
+          const hasAnswered = game.answers && game.answers[playerName] !== undefined;
+          const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
+
+          const mathSync = {
+            gameType: 'quickmath',
+            phase: game.phase,
+            currentRound: game.currentRound,
+            totalRounds: game.totalRounds,
+            isSpeedRound: game.isSpeedRound,
+            questionNumber: game.currentQuestionIndex + 1,
+            totalQuestions: game.isSpeedRound ? '∞' : (game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || 0),
+            hasAnswered,
+            answeredPlayers,
+            standings: room.players
+              .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+              .sort((a, b) => b.score - a.score)
+          };
+
+          // Include question data if in question phase
+          if (game.phase === 'question') {
+            const playerDifficulty = getPlayerDifficulty(playerName, room);
+            const groupIndex = game.difficultyGroups?.findIndex(g => g.difficulty === playerDifficulty);
+            const currentGroupQuestion = game.currentQuestionsByGroup?.[groupIndex];
+
+            if (currentGroupQuestion) {
+              mathSync.question = currentGroupQuestion.question;
+              mathSync.category = currentGroupQuestion.category;
+              mathSync.questionEndTime = game.questionEndTime;
+            }
+          }
+
+          // Include recap data if in recap phase
+          if (game.phase === 'recap') {
+            const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound[game.currentRound - 1];
+            const roundStartIndex = game.questionHistory.length - questionsInRound;
+            const roundHistory = game.questionHistory.slice(roundStartIndex);
+            mathSync.recapData = {
+              questionHistory: roundHistory,
+              isLastRound: game.currentRound >= game.totalRounds
+            };
+          }
+
+          socket.emit('mathSync', mathSync);
+          console.log(`[REJOIN] Sent mathSync for ${playerName}, phase: ${game.phase}`);
+
+        } else {
+          // Pictionary game sync (existing logic)
+          const gameSync = {
+            gameType: 'pictionary',
+            drawerName: game.drawerName,
+            currentRound: game.currentRound,
+            totalRounds: game.totalRounds,
+            currentPickValue: game.currentPickValue,
+            paused: game.paused || false,
+            timerEndTime: game.timerEndTime,
+            timerRemainingMs: game.timerRemainingMs,
+            drawingOrder: game.drawingOrder
+          };
+
+          socket.emit('gameSync', gameSync);
+
+          // If this player is the drawer, send them their word
+          if (game.drawerName === playerName) {
+            socket.emit('yourWord', { word: game.currentWord });
+          }
         }
       }
 

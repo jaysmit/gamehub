@@ -482,28 +482,36 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         return () => clearTimeout(startDelay);
     }, [phase, recapData?.questionHistory?.length, currentRoom?.players, previousRoundScores]);
 
-    // Helper: Get all active groups from all questions (filter empty ones)
+    // Helper: Get all active groups from all questions (include groups even if empty for display)
     const getActiveGroups = () => {
         if (!recapData?.questionHistory) return [];
         const questionHistory = recapData.questionHistory;
 
-        // For the current question, get all groups that have player results
+        // For the current question, get all groups
         const currentQ = questionHistory[recapQuestionIndex] || questionHistory[0];
         if (!currentQ) return [];
 
-        if (currentQ.groupData) {
-            return currentQ.groupData.filter(g =>
-                g && g.playerResults && Object.keys(g.playerResults).length > 0
+        if (currentQ.groupData && Array.isArray(currentQ.groupData)) {
+            // Include all groups that have valid question data (even if no player results yet)
+            const validGroups = currentQ.groupData.filter(g =>
+                g && (g.question || g.correctAnswer)
             );
+            // If we have valid groups, return them (even if playerResults is empty)
+            if (validGroups.length > 0) {
+                return validGroups.map(g => ({
+                    ...g,
+                    playerResults: g.playerResults || {}
+                }));
+            }
         }
 
-        // Legacy format - single group
-        if (currentQ.playerResults && Object.keys(currentQ.playerResults).length > 0) {
+        // Legacy format - single group (for backwards compatibility)
+        if (currentQ.question || currentQ.correctAnswer) {
             return [{
                 question: currentQ.question,
                 category: currentQ.category,
                 correctAnswer: currentQ.correctAnswer,
-                playerResults: currentQ.playerResults,
+                playerResults: currentQ.playerResults || {},
                 difficultyLabel: null
             }];
         }
@@ -515,12 +523,20 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     // Phase 0: Questions visible (handled by initialization useEffect - 1s)
     // Phase 1: Cascade reveal players (150ms stagger per player)
     // Phase 2: Animate points (0.8s) then update standings
-    // Auto-advance timing: 2.0s + (groups-1)*1.0s viewing time
+    // Auto-advance timing: 3.0s + (groups-1)*1.0s viewing time
     useEffect(() => {
         if (phase !== 'recap' || !recapData?.questionHistory) return;
 
         const activeGroups = getActiveGroups();
-        if (activeGroups.length === 0) return;
+        // Even if no active groups (shouldn't happen), we still need to handle advancing
+        if (activeGroups.length === 0) {
+            // No groups to show - skip to auto-advance after brief delay
+            if (recapAnimPhase === 1) {
+                const timeout = setTimeout(() => setRecapAnimPhase(2), 500);
+                return () => clearTimeout(timeout);
+            }
+            return;
+        }
 
         // Collect ALL players from ALL groups for cascade reveal
         const allPlayers = [];
@@ -538,6 +554,16 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         // Phase 1: Cascade reveal players (150ms stagger)
         if (recapAnimPhase === 1) {
             const timeouts = [];
+
+            // If no players to reveal, skip directly to phase 2
+            if (allPlayers.length === 0) {
+                const phaseTimeout = setTimeout(() => {
+                    setRecapAnimPhase(2);
+                    setAnimatedPointValues({});
+                }, 300);
+                return () => clearTimeout(phaseTimeout);
+            }
+
             allPlayers.forEach(({ name, isCorrect }, idx) => {
                 const timeout = setTimeout(() => {
                     setRevealedPlayers(prev => ({
