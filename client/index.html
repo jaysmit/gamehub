@@ -204,6 +204,35 @@
             animation: slideUp 0.5s ease-out forwards;
         }
 
+        /* Cross animation for wrong answers */
+        @keyframes wrongCross {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            50% { transform: scale(1.3) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1.0) rotate(0deg); opacity: 1; }
+        }
+        .animate-wrongCross {
+            animation: wrongCross 0.5s ease-out forwards;
+        }
+
+        /* Coin pop for correct answers */
+        @keyframes coinPop {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-coinPop {
+            animation: coinPop 0.4s ease-out forwards;
+        }
+
+        /* Player reveal slide-in */
+        @keyframes playerReveal {
+            0% { transform: translateX(-20px); opacity: 0; }
+            100% { transform: translateX(0); opacity: 1; }
+        }
+        .animate-playerReveal {
+            animation: playerReveal 0.3s ease-out forwards;
+        }
+
         @media (max-width: 767px) {
             .player-avatar {
                 transform: scale(0.7);

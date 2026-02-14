@@ -7,49 +7,50 @@ const rooms = new Map();
 // Very Easy (ages 3-7), Easy (7-12), Medium (12-18), Hard (18+), Master (PhD)
 const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
   'super-easy': [
-    // Very basic questions for toddlers (3-6)
-    { id: 'SE1', category: 'Colors', question: 'What color is the sky?', answers: ['Blue', 'Red', 'Green', 'Yellow'], correctIndex: 0 },
-    { id: 'SE2', category: 'Colors', question: 'What color is a banana?', answers: ['Yellow', 'Blue', 'Red', 'Green'], correctIndex: 0 },
-    { id: 'SE3', category: 'Colors', question: 'What color is grass?', answers: ['Green', 'Blue', 'Yellow', 'Red'], correctIndex: 0 },
-    { id: 'SE4', category: 'Animals', question: 'What sound does a dog make?', answers: ['Woof', 'Meow', 'Moo', 'Oink'], correctIndex: 0 },
-    { id: 'SE5', category: 'Animals', question: 'What sound does a cat make?', answers: ['Meow', 'Woof', 'Moo', 'Quack'], correctIndex: 0 },
-    { id: 'SE6', category: 'Animals', question: 'What says "moo"?', answers: ['Cow', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
-    { id: 'SE7', category: 'Animals', question: 'What says "oink"?', answers: ['Pig', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
-    { id: 'SE8', category: 'Animals', question: 'What says "quack"?', answers: ['Duck', 'Dog', 'Cat', 'Cow'], correctIndex: 0 },
-    { id: 'SE9', category: 'Body', question: 'How many eyes do you have?', answers: ['2', '1', '3', '4'], correctIndex: 0 },
-    { id: 'SE10', category: 'Body', question: 'How many noses do you have?', answers: ['1', '2', '3', '0'], correctIndex: 0 },
-    { id: 'SE11', category: 'Body', question: 'How many ears do you have?', answers: ['2', '1', '3', '4'], correctIndex: 0 },
-    { id: 'SE12', category: 'Nature', question: 'The sun is...?', answers: ['Hot', 'Cold', 'Wet', 'Soft'], correctIndex: 0 },
-    { id: 'SE13', category: 'Nature', question: 'Snow is...?', answers: ['Cold', 'Hot', 'Dry', 'Loud'], correctIndex: 0 },
-    { id: 'SE14', category: 'Colors', question: 'Fire trucks are what color?', answers: ['Red', 'Blue', 'Green', 'Yellow'], correctIndex: 0 },
-    { id: 'SE15', category: 'Food', question: 'What is round and orange?', answers: ['Orange', 'Apple', 'Banana', 'Grape'], correctIndex: 0 },
-    { id: 'SE16', category: 'Animals', question: 'A dog is a...?', answers: ['Pet', 'Plant', 'Car', 'Book'], correctIndex: 0 },
-    { id: 'SE17', category: 'Disney', question: 'Mickey Mouse is a...?', answers: ['Mouse', 'Duck', 'Dog', 'Cat'], correctIndex: 0 },
-    { id: 'SE18', category: 'Nature', question: 'Rain is...?', answers: ['Wet', 'Dry', 'Hot', 'Hard'], correctIndex: 0 },
-    { id: 'SE19', category: 'Food', question: 'Ice cream is...?', answers: ['Cold', 'Hot', 'Hard', 'Loud'], correctIndex: 0 },
-    { id: 'SE20', category: 'Animals', question: 'Birds can...?', answers: ['Fly', 'Swim', 'Drive', 'Read'], correctIndex: 0 }
+    // Very basic yes/no and animal sound questions for toddlers (ages 2-4) - UNIQUE to this level
+    { id: 'SE1', category: 'Animals', question: 'What says "moo"?', answers: ['Cow', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'SE2', category: 'Animals', question: 'What says "oink"?', answers: ['Pig', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'SE3', category: 'Animals', question: 'What says "quack"?', answers: ['Duck', 'Dog', 'Cat', 'Cow'], correctIndex: 0 },
+    { id: 'SE4', category: 'Animals', question: 'What says "baa"?', answers: ['Sheep', 'Pig', 'Duck', 'Horse'], correctIndex: 0 },
+    { id: 'SE5', category: 'Animals', question: 'What says "neigh"?', answers: ['Horse', 'Cow', 'Pig', 'Sheep'], correctIndex: 0 },
+    { id: 'SE6', category: 'Animals', question: 'What says "woof"?', answers: ['Dog', 'Cat', 'Bird', 'Cow'], correctIndex: 0 },
+    { id: 'SE7', category: 'Animals', question: 'What says "meow"?', answers: ['Cat', 'Dog', 'Bird', 'Pig'], correctIndex: 0 },
+    { id: 'SE8', category: 'Animals', question: 'What says "roar"?', answers: ['Lion', 'Mouse', 'Fish', 'Bunny'], correctIndex: 0 },
+    { id: 'SE9', category: 'YesNo', question: 'Is the sun hot?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE10', category: 'YesNo', question: 'Is ice cold?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE11', category: 'YesNo', question: 'Do fish swim?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE12', category: 'YesNo', question: 'Do birds fly?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE13', category: 'YesNo', question: 'Is snow white?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE14', category: 'YesNo', question: 'Do dogs bark?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE15', category: 'YesNo', question: 'Is rain wet?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE16', category: 'YesNo', question: 'Do cars have wheels?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE17', category: 'Simple', question: 'What is fluffy and says "meow"?', answers: ['Cat', 'Dog', 'Bird', 'Fish'], correctIndex: 0 },
+    { id: 'SE18', category: 'Simple', question: 'What flies in the sky?', answers: ['Bird', 'Fish', 'Cat', 'Dog'], correctIndex: 0 },
+    { id: 'SE19', category: 'Simple', question: 'What do you sleep in?', answers: ['Bed', 'Car', 'Tree', 'Pool'], correctIndex: 0 },
+    { id: 'SE20', category: 'Simple', question: 'What do you eat with?', answers: ['Spoon', 'Shoe', 'Hat', 'Book'], correctIndex: 0 }
   ],
   'very-easy': [
-    { id: 'VE1', category: 'Colors', question: 'What color is the sky on a sunny day?', answers: ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Orange'], correctIndex: 0 },
-    { id: 'VE2', category: 'Colors', question: 'What color is a banana?', answers: ['Yellow', 'Blue', 'Red', 'Green', 'Purple', 'Orange'], correctIndex: 0 },
-    { id: 'VE3', category: 'Colors', question: 'What color is grass?', answers: ['Green', 'Blue', 'Yellow', 'Red', 'Purple', 'Orange'], correctIndex: 0 },
+    // Colors, shapes, counting for young children (ages 5-7) - UNIQUE to this level
+    { id: 'VE1', category: 'Colors', question: 'What color is a banana?', answers: ['Yellow', 'Blue', 'Red', 'Green', 'Purple', 'Orange'], correctIndex: 0 },
+    { id: 'VE2', category: 'Colors', question: 'What color is grass?', answers: ['Green', 'Blue', 'Yellow', 'Red', 'Purple', 'Orange'], correctIndex: 0 },
+    { id: 'VE3', category: 'Colors', question: 'What color is the sky on a sunny day?', answers: ['Blue', 'Red', 'Green', 'Purple', 'Yellow', 'Orange'], correctIndex: 0 },
     { id: 'VE4', category: 'Colors', question: 'What color is a fire truck?', answers: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'], correctIndex: 0 },
     { id: 'VE5', category: 'Shapes', question: 'How many sides does a triangle have?', answers: ['3', '4', '5', '6', '2', '7'], correctIndex: 0 },
     { id: 'VE6', category: 'Shapes', question: 'What shape is a ball?', answers: ['Round', 'Square', 'Triangle', 'Rectangle', 'Star', 'Heart'], correctIndex: 0 },
-    { id: 'VE7', category: 'Animals', question: 'What sound does a dog make?', answers: ['Woof', 'Meow', 'Moo', 'Oink', 'Quack', 'Roar'], correctIndex: 0 },
-    { id: 'VE8', category: 'Animals', question: 'What sound does a cat make?', answers: ['Meow', 'Woof', 'Moo', 'Quack', 'Oink', 'Roar'], correctIndex: 0 },
-    { id: 'VE9', category: 'Animals', question: 'What animal says "moo"?', answers: ['Cow', 'Dog', 'Cat', 'Duck', 'Pig', 'Horse'], correctIndex: 0 },
-    { id: 'VE10', category: 'Animals', question: 'What animal has a long trunk?', answers: ['Elephant', 'Dog', 'Cat', 'Bird', 'Fish', 'Lion'], correctIndex: 0 },
-    { id: 'VE11', category: 'Animals', question: 'Which animal can fly?', answers: ['Bird', 'Fish', 'Dog', 'Cat', 'Cow', 'Horse'], correctIndex: 0 },
-    { id: 'VE12', category: 'Animals', question: 'What animal lives in water?', answers: ['Fish', 'Dog', 'Cat', 'Bird', 'Cow', 'Horse'], correctIndex: 0 },
-    { id: 'VE13', category: 'Body', question: 'How many eyes do you have?', answers: ['2', '1', '3', '4', '5', '6'], correctIndex: 0 },
-    { id: 'VE14', category: 'Body', question: 'How many fingers are on one hand?', answers: ['5', '4', '3', '10', '6', '2'], correctIndex: 0 },
-    { id: 'VE15', category: 'Numbers', question: 'What comes after 1, 2, 3?', answers: ['4', '5', '6', '7', '8', '9'], correctIndex: 0 },
+    { id: 'VE7', category: 'Shapes', question: 'How many sides does a square have?', answers: ['4', '3', '5', '6', '2', '7'], correctIndex: 0 },
+    { id: 'VE8', category: 'Animals', question: 'What animal has a long trunk?', answers: ['Elephant', 'Dog', 'Cat', 'Bird', 'Fish', 'Lion'], correctIndex: 0 },
+    { id: 'VE9', category: 'Animals', question: 'What animal has a long neck?', answers: ['Giraffe', 'Dog', 'Cat', 'Pig', 'Fish', 'Lion'], correctIndex: 0 },
+    { id: 'VE10', category: 'Animals', question: 'What animal hops?', answers: ['Rabbit', 'Fish', 'Snake', 'Cow', 'Dog', 'Cat'], correctIndex: 0 },
+    { id: 'VE11', category: 'Body', question: 'How many eyes do you have?', answers: ['2', '1', '3', '4', '5', '6'], correctIndex: 0 },
+    { id: 'VE12', category: 'Body', question: 'How many fingers are on one hand?', answers: ['5', '4', '3', '10', '6', '2'], correctIndex: 0 },
+    { id: 'VE13', category: 'Body', question: 'How many ears do you have?', answers: ['2', '1', '3', '4', '5', '6'], correctIndex: 0 },
+    { id: 'VE14', category: 'Numbers', question: 'What comes after 1, 2, 3?', answers: ['4', '5', '6', '7', '8', '9'], correctIndex: 0 },
+    { id: 'VE15', category: 'Numbers', question: 'How many legs does a dog have?', answers: ['4', '2', '6', '8', '3', '5'], correctIndex: 0 },
     { id: 'VE16', category: 'Food', question: 'What fruit is red and grows on trees?', answers: ['Apple', 'Banana', 'Orange', 'Grape', 'Lemon', 'Lime'], correctIndex: 0 },
     { id: 'VE17', category: 'Nature', question: 'The sun comes out during the...?', answers: ['Day', 'Night', 'Evening', 'Never', 'Midnight', 'Dawn'], correctIndex: 0 },
-    { id: 'VE18', category: 'Disney', question: 'Mickey Mouse has two big...?', answers: ['Ears', 'Noses', 'Feet', 'Hands', 'Eyes', 'Teeth'], correctIndex: 0 },
-    { id: 'VE19', category: 'Nature', question: 'Snow is what color?', answers: ['White', 'Blue', 'Yellow', 'Green', 'Red', 'Pink'], correctIndex: 0 },
-    { id: 'VE20', category: 'Animals', question: 'What animal hops?', answers: ['Rabbit', 'Fish', 'Snake', 'Cow', 'Dog', 'Cat'], correctIndex: 0 }
+    { id: 'VE18', category: 'Nature', question: 'Snow is what color?', answers: ['White', 'Blue', 'Yellow', 'Green', 'Red', 'Pink'], correctIndex: 0 },
+    { id: 'VE19', category: 'Disney', question: 'Mickey Mouse has two big...?', answers: ['Ears', 'Noses', 'Feet', 'Hands', 'Eyes', 'Teeth'], correctIndex: 0 },
+    { id: 'VE20', category: 'Disney', question: 'In The Lion King, Simba is a...?', answers: ['Lion', 'Zebra', 'Bird', 'Elephant', 'Giraffe', 'Hippo'], correctIndex: 0 }
   ],
   'easy': [
     { id: 'E1', category: 'Movies', question: 'Which Disney movie features a character named Simba?', answers: ['The Lion King', 'Frozen', 'Moana', 'Aladdin', 'Tarzan', 'Bambi'], correctIndex: 0 },
@@ -118,27 +119,27 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'H20', category: 'Science', question: 'What is the chemical formula for water?', answers: ['H2O', 'CO2', 'NaCl', 'O2', 'H2O2', 'CH4'], correctIndex: 0 }
   ],
   'very-hard': [
-    // Challenging adult-level questions (18+)
-    { id: 'VH1', category: 'Science', question: 'What is the chemical symbol for gold?', answers: ['Au', 'Ag', 'Fe', 'Cu', 'Pb', 'Hg'], correctIndex: 0 },
-    { id: 'VH2', category: 'History', question: 'In what year did World War II end?', answers: ['1945', '1944', '1946', '1943', '1947', '1942'], correctIndex: 0 },
-    { id: 'VH3', category: 'Geography', question: 'What is the smallest country in the world by area?', answers: ['Vatican City', 'Monaco', 'San Marino', 'Liechtenstein', 'Malta', 'Andorra'], correctIndex: 0 },
-    { id: 'VH4', category: 'Science', question: 'What is the speed of light in a vacuum (km/s)?', answers: ['299,792', '299,000', '300,000', '298,000', '301,000', '295,000'], correctIndex: 0 },
-    { id: 'VH5', category: 'Literature', question: 'Who wrote "1984"?', answers: ['George Orwell', 'Aldous Huxley', 'Ray Bradbury', 'H.G. Wells', 'Arthur Clarke', 'Isaac Asimov'], correctIndex: 0 },
-    { id: 'VH6', category: 'History', question: 'Who was the first person to walk on the moon?', answers: ['Neil Armstrong', 'Buzz Aldrin', 'Michael Collins', 'John Glenn', 'Alan Shepard', 'Yuri Gagarin'], correctIndex: 0 },
-    { id: 'VH7', category: 'Science', question: 'What is the powerhouse of the cell?', answers: ['Mitochondria', 'Nucleus', 'Ribosome', 'Endoplasmic reticulum', 'Golgi apparatus', 'Lysosome'], correctIndex: 0 },
-    { id: 'VH8', category: 'Geography', question: 'What is the longest river in the world?', answers: ['Nile', 'Amazon', 'Yangtze', 'Mississippi', 'Congo', 'Mekong'], correctIndex: 0 },
-    { id: 'VH9', category: 'Art', question: 'Who painted the Mona Lisa?', answers: ['Leonardo da Vinci', 'Michelangelo', 'Raphael', 'Botticelli', 'Caravaggio', 'Titian'], correctIndex: 0 },
-    { id: 'VH10', category: 'Science', question: 'What element has the atomic number 1?', answers: ['Hydrogen', 'Helium', 'Lithium', 'Carbon', 'Oxygen', 'Nitrogen'], correctIndex: 0 },
-    { id: 'VH11', category: 'History', question: 'What ancient wonder was located in Alexandria, Egypt?', answers: ['Lighthouse', 'Hanging Gardens', 'Colossus', 'Mausoleum', 'Temple of Artemis', 'Statue of Zeus'], correctIndex: 0 },
-    { id: 'VH12', category: 'Geography', question: 'What is the capital of Australia?', answers: ['Canberra', 'Sydney', 'Melbourne', 'Perth', 'Brisbane', 'Adelaide'], correctIndex: 0 },
-    { id: 'VH13', category: 'Science', question: 'What is the most abundant gas in Earth\'s atmosphere?', answers: ['Nitrogen', 'Oxygen', 'Carbon dioxide', 'Argon', 'Hydrogen', 'Helium'], correctIndex: 0 },
-    { id: 'VH14', category: 'Literature', question: 'Who wrote "Romeo and Juliet"?', answers: ['Shakespeare', 'Chaucer', 'Milton', 'Dickens', 'Austen', 'Hemingway'], correctIndex: 0 },
-    { id: 'VH15', category: 'Music', question: 'What composer wrote the "Moonlight Sonata"?', answers: ['Beethoven', 'Mozart', 'Bach', 'Chopin', 'Brahms', 'Tchaikovsky'], correctIndex: 0 },
-    { id: 'VH16', category: 'History', question: 'In what year did the Berlin Wall fall?', answers: ['1989', '1990', '1988', '1991', '1987', '1992'], correctIndex: 0 },
-    { id: 'VH17', category: 'Science', question: 'What is the largest organ in the human body?', answers: ['Skin', 'Liver', 'Brain', 'Heart', 'Lungs', 'Intestines'], correctIndex: 0 },
-    { id: 'VH18', category: 'Geography', question: 'Mount Everest is located between which two countries?', answers: ['Nepal and China', 'India and China', 'Nepal and India', 'Tibet and Nepal', 'China and Bhutan', 'India and Tibet'], correctIndex: 0 },
-    { id: 'VH19', category: 'Art', question: 'Which artist cut off his own ear?', answers: ['Van Gogh', 'Picasso', 'Monet', 'Rembrandt', 'Dali', 'Warhol'], correctIndex: 0 },
-    { id: 'VH20', category: 'Science', question: 'What is the chemical formula for water?', answers: ['H2O', 'CO2', 'NaCl', 'O2', 'H2O2', 'CH4'], correctIndex: 0 }
+    // Challenging adult-level questions - distinct from 'hard' (19+)
+    { id: 'VH1', category: 'Science', question: 'What is the SI unit of electrical resistance?', answers: ['Ohm', 'Watt', 'Volt', 'Ampere', 'Farad', 'Henry'], correctIndex: 0 },
+    { id: 'VH2', category: 'History', question: 'In what year was the Magna Carta signed?', answers: ['1215', '1066', '1453', '1776', '1492', '1189'], correctIndex: 0 },
+    { id: 'VH3', category: 'Geography', question: 'Which country has the longest coastline in the world?', answers: ['Canada', 'Russia', 'Indonesia', 'Australia', 'Norway', 'USA'], correctIndex: 0 },
+    { id: 'VH4', category: 'Science', question: 'What is the atomic number of carbon?', answers: ['6', '12', '8', '14', '4', '7'], correctIndex: 0 },
+    { id: 'VH5', category: 'Literature', question: 'Who wrote "War and Peace"?', answers: ['Leo Tolstoy', 'Fyodor Dostoevsky', 'Anton Chekhov', 'Ivan Turgenev', 'Nikolai Gogol', 'Boris Pasternak'], correctIndex: 0 },
+    { id: 'VH6', category: 'History', question: 'Which empire was ruled by Genghis Khan?', answers: ['Mongol Empire', 'Ottoman Empire', 'Roman Empire', 'Persian Empire', 'Byzantine Empire', 'Han Dynasty'], correctIndex: 0 },
+    { id: 'VH7', category: 'Science', question: 'What type of bond involves sharing electrons?', answers: ['Covalent', 'Ionic', 'Metallic', 'Hydrogen', 'Van der Waals', 'Dipole'], correctIndex: 0 },
+    { id: 'VH8', category: 'Geography', question: 'What is the deepest lake in the world?', answers: ['Lake Baikal', 'Lake Superior', 'Lake Tanganyika', 'Caspian Sea', 'Lake Victoria', 'Lake Michigan'], correctIndex: 0 },
+    { id: 'VH9', category: 'Art', question: 'Which art movement did Claude Monet help found?', answers: ['Impressionism', 'Cubism', 'Surrealism', 'Expressionism', 'Realism', 'Baroque'], correctIndex: 0 },
+    { id: 'VH10', category: 'Science', question: 'What is the main component of natural gas?', answers: ['Methane', 'Propane', 'Butane', 'Ethane', 'Hydrogen', 'Carbon dioxide'], correctIndex: 0 },
+    { id: 'VH11', category: 'History', question: 'Who was the first Roman Emperor?', answers: ['Augustus', 'Julius Caesar', 'Nero', 'Caligula', 'Tiberius', 'Marcus Aurelius'], correctIndex: 0 },
+    { id: 'VH12', category: 'Geography', question: 'Which desert is the largest hot desert in the world?', answers: ['Sahara', 'Arabian', 'Gobi', 'Kalahari', 'Mojave', 'Atacama'], correctIndex: 0 },
+    { id: 'VH13', category: 'Science', question: 'What vitamin is produced when skin is exposed to sunlight?', answers: ['Vitamin D', 'Vitamin C', 'Vitamin A', 'Vitamin E', 'Vitamin K', 'Vitamin B12'], correctIndex: 0 },
+    { id: 'VH14', category: 'Literature', question: 'Who wrote "The Divine Comedy"?', answers: ['Dante Alighieri', 'Giovanni Boccaccio', 'Petrarch', 'Virgil', 'Homer', 'Ovid'], correctIndex: 0 },
+    { id: 'VH15', category: 'Music', question: 'Which composer wrote "The Four Seasons"?', answers: ['Vivaldi', 'Bach', 'Handel', 'Mozart', 'Haydn', 'Beethoven'], correctIndex: 0 },
+    { id: 'VH16', category: 'History', question: 'In what year did the French Revolution begin?', answers: ['1789', '1776', '1799', '1804', '1815', '1848'], correctIndex: 0 },
+    { id: 'VH17', category: 'Science', question: 'What is the largest moon of Saturn?', answers: ['Titan', 'Europa', 'Ganymede', 'Callisto', 'Io', 'Triton'], correctIndex: 0 },
+    { id: 'VH18', category: 'Geography', question: 'Which country has the most islands in the world?', answers: ['Sweden', 'Finland', 'Norway', 'Indonesia', 'Philippines', 'Japan'], correctIndex: 0 },
+    { id: 'VH19', category: 'Art', question: 'Who sculpted "The Thinker"?', answers: ['Auguste Rodin', 'Michelangelo', 'Donatello', 'Bernini', 'Canova', 'Henry Moore'], correctIndex: 0 },
+    { id: 'VH20', category: 'Science', question: 'What is the process by which plants make food using sunlight?', answers: ['Photosynthesis', 'Respiration', 'Fermentation', 'Oxidation', 'Transpiration', 'Digestion'], correctIndex: 0 }
   ],
   'genius': [
     // Expert-level questions
@@ -592,34 +593,39 @@ const onlineUsers = new Map();
 // Pictionary word banks by difficulty
 const PICTIONARY_WORDS_BY_DIFFICULTY = {
   'super-easy': [
-    // Very simple shapes and objects for toddlers
+    // Very simple shapes and objects for toddlers (ages 2-4) - UNIQUE to this level
+    // Basic shapes they can draw
     'SUN', 'MOON', 'STAR', 'BALL', 'HEART', 'CIRCLE',
-    'CAT', 'DOG', 'FISH', 'BIRD', 'BUG',
-    'TREE', 'FLOWER', 'HOUSE', 'CAR',
-    'APPLE', 'BANANA', 'COOKIE',
-    'HAT', 'SHOE', 'BABY', 'MOM', 'DAD',
-    'BED', 'CUP', 'EGG', 'RAIN', 'CLOUD'
+    // Simple familiar objects
+    'HAT', 'SHOE', 'BABY', 'MOM', 'DAD', 'BOY', 'GIRL',
+    // Easy animals (one word, simple shapes)
+    'CAT', 'DOG', 'BUG', 'ANT', 'BEE',
+    // Food
+    'APPLE', 'EGG', 'PIE',
+    // Very basic items
+    'BED', 'BOX', 'KEY', 'CUP'
   ],
   'very-easy': [
-    // Animals
-    'CAT', 'DOG', 'FISH', 'BIRD', 'COW', 'PIG', 'DUCK', 'FROG', 'BEE', 'ANT',
+    // Simple words for young children (ages 5-7) - UNIQUE to this level
+    // Animals (different from super-easy)
+    'FISH', 'BIRD', 'COW', 'PIG', 'DUCK', 'FROG', 'HORSE', 'SHEEP', 'MOUSE', 'SNAKE',
+    // Nature (different from super-easy)
+    'TREE', 'FLOWER', 'RAIN', 'CLOUD', 'SNOW', 'RAINBOW', 'LEAF', 'GRASS',
     // Objects
-    'BALL', 'SUN', 'MOON', 'STAR', 'TREE', 'FLOWER', 'HOUSE', 'CAR', 'BUS', 'BOAT',
-    // Food
-    'APPLE', 'BANANA', 'PIZZA', 'ICE CREAM', 'COOKIE', 'CAKE', 'EGG', 'BREAD', 'MILK', 'JUICE',
+    'HOUSE', 'CAR', 'BUS', 'BOAT', 'TRAIN', 'PLANE',
+    // Food (different from super-easy)
+    'BANANA', 'PIZZA', 'ICE CREAM', 'COOKIE', 'CAKE', 'BREAD',
     // Body parts
-    'HAND', 'FOOT', 'EYE', 'NOSE', 'MOUTH', 'EAR', 'HAIR', 'TEETH', 'ARM', 'LEG',
-    // Simple items
-    'BED', 'CHAIR', 'TABLE', 'DOOR', 'WINDOW', 'BOOK', 'PEN', 'CUP', 'SPOON', 'FORK',
-    // Nature
-    'RAIN', 'CLOUD', 'SNOW', 'RAINBOW', 'LEAF', 'GRASS', 'ROCK', 'WATER', 'FIRE', 'WIND'
+    'HAND', 'FOOT', 'EYE', 'NOSE', 'MOUTH', 'EAR', 'TEETH',
+    // Simple items (different from super-easy)
+    'CHAIR', 'TABLE', 'DOOR', 'WINDOW', 'BOOK', 'PEN', 'SPOON', 'FORK'
   ],
   'easy': [
-    // Animals
-    'ELEPHANT', 'GIRAFFE', 'LION', 'MONKEY', 'SNAKE', 'TURTLE', 'RABBIT', 'BUTTERFLY', 'SPIDER', 'DOLPHIN',
-    'PENGUIN', 'KANGAROO', 'BEAR', 'HORSE', 'SHEEP', 'CHICKEN', 'OWL', 'SHARK', 'WHALE', 'OCTOPUS',
-    // Objects
-    'BICYCLE', 'AIRPLANE', 'HELICOPTER', 'ROCKET', 'TRAIN', 'UMBRELLA', 'CAMERA', 'TELEPHONE', 'COMPUTER', 'GUITAR',
+    // Animals (ages 8-11) - UNIQUE to this level (no duplicates from very-easy)
+    'ELEPHANT', 'GIRAFFE', 'LION', 'MONKEY', 'TURTLE', 'RABBIT', 'BUTTERFLY', 'SPIDER', 'DOLPHIN',
+    'PENGUIN', 'KANGAROO', 'BEAR', 'CHICKEN', 'OWL', 'SHARK', 'WHALE', 'OCTOPUS', 'ZEBRA', 'HIPPO', 'CROCODILE',
+    // Objects (no TRAIN - that's in very-easy)
+    'BICYCLE', 'AIRPLANE', 'HELICOPTER', 'ROCKET', 'UMBRELLA', 'CAMERA', 'TELEPHONE', 'COMPUTER', 'GUITAR',
     'PIANO', 'DRUM', 'CLOCK', 'LAMP', 'MIRROR', 'SCISSORS', 'HAMMER', 'LADDER', 'TELESCOPE', 'ROBOT',
     // Places/Things
     'CASTLE', 'MOUNTAIN', 'BEACH', 'ISLAND', 'VOLCANO', 'WATERFALL', 'BRIDGE', 'LIGHTHOUSE', 'TENT', 'IGLOO',
@@ -651,14 +657,14 @@ const PICTIONARY_WORDS_BY_DIFFICULTY = {
     'CATCHING A FLIGHT', 'MISSING THE BUS', 'ORDERING TAKEOUT', 'WORKING FROM HOME', 'BINGE WATCHING', 'ONLINE SHOPPING', 'VIDEO CALL', 'SELFIE STICK', 'ESCAPE ROOM', 'TREASURE HUNT'
   ],
   'very-hard': [
-    // Abstract concepts
-    'JEALOUSY', 'FREEDOM', 'CURIOSITY', 'PATIENCE', 'COURAGE', 'WISDOM', 'CHAOS', 'HARMONY', 'NOSTALGIA', 'AMBITION',
-    // Complex scenarios
-    'TIME TRAVEL', 'GLOBAL WARMING', 'SOCIAL MEDIA', 'VIRTUAL REALITY', 'ARTIFICIAL INTELLIGENCE', 'SPACE STATION', 'BLACK HOLE', 'PARALLEL UNIVERSE', 'DEJA VU', 'KARMA',
-    // Phrases
-    'HAVING A BAD DAY', 'FEELING HOMESICK', 'STAGE FRIGHT', 'WRITERS BLOCK', 'MONDAY MORNING', 'FRIDAY NIGHT', 'SLEEPWALKING', 'DAYDREAMING', 'MULTITASKING', 'PROCRASTINATING',
-    // Scenarios
-    'CATCHING A FLIGHT', 'MISSING THE BUS', 'ORDERING TAKEOUT', 'WORKING FROM HOME', 'BINGE WATCHING', 'ONLINE SHOPPING', 'VIDEO CALL', 'SELFIE STICK', 'ESCAPE ROOM', 'TREASURE HUNT'
+    // Advanced abstract concepts (ages 19+) - UNIQUE to this level
+    'DEMOCRACY', 'CAPITALISM', 'EVOLUTION', 'GRAVITY', 'INFINITY', 'ETERNITY', 'DESTINY', 'FATE', 'IRONY', 'PARADOX',
+    // Professional scenarios
+    'CORPORATE MEETING', 'BUDGET CRISIS', 'HOSTILE TAKEOVER', 'STOCK MARKET CRASH', 'MIDLIFE CRISIS', 'QUARTER-LIFE CRISIS', 'IDENTITY THEFT', 'CULTURE SHOCK', 'IMPOSTOR SYNDROME', 'BURNOUT',
+    // Modern life challenges
+    'CANCEL CULTURE', 'CLICKBAIT', 'VIRAL VIDEO', 'INFLUENCER', 'CRYPTOCURRENCY', 'ALGORITHM', 'DATA PRIVACY', 'CARBON FOOTPRINT', 'GENTRIFICATION', 'INFLATION',
+    // Complex emotions and states
+    'EXISTENTIAL CRISIS', 'COGNITIVE DISSONANCE', 'BUYERS REMORSE', 'ANALYSIS PARALYSIS', 'DECISION FATIGUE', 'INFORMATION OVERLOAD', 'LEARNED HELPLESSNESS', 'COMFORT ZONE', 'GLASS CEILING', 'RAT RACE'
   ],
   'genius': [
     // Idioms and sayings
@@ -993,15 +999,19 @@ function getRandomTriviaQuestions(countOrDifficulty, countOrUsedIds = [], usedId
   let pool;
   if (difficulty && TRIVIA_QUESTIONS_BY_DIFFICULTY[difficulty]) {
     pool = TRIVIA_QUESTIONS_BY_DIFFICULTY[difficulty];
+    console.log(`[TRIVIA Q-SELECT] Using difficulty pool '${difficulty}' with ${pool.length} questions`);
   } else {
     // Use all questions for legacy or unknown difficulty
     pool = TRIVIA_QUESTIONS;
+    console.log(`[TRIVIA Q-SELECT] WARNING: Falling back to ALL questions pool (difficulty: ${difficulty})`);
   }
 
   const available = pool.filter(q => !usedIds.includes(q.id));
   const finalPool = available.length >= count ? available : pool;
   const shuffled = [...finalPool].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+  const selected = shuffled.slice(0, count);
+  console.log(`[TRIVIA Q-SELECT] Selected ${selected.length} questions for '${difficulty}': ${selected.map(q => q.id).join(', ')}`);
+  return selected;
 }
 
 // Group players by their difficulty setting and return sorted groups (easiest first)
@@ -1037,15 +1047,8 @@ function getPlayersGroupedByDifficulty(room) {
 
 // Get display label for difficulty
 function getDifficultyLabel(difficulty) {
-  const labels = {
-    'very-easy': 'Very Easy',
-    'easy': 'Easy',
-    'medium': 'Medium',
-    'hard': 'Hard',
-    'very-hard': 'Very Hard',
-    'genius': 'Genius'
-  };
-  return labels[difficulty] || 'Medium';
+  // Use the centralized DIFFICULTY_LABELS constant
+  return DIFFICULTY_LABELS[difficulty] || 'Medium';
 }
 
 function calculateTriviaPoints(answerTimestamp, questionStartTime, questionDuration, isSpeedRound) {
@@ -1081,10 +1084,16 @@ function startTriviaRound(io, room, roomId) {
 
   // Set up difficulty groups for non-speed rounds
   if (!isSpeedRound) {
+    // Debug: Log room difficulty settings
+    console.log(`[TRIVIA] Room difficulty: ${room.difficulty}, playerDifficulties:`, JSON.stringify(room.playerDifficulties));
+    room.players.forEach(p => {
+      console.log(`[TRIVIA] Player ${p.name} effective difficulty: ${getPlayerDifficulty(p.name, room)}`);
+    });
+
     game.difficultyGroups = getPlayersGroupedByDifficulty(room);
     game.currentGroupIndex = 0;
     game.groupAnswers = {};  // Track answers per group: { groupIndex: { playerName: answer } }
-    console.log(`[TRIVIA] Difficulty groups: ${game.difficultyGroups.map(g => `${g.difficulty}(${g.players.length})`).join(', ')}`);
+    console.log(`[TRIVIA] Difficulty groups: ${game.difficultyGroups.map(g => `${g.difficulty}(${g.players.length}): ${g.playerNames.join(', ')}`).join(' | ')}`);
 
     // Dynamic question count based on number of groups
     const groupCount = game.difficultyGroups.length;
@@ -1107,7 +1116,9 @@ function startTriviaRound(io, room, roomId) {
         game.usedQuestionIdsByDifficulty[difficulty].push(q.id);
       });
 
-      console.log(`[TRIVIA] Group ${groupIndex} (${difficulty}): ${questions.length} questions`);
+      // Debug: Log first question for each group to verify uniqueness
+      const firstQ = questions[0];
+      console.log(`[TRIVIA] Group ${groupIndex} (${difficulty}): ${questions.length} questions - First Q: "${firstQ?.question}" (ID: ${firstQ?.id})`);
     });
 
     // Also keep a reference to total questions in round (based on first group, they should all be same)
@@ -1349,7 +1360,9 @@ function startGroupTurn(io, room, roomId) {
   game.questionEndTime = questionEndTime;
   game.groupStartTime = Date.now();  // Track when this group's turn started
 
-  console.log(`[TRIVIA] Starting turn for group ${currentGroup.difficulty} (${currentGroup.players.length} players)`);
+  // Get group-specific question for logging
+  const groupQuestion = game.currentQuestionsByGroup[currentGroupIdx];
+  console.log(`[TRIVIA] Starting turn for group ${currentGroupIdx} (${currentGroup.difficulty}): "${groupQuestion?.question}" -> ${currentGroup.playerNames.join(', ')}`);
 
   // Build group info for all players
   const groupInfo = {
