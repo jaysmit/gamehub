@@ -1178,7 +1178,10 @@ function startTriviaRound(io, room, roomId) {
     console.log(`[TRIVIA] Group count: ${groupCount}, questions per group: ${questionsPerGroup}`);
 
     // Get allowed categories from game config (theme filtering)
+    console.log(`[TRIVIA] game.config:`, JSON.stringify(game.config));
+    console.log(`[TRIVIA] game.config?.themes:`, JSON.stringify(game.config?.themes));
     const allowedCategories = getCategoriesFromThemes(game.config?.themes);
+    console.log(`[TRIVIA] allowedCategories:`, JSON.stringify(allowedCategories));
 
     // Generate questions for each group from their difficulty pool
     game.roundQuestionsByGroup = {};
@@ -3676,6 +3679,7 @@ function setupSockets(io) {
       if (!room) return;
 
       const { gameId, config } = data;
+      console.log(`[UPDATE CONFIG] Room ${data.roomId} - gameId: ${gameId}, config:`, JSON.stringify(config));
       const index = room.selectedGames.findIndex(g =>
         (typeof g === 'object' ? g.gameId : g) === gameId
       );
@@ -3713,6 +3717,10 @@ function setupSockets(io) {
       const firstGame = room.selectedGames[0];
       const firstGameId = typeof firstGame === 'object' ? firstGame.gameId : firstGame;
       const gameConfig = typeof firstGame === 'object' ? (firstGame.config || {}) : {};
+
+      console.log(`[START GAME] Room ${data.roomId} - selectedGames:`, JSON.stringify(room.selectedGames));
+      console.log(`[START GAME] firstGame:`, JSON.stringify(firstGame));
+      console.log(`[START GAME] gameConfig:`, JSON.stringify(gameConfig));
 
       // Determine game type from the FIRST selected game
       // Game ID 1 = Trivia Master, Game ID 2 = Drawing Battle (Pictionary), Game ID 5 = Quick Math
@@ -3896,7 +3904,9 @@ function setupSockets(io) {
       io.to(sender.socketId).emit('yourWord', { word: data.word });
 
       // Start the game timer now (use config or default)
+      console.log(`[SELECT WORD] room.game.config:`, JSON.stringify(room.game.config));
       const drawerTimeMs = (room.game.config?.drawerTime || PICTIONARY_DEFAULT_DRAWER_TIME) * 1000;
+      console.log(`[SELECT WORD] Using drawer time: ${drawerTimeMs}ms (${drawerTimeMs/1000}s)`);
       const endTime = Date.now() + drawerTimeMs;
       room.game.timerEndTime = endTime;
       room.game.timerRemainingMs = null;
