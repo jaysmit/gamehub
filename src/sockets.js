@@ -3087,7 +3087,22 @@ function setupSockets(io) {
       rooms.set(roomId, room);
       masterRooms.set(data.playerName, roomId);
       socket.join(roomId);
-      socket.emit('roomCreated', { ...room, rejoinToken }); // Include rejoin token in response
+      // Create clean serializable copy to avoid circular reference issues
+      const roomData = {
+        roomId: room.roomId,
+        master: room.master,
+        players: room.players.map(p => ({
+          name: p.name,
+          avatar: p.avatar,
+          score: p.score || 0,
+          isMaster: p.isMaster,
+          connected: p.connected !== false
+        })),
+        selectedGames: room.selectedGames || [],
+        theme: room.theme,
+        rejoinToken
+      };
+      socket.emit('roomCreated', roomData);
       console.log(`Room ${roomId} created by ${data.playerName}`);
 
       // Start avatar selection timer if master starts with meta avatar
@@ -3159,7 +3174,22 @@ function setupSockets(io) {
       socket.join(data.roomId);
 
       // Tell the joining player the full room state (include their rejoin token)
-      socket.emit('roomJoined', { ...room, rejoinToken });
+      // Create clean serializable copy to avoid circular reference issues
+      const roomData = {
+        roomId: room.roomId,
+        master: room.master,
+        players: room.players.map(p => ({
+          name: p.name,
+          avatar: p.avatar,
+          score: p.score || 0,
+          isMaster: p.isMaster,
+          connected: p.connected !== false
+        })),
+        selectedGames: room.selectedGames || [],
+        theme: room.theme,
+        rejoinToken
+      };
+      socket.emit('roomJoined', roomData);
       // Tell everyone else a new player joined
       socket.to(data.roomId).emit('playerJoined', { roomId: data.roomId, player: data.playerName, avatar });
       console.log(`${data.playerName} joined room ${data.roomId}`);
@@ -3264,7 +3294,26 @@ function setupSockets(io) {
       socket.join(roomId);
 
       // Send full room state back to the rejoining player (include gameHistory)
-      socket.emit('rejoinSuccess', { ...room, gameHistory: room.gameHistory || [] });
+      // Create a clean serializable copy to avoid circular reference issues
+      const roomData = {
+        roomId: roomId,
+        master: room.master,
+        players: room.players.map(p => ({
+          name: p.name,
+          avatar: p.avatar,
+          score: p.score || 0,
+          connected: p.connected !== false
+        })),
+        selectedGames: room.selectedGames || [],
+        gameHistory: room.gameHistory || [],
+        theme: room.theme,
+        // Include basic game info if active (detailed sync sent separately)
+        game: room.game ? {
+          gameType: room.game.gameType,
+          phase: room.game.phase
+        } : null
+      };
+      socket.emit('rejoinSuccess', roomData);
 
       // If there's an active game, send game sync data based on game type
       if (room.game) {
