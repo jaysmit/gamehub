@@ -3269,6 +3269,7 @@ function setupSockets(io) {
             name: expelled.playerData.name,
             avatar: expelled.playerData.avatar,
             score: expelled.playerData.score || 0,
+            isMaster: expelled.playerData.isMaster || false,
             socketId: socket.id,
             connected: true,
             rejoinToken: expelled.playerData.rejoinToken
@@ -5150,6 +5151,7 @@ function setupSockets(io) {
                 name: playerToExpel.name,
                 avatar: playerToExpel.avatar,
                 score: playerToExpel.score || 0,
+                isMaster: playerToExpel.isMaster || false,
                 rejoinToken: playerToExpel.rejoinToken
               },
               roomId,

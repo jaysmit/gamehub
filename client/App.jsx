@@ -224,6 +224,13 @@ function App() {
         }
 
         const onRejoinSuccess = (room) => {
+            console.log(`[REJOIN CLIENT] Received rejoinSuccess:`, {
+                id: room.id,
+                master: room.master,
+                players: room.players?.map(p => ({ name: p.name, isMaster: p.isMaster })),
+                gameType: room.game?.gameType,
+                sessionPlayerName: session.playerName
+            });
             setCurrentRoom(room);
             setSelectedGames(normalizeSelectedGames(room.selectedGames));
             if (room.gameHistory) setGameHistory(room.gameHistory);
@@ -238,7 +245,7 @@ function App() {
             setIsMaster(isActuallyMaster);
             const targetPage = session.page === 'game' ? 'game' : 'room';
             setPage(targetPage);
-            console.log(`Rejoined room ${room.id} as ${session.playerName}, isMaster: ${isActuallyMaster}, gameType: ${room.game?.gameType}`);
+            console.log(`[REJOIN CLIENT] Final state - isMaster: ${isActuallyMaster}, page: ${targetPage}`);
         };
 
         const onRejoinFailed = (data) => {
