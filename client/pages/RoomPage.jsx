@@ -248,8 +248,13 @@ function RoomPage({
                                     return (
                                         <div key={player.name} className="flex flex-col items-center gap-1">
                                         <div
-                                            className={`player-avatar relative flex flex-col items-center transition-all ${!isMeta ? 'cursor-pointer' : ''}`}
+                                            className={`player-avatar relative flex flex-col items-center transition-all ${!isMeta || isOwnAvatar ? 'cursor-pointer' : ''}`}
                                             onClick={() => {
+                                                // Own meta avatar - open avatar picker
+                                                if (isOwnAvatar && isMeta) {
+                                                    setAvatarPickerMode('change');
+                                                    return;
+                                                }
                                                 if (isMeta) return;
                                                 // Always show player profile when clicking avatar
                                                 setPlayerProfileModal({ ...player, character });
@@ -321,9 +326,9 @@ function RoomPage({
 
                                             {/* Character Card */}
                                             <div
-                                                className={`w-28 h-32 md:w-28 md:h-32 lg:w-32 lg:h-36 landscape:w-24 landscape:h-28 rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center overflow-visible ${
+                                                className={`w-28 h-32 md:w-28 md:h-32 lg:w-32 lg:h-36 landscape:w-24 landscape:h-28 rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center overflow-visible transition-all ${
                                                     isMeta
-                                                        ? 'bg-green-500/10 border border-green-500/30'
+                                                        ? `bg-green-500/10 border border-green-500/30 ${isOwnAvatar ? 'hover:bg-green-500/20 hover:border-green-400/50 hover:scale-105' : ''}`
                                                         : theme === 'tron'
                                                             ? 'bg-cyan-500/20'
                                                             : theme === 'kids'
@@ -349,7 +354,9 @@ function RoomPage({
                                             {/* "Selecting..." label for meta - between avatar and name */}
                                             {isMeta && (
                                                 <div className="text-center mt-0.5">
-                                                    <span className="text-[0.55rem] text-green-400 font-mono" style={{ animation: 'softPulse 2s ease-in-out infinite' }}>Selecting...</span>
+                                                    <span className="text-[0.55rem] text-green-400 font-mono" style={{ animation: 'softPulse 2s ease-in-out infinite' }}>
+                                                        {isOwnAvatar ? 'Tap to choose' : 'Selecting...'}
+                                                    </span>
                                                 </div>
                                             )}
 
