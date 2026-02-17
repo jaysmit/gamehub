@@ -229,12 +229,16 @@ function App() {
             if (room.gameHistory) setGameHistory(room.gameHistory);
             setRoomDifficulty(room.difficulty || 'medium');
             setPlayerDifficulties(room.playerDifficulties || {});
+            // Set game type if there's an active game
+            if (room.game?.gameType) {
+                setGameType(room.game.gameType);
+            }
             // Verify isMaster from actual room data, not just session
             const isActuallyMaster = room.master === session.playerName;
             setIsMaster(isActuallyMaster);
             const targetPage = session.page === 'game' ? 'game' : 'room';
             setPage(targetPage);
-            console.log(`Rejoined room ${room.id} as ${session.playerName}, isMaster: ${isActuallyMaster}`);
+            console.log(`Rejoined room ${room.id} as ${session.playerName}, isMaster: ${isActuallyMaster}, gameType: ${room.game?.gameType}`);
         };
 
         const onRejoinFailed = (data) => {
@@ -1159,12 +1163,16 @@ function App() {
             if (room.gameHistory) setGameHistory(room.gameHistory);
             setRoomDifficulty(room.difficulty || 'medium');
             setPlayerDifficulties(room.playerDifficulties || {});
+            // Set game type if there's an active game
+            if (room.game?.gameType) {
+                setGameType(room.game.gameType);
+            }
             // Verify isMaster from actual room data
             const isActuallyMaster = room.master === session.playerName;
             setIsMaster(isActuallyMaster);
             const targetPage = session.page === 'game' ? 'game' : 'room';
             setPage(targetPage);
-            console.log(`Rejoined from landing: ${session.playerName}, isMaster: ${isActuallyMaster}`);
+            console.log(`Rejoined from landing: ${session.playerName}, isMaster: ${isActuallyMaster}, gameType: ${room.game?.gameType}`);
         });
 
         socket.once('rejoinFailed', (data) => {
