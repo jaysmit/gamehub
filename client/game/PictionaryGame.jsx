@@ -50,6 +50,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     const [wordOptions, setWordOptions] = useState([]);
     const [showWordPicker, setShowWordPicker] = useState(false);
     const [wordSelected, setWordSelected] = useState(false);
+    const [wordFlash, setWordFlash] = useState(false);
 
     // Keep roomIdRef in sync so timer callbacks never have stale closure
     useEffect(() => { roomIdRef.current = currentRoom?.id; }, [currentRoom?.id]);
@@ -156,6 +157,9 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             setCurrentWord(word);
             setWordSelected(true);
             setShowWordPicker(false);
+            // Trigger word flash animation (2 flashes)
+            setWordFlash(true);
+            setTimeout(() => setWordFlash(false), 1000);
             if (autoSelected) {
                 // Word was auto-selected because drawer didn't pick in time
                 console.log('Word auto-selected:', word);
@@ -658,7 +662,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                 {isDrawer && currentWord && (
                     <div className={`${theme === 'tron' ? 'bg-gradient-to-r from-cyan-500/30 via-cyan-400/40 to-cyan-500/30 border border-cyan-400' : theme === 'kids' ? 'bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400' : 'bg-gradient-to-r from-orange-700/50 via-orange-600/60 to-orange-700/50 border border-orange-500'} rounded-lg px-4 py-1 mb-1 flex items-center justify-center gap-2`}>
                         <span className={`text-[0.6rem] ${theme === 'tron' ? 'text-cyan-300' : theme === 'kids' ? 'text-white/80' : 'text-orange-300'} uppercase tracking-wider`}>Draw:</span>
-                        <span className={`text-base md:text-lg font-black ${theme === 'tron' ? 'text-cyan-400 tron-text-glow' : theme === 'kids' ? 'text-white' : 'text-orange-400'} tracking-wide animate-pulse`}>
+                        <span className={`text-base md:text-lg font-black tracking-wide ${wordFlash ? 'animate-word-flash text-red-500' : (theme === 'tron' ? 'text-cyan-400 tron-text-glow' : theme === 'kids' ? 'text-white' : 'text-orange-400')}`}>
                             {currentWord}
                         </span>
                     </div>
@@ -758,6 +762,18 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <div className="bg-red-600/80 text-white rounded-full w-16 h-16 flex items-center justify-center font-black text-2xl animate-pulse shadow-lg shadow-red-500/50">
                                             {countdown}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Timer overlay on canvas */}
+                                {countdown <= 0 && serverTimerStarted && (
+                                    <div className="absolute top-2 right-2 pointer-events-none">
+                                        <div className={`${gameTimer <= 10 ? 'bg-red-500/90 shadow-red-500/50' : 'bg-black/70'} text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg ${gameTimer <= 10 ? 'animate-pulse' : ''}`}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <circle cx="12" cy="12" r="10"></circle>
+                                                <polyline points="12 6 12 12 16 14"></polyline>
+                                            </svg>
+                                            <span className="text-xl font-black">{gameTimer}s</span>
                                         </div>
                                     </div>
                                 )}
