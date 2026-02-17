@@ -143,7 +143,6 @@ function GameSettingsModal({
                                                     ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                                                     : 'bg-gray-800 text-orange-400 border border-orange-700/50 hover:bg-orange-900/30')
                                     } ${isAllSelected ? 'opacity-50' : ''}`}
-                                    disabled={isAllSelected}
                                 >
                                     <span className="flex items-center gap-2">
                                         <span className="text-xl">{themeData.icon}</span>
