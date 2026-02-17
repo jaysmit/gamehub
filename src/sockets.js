@@ -278,6 +278,7 @@ const TRIVIA_REVEAL_DURATION = 3000;  // 3 seconds to show correct answer
 const TRIVIA_SPEED_REVEAL_DURATION = 1500;  // 1.5 seconds reveal in speed round (faster)
 const TRIVIA_BASE_POINTS = 100;
 const TRIVIA_TIME_BONUS_MAX = 50;
+const TRIVIA_GRACE_PERIOD = 2000;  // 2 seconds of max points before depletion starts
 const TRIVIA_SPEED_MULTIPLIER = 2;
 const TRIVIA_SPEED_FIXED_POINTS = 200;  // Fixed points per correct answer in speed round
 
@@ -292,6 +293,7 @@ const MATH_SPEED_CORRECT_DELAY = 1000;  // 1 second delay after correct answer
 const MATH_REVEAL_DURATION = 3000;  // 3 seconds to show correct answer
 const MATH_BASE_POINTS = 100;
 const MATH_TIME_BONUS_MAX = 50;
+const MATH_GRACE_PERIOD = 2000;  // 2 seconds of max points before depletion starts
 const MATH_SPEED_MULTIPLIER = 2;
 const MATH_SPEED_FIXED_POINTS = 200;  // Fixed points per correct answer in speed round
 
@@ -1087,9 +1089,16 @@ function calculateTriviaPoints(answerTimestamp, questionStartTime, questionDurat
   const timeTaken = answerTimestamp - questionStartTime;
   const maxTime = questionDuration;
 
-  // Time bonus: faster answers get more bonus points
-  const timeRatio = Math.max(0, 1 - (timeTaken / maxTime));
-  const timeBonus = Math.floor(timeRatio * TRIVIA_TIME_BONUS_MAX);
+  // Time bonus: max points during grace period, then depletes to 0
+  let timeBonus;
+  if (timeTaken <= TRIVIA_GRACE_PERIOD) {
+    timeBonus = TRIVIA_TIME_BONUS_MAX;  // Full bonus during grace period
+  } else {
+    const depletionTime = maxTime - TRIVIA_GRACE_PERIOD;
+    const timeIntoDepletion = timeTaken - TRIVIA_GRACE_PERIOD;
+    const timeRatio = Math.max(0, 1 - (timeIntoDepletion / depletionTime));
+    timeBonus = Math.floor(timeRatio * TRIVIA_TIME_BONUS_MAX);
+  }
 
   const basePoints = TRIVIA_BASE_POINTS + timeBonus;
   return isSpeedRound ? basePoints * TRIVIA_SPEED_MULTIPLIER : basePoints;
@@ -2090,8 +2099,18 @@ function generateSpeedRoundOptions(correctAnswer) {
 function calculateMathPoints(answerTimestamp, questionStartTime, questionDuration, isSpeedRound) {
   const timeTaken = answerTimestamp - questionStartTime;
   const maxTime = questionDuration;
-  const timeRatio = Math.max(0, 1 - (timeTaken / maxTime));
-  const timeBonus = Math.floor(timeRatio * MATH_TIME_BONUS_MAX);
+
+  // Time bonus: max points during grace period, then depletes to 0
+  let timeBonus;
+  if (timeTaken <= MATH_GRACE_PERIOD) {
+    timeBonus = MATH_TIME_BONUS_MAX;  // Full bonus during grace period
+  } else {
+    const depletionTime = maxTime - MATH_GRACE_PERIOD;
+    const timeIntoDepletion = timeTaken - MATH_GRACE_PERIOD;
+    const timeRatio = Math.max(0, 1 - (timeIntoDepletion / depletionTime));
+    timeBonus = Math.floor(timeRatio * MATH_TIME_BONUS_MAX);
+  }
+
   const basePoints = MATH_BASE_POINTS + timeBonus;
   return isSpeedRound ? basePoints * MATH_SPEED_MULTIPLIER : basePoints;
 }
