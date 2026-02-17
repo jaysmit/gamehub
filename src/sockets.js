@@ -3271,93 +3271,101 @@ function setupSockets(io) {
         const game = room.game;
 
         if (game.gameType === 'trivia') {
-          // Send Trivia-specific sync data
-          const hasAnswered = game.answers && game.answers[playerName] !== undefined;
-          const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
+          try {
+            // Send Trivia-specific sync data
+            const hasAnswered = game.answers && game.answers[playerName] !== undefined;
+            const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
 
-          const triviaSync = {
-            gameType: 'trivia',
-            phase: game.phase,
-            currentRound: game.currentRound,
-            totalRounds: game.totalRounds,
-            isSpeedRound: game.isSpeedRound,
-            questionNumber: game.currentQuestionIndex + 1,
-            totalQuestions: game.isSpeedRound ? '∞' : (game.roundQuestions ? game.roundQuestions.length : 0),
-            hasAnswered,
-            answeredPlayers,
-            standings: room.players
-              .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
-              .sort((a, b) => b.score - a.score)
-          };
-
-          // Include question data if in question phase
-          if (game.phase === 'question' && game.currentQuestion) {
-            triviaSync.question = game.currentQuestion.question;
-            triviaSync.category = game.currentQuestion.category;
-            triviaSync.answers = game.currentQuestion.shuffledAnswers;
-            triviaSync.questionEndTime = game.questionEndTime;
-          }
-
-          // Include recap data if in recap phase
-          if (game.phase === 'recap') {
-            const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound[game.currentRound - 1];
-            const roundStartIndex = game.questionHistory.length - questionsInRound;
-            const roundHistory = game.questionHistory.slice(roundStartIndex);
-            triviaSync.recapData = {
-              questionHistory: roundHistory,
-              isLastRound: game.currentRound >= game.totalRounds
+            const triviaSync = {
+              gameType: 'trivia',
+              phase: game.phase || 'unknown',
+              currentRound: game.currentRound || 1,
+              totalRounds: game.totalRounds || 1,
+              isSpeedRound: game.isSpeedRound || false,
+              questionNumber: (game.currentQuestionIndex || 0) + 1,
+              totalQuestions: game.isSpeedRound ? '∞' : (game.roundQuestions ? game.roundQuestions.length : 0),
+              hasAnswered,
+              answeredPlayers,
+              standings: room.players
+                .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+                .sort((a, b) => b.score - a.score)
             };
-          }
 
-          socket.emit('triviaSync', triviaSync);
-          console.log(`[REJOIN] Sent triviaSync for ${playerName}, phase: ${game.phase}`);
+            // Include question data if in question phase
+            if (game.phase === 'question' && game.currentQuestion) {
+              triviaSync.question = game.currentQuestion.question;
+              triviaSync.category = game.currentQuestion.category;
+              triviaSync.answers = game.currentQuestion.shuffledAnswers;
+              triviaSync.questionEndTime = game.questionEndTime;
+            }
+
+            // Include recap data if in recap phase
+            if (game.phase === 'recap' && game.questionHistory) {
+              const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound?.[game.currentRound - 1] || 0;
+              const roundStartIndex = Math.max(0, game.questionHistory.length - questionsInRound);
+              const roundHistory = game.questionHistory.slice(roundStartIndex);
+              triviaSync.recapData = {
+                questionHistory: roundHistory,
+                isLastRound: game.currentRound >= game.totalRounds
+              };
+            }
+
+            socket.emit('triviaSync', triviaSync);
+            console.log(`[REJOIN] Sent triviaSync for ${playerName}, phase: ${game.phase}`);
+          } catch (err) {
+            console.error(`[REJOIN] Error sending triviaSync for ${playerName}:`, err);
+          }
 
         } else if (game.gameType === 'quickmath') {
-          // Send Quick Math-specific sync data
-          const hasAnswered = game.answers && game.answers[playerName] !== undefined;
-          const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
+          try {
+            // Send Quick Math-specific sync data
+            const hasAnswered = game.answers && game.answers[playerName] !== undefined;
+            const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
 
-          const mathSync = {
-            gameType: 'quickmath',
-            phase: game.phase,
-            currentRound: game.currentRound,
-            totalRounds: game.totalRounds,
-            isSpeedRound: game.isSpeedRound,
-            questionNumber: game.currentQuestionIndex + 1,
-            totalQuestions: game.isSpeedRound ? '∞' : (game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || 0),
-            hasAnswered,
-            answeredPlayers,
-            standings: room.players
-              .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
-              .sort((a, b) => b.score - a.score)
-          };
-
-          // Include question data if in question phase
-          if (game.phase === 'question') {
-            const playerDifficulty = getPlayerDifficulty(playerName, room);
-            const groupIndex = game.difficultyGroups?.findIndex(g => g.difficulty === playerDifficulty);
-            const currentGroupQuestion = game.currentQuestionsByGroup?.[groupIndex];
-
-            if (currentGroupQuestion) {
-              mathSync.question = currentGroupQuestion.question;
-              mathSync.category = currentGroupQuestion.category;
-              mathSync.questionEndTime = game.questionEndTime;
-            }
-          }
-
-          // Include recap data if in recap phase
-          if (game.phase === 'recap') {
-            const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound[game.currentRound - 1];
-            const roundStartIndex = game.questionHistory.length - questionsInRound;
-            const roundHistory = game.questionHistory.slice(roundStartIndex);
-            mathSync.recapData = {
-              questionHistory: roundHistory,
-              isLastRound: game.currentRound >= game.totalRounds
+            const mathSync = {
+              gameType: 'quickmath',
+              phase: game.phase || 'unknown',
+              currentRound: game.currentRound || 1,
+              totalRounds: game.totalRounds || 1,
+              isSpeedRound: game.isSpeedRound || false,
+              questionNumber: (game.currentQuestionIndex || 0) + 1,
+              totalQuestions: game.isSpeedRound ? '∞' : (game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || 0),
+              hasAnswered,
+              answeredPlayers,
+              standings: room.players
+                .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+                .sort((a, b) => b.score - a.score)
             };
-          }
 
-          socket.emit('mathSync', mathSync);
-          console.log(`[REJOIN] Sent mathSync for ${playerName}, phase: ${game.phase}`);
+            // Include question data if in question phase
+            if (game.phase === 'question') {
+              const playerDifficulty = getPlayerDifficulty(playerName, room);
+              const groupIndex = game.difficultyGroups?.findIndex(g => g.difficulty === playerDifficulty);
+              const currentGroupQuestion = game.currentQuestionsByGroup?.[groupIndex];
+
+              if (currentGroupQuestion) {
+                mathSync.question = currentGroupQuestion.question;
+                mathSync.category = currentGroupQuestion.category;
+                mathSync.questionEndTime = game.questionEndTime;
+              }
+            }
+
+            // Include recap data if in recap phase
+            if (game.phase === 'recap' && game.questionHistory) {
+              const questionsInRound = game.roundQuestionsByGroup?.[0]?.length || game.roundQuestions?.length || game.questionsPerRound?.[game.currentRound - 1] || 0;
+              const roundStartIndex = Math.max(0, game.questionHistory.length - questionsInRound);
+              const roundHistory = game.questionHistory.slice(roundStartIndex);
+              mathSync.recapData = {
+                questionHistory: roundHistory,
+                isLastRound: game.currentRound >= game.totalRounds
+              };
+            }
+
+            socket.emit('mathSync', mathSync);
+            console.log(`[REJOIN] Sent mathSync for ${playerName}, phase: ${game.phase}`);
+          } catch (err) {
+            console.error(`[REJOIN] Error sending mathSync for ${playerName}:`, err);
+          }
 
         } else {
           // Pictionary game sync (existing logic)
@@ -4374,72 +4382,81 @@ function setupSockets(io) {
 
     // --- Trivia: Submit Answer ---
     socket.on('triviaAnswer', (data) => {
-      const room = rooms.get(data.roomId);
-      if (!room || !room.game || room.game.gameType !== 'trivia') return;
+      try {
+        const room = rooms.get(data.roomId);
+        if (!room || !room.game || room.game.gameType !== 'trivia') return;
 
-      const game = room.game;
-      const sender = room.players.find(p => p.socketId === socket.id);
-      if (!sender) return;
+        const game = room.game;
+        const sender = room.players.find(p => p.socketId === socket.id);
+        if (!sender) return;
 
-      // Handle speed round answers differently
-      if (game.isSpeedRound && game.phase === 'speedRound') {
-        handleSpeedRoundAnswer(io, room, data.roomId, sender, data.answerIndex);
-        return;
-      }
-
-      // Normal trivia answer handling
-      if (game.phase !== 'question') return;
-
-      // Don't allow duplicate answers
-      if (game.answers[sender.name]) return;
-
-      // For group turns, verify sender is in active group
-      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
-        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
-        if (!currentGroup || !currentGroup.playerNames.includes(sender.name)) {
-          // Player is not in active group, ignore answer
-          console.log(`[TRIVIA] Ignoring answer from ${sender.name} - not in active group ${currentGroup?.difficulty}`);
+        // Handle speed round answers differently
+        if (game.isSpeedRound && game.phase === 'speedRound') {
+          handleSpeedRoundAnswer(io, room, data.roomId, sender, data.answerIndex);
           return;
         }
-      }
 
-      // Record answer with timestamp
-      game.answers[sender.name] = {
-        answerIndex: data.answerIndex,
-        timestamp: Date.now()
-      };
+        // Normal trivia answer handling
+        if (game.phase !== 'question') return;
 
-      // Notify all players that this player answered
-      io.to(data.roomId).emit('triviaAnswerReceived', {
-        playerName: sender.name
-      });
+        // Initialize answers object if missing
+        if (!game.answers) game.answers = {};
 
-      // For group turns, check if all players in current group have answered
-      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
-        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
-        const groupPlayerNames = currentGroup.playerNames;
-        const groupAnsweredCount = groupPlayerNames.filter(name => game.answers[name]).length;
+        // Don't allow duplicate answers
+        if (game.answers[sender.name]) return;
 
-        console.log(`[TRIVIA] Group ${currentGroup.difficulty}: ${groupAnsweredCount}/${groupPlayerNames.length} answered`);
-
-        if (groupAnsweredCount >= groupPlayerNames.length) {
-          // All players in current group answered, advance to next group
-          advanceToNextGroup(io, room, data.roomId);
+        // For group turns, verify sender is in active group
+        if (game.difficultyGroups && game.difficultyGroups.length > 0 && game.currentGroupIndex !== undefined) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          if (!currentGroup || !currentGroup.playerNames || !currentGroup.playerNames.includes(sender.name)) {
+            // Player is not in active group, ignore answer
+            console.log(`[TRIVIA] Ignoring answer from ${sender.name} - not in active group ${currentGroup?.difficulty}`);
+            return;
+          }
         }
-        return;
-      }
 
-      // Legacy behavior: check if all connected players have answered
-      const connectedPlayers = room.players.filter(p => p.connected !== false);
-      const answeredCount = Object.keys(game.answers).length;
+        // Record answer with timestamp
+        game.answers[sender.name] = {
+          answerIndex: data.answerIndex,
+          timestamp: Date.now()
+        };
 
-      if (answeredCount >= connectedPlayers.length) {
-        // All players answered, reveal immediately
-        if (game.questionTimer) {
-          clearTimeout(game.questionTimer);
-          game.questionTimer = null;
+        // Notify all players that this player answered
+        io.to(data.roomId).emit('triviaAnswerReceived', {
+          playerName: sender.name
+        });
+
+        // For group turns, check if all players in current group have answered
+        if (game.difficultyGroups && game.difficultyGroups.length > 0 && game.currentGroupIndex !== undefined) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          if (currentGroup && currentGroup.playerNames) {
+            const groupPlayerNames = currentGroup.playerNames;
+            const groupAnsweredCount = groupPlayerNames.filter(name => game.answers[name]).length;
+
+            console.log(`[TRIVIA] Group ${currentGroup.difficulty}: ${groupAnsweredCount}/${groupPlayerNames.length} answered`);
+
+            if (groupAnsweredCount >= groupPlayerNames.length) {
+              // All players in current group answered, advance to next group
+              advanceToNextGroup(io, room, data.roomId);
+            }
+          }
+          return;
         }
-        revealTriviaAnswer(io, room, data.roomId);
+
+        // Legacy behavior: check if all connected players have answered
+        const connectedPlayers = room.players.filter(p => p.connected !== false);
+        const answeredCount = Object.keys(game.answers).length;
+
+        if (answeredCount >= connectedPlayers.length) {
+          // All players answered, reveal immediately
+          if (game.questionTimer) {
+            clearTimeout(game.questionTimer);
+            game.questionTimer = null;
+          }
+          revealTriviaAnswer(io, room, data.roomId);
+        }
+      } catch (err) {
+        console.error('[TRIVIA] Error handling triviaAnswer:', err);
       }
     });
 
@@ -4671,72 +4688,81 @@ function setupSockets(io) {
 
     // --- Quick Math: Submit Answer ---
     socket.on('mathAnswer', (data) => {
-      const room = rooms.get(data.roomId);
-      if (!room || !room.game || room.game.gameType !== 'quickmath') return;
+      try {
+        const room = rooms.get(data.roomId);
+        if (!room || !room.game || room.game.gameType !== 'quickmath') return;
 
-      const game = room.game;
-      const sender = room.players.find(p => p.socketId === socket.id);
-      if (!sender) return;
+        const game = room.game;
+        const sender = room.players.find(p => p.socketId === socket.id);
+        if (!sender) return;
 
-      // Handle speed round answers differently
-      if (game.isSpeedRound && game.phase === 'speedRound') {
-        handleMathSpeedRoundAnswer(io, room, data.roomId, sender, data.answerIndex);
-        return;
-      }
-
-      // Normal math answer handling
-      if (game.phase !== 'question') return;
-
-      // Don't allow duplicate answers
-      if (game.answers[sender.name]) return;
-
-      // For group turns, verify sender is in active group
-      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
-        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
-        if (!currentGroup || !currentGroup.playerNames.includes(sender.name)) {
-          // Player is not in active group, ignore answer
-          console.log(`[MATH] Ignoring answer from ${sender.name} - not in active group ${currentGroup?.difficulty}`);
+        // Handle speed round answers differently
+        if (game.isSpeedRound && game.phase === 'speedRound') {
+          handleMathSpeedRoundAnswer(io, room, data.roomId, sender, data.answerIndex);
           return;
         }
-      }
 
-      // Record answer with timestamp (answer is a number, not an index)
-      game.answers[sender.name] = {
-        answer: data.answer,
-        timestamp: Date.now()
-      };
+        // Normal math answer handling
+        if (game.phase !== 'question') return;
 
-      // Notify all players that this player answered
-      io.to(data.roomId).emit('mathAnswerReceived', {
-        playerName: sender.name
-      });
+        // Initialize answers object if missing
+        if (!game.answers) game.answers = {};
 
-      // For group turns, check if all players in current group have answered
-      if (game.difficultyGroups && game.difficultyGroups.length > 0) {
-        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
-        const groupPlayerNames = currentGroup.playerNames;
-        const groupAnsweredCount = groupPlayerNames.filter(name => game.answers[name]).length;
+        // Don't allow duplicate answers
+        if (game.answers[sender.name]) return;
 
-        console.log(`[MATH] Group ${currentGroup.difficulty}: ${groupAnsweredCount}/${groupPlayerNames.length} answered`);
-
-        if (groupAnsweredCount >= groupPlayerNames.length) {
-          // All players in current group answered, advance to next group
-          advanceToNextMathGroup(io, room, data.roomId);
+        // For group turns, verify sender is in active group
+        if (game.difficultyGroups && game.difficultyGroups.length > 0 && game.currentGroupIndex !== undefined) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          if (!currentGroup || !currentGroup.playerNames || !currentGroup.playerNames.includes(sender.name)) {
+            // Player is not in active group, ignore answer
+            console.log(`[MATH] Ignoring answer from ${sender.name} - not in active group ${currentGroup?.difficulty}`);
+            return;
+          }
         }
-        return;
-      }
 
-      // Legacy behavior: check if all connected players have answered
-      const connectedPlayers = room.players.filter(p => p.connected !== false);
-      const answeredCount = Object.keys(game.answers).length;
+        // Record answer with timestamp (answer is a number, not an index)
+        game.answers[sender.name] = {
+          answer: data.answer,
+          timestamp: Date.now()
+        };
 
-      if (answeredCount >= connectedPlayers.length) {
-        // All players answered, reveal immediately
-        if (game.questionTimer) {
-          clearTimeout(game.questionTimer);
-          game.questionTimer = null;
+        // Notify all players that this player answered
+        io.to(data.roomId).emit('mathAnswerReceived', {
+          playerName: sender.name
+        });
+
+        // For group turns, check if all players in current group have answered
+        if (game.difficultyGroups && game.difficultyGroups.length > 0 && game.currentGroupIndex !== undefined) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          if (currentGroup && currentGroup.playerNames) {
+            const groupPlayerNames = currentGroup.playerNames;
+            const groupAnsweredCount = groupPlayerNames.filter(name => game.answers[name]).length;
+
+            console.log(`[MATH] Group ${currentGroup.difficulty}: ${groupAnsweredCount}/${groupPlayerNames.length} answered`);
+
+            if (groupAnsweredCount >= groupPlayerNames.length) {
+              // All players in current group answered, advance to next group
+              advanceToNextMathGroup(io, room, data.roomId);
+            }
+          }
+          return;
         }
-        revealMathAnswer(io, room, data.roomId);
+
+        // Legacy behavior: check if all connected players have answered
+        const connectedPlayers = room.players.filter(p => p.connected !== false);
+        const answeredCount = Object.keys(game.answers).length;
+
+        if (answeredCount >= connectedPlayers.length) {
+          // All players answered, reveal immediately
+          if (game.questionTimer) {
+            clearTimeout(game.questionTimer);
+            game.questionTimer = null;
+          }
+          revealMathAnswer(io, room, data.roomId);
+        }
+      } catch (err) {
+        console.error('[MATH] Error handling mathAnswer:', err);
       }
     });
 
