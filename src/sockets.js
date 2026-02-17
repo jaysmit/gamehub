@@ -697,6 +697,10 @@ const PICTIONARY_WORDS = PICTIONARY_WORDS_BY_DIFFICULTY['medium'];
 // Key: "roomId:playerName", Value: { timer }
 const disconnectedPlayers = new Map();
 
+// Track expelled players who can still rejoin (after grace period but within extended window)
+// Key: "roomId:playerName", Value: { playerData, rejoinToken, timer, expiredAt }
+const expelledPlayers = new Map();
+
 // Track players who haven't selected an avatar yet
 // Key: "roomId:playerName", Value: { timer }
 const avatarSelectionTimers = new Map();
@@ -705,8 +709,9 @@ const avatarSelectionTimers = new Map();
 // Key: masterName, Value: roomId
 const masterRooms = new Map();
 
-const GRACE_PERIOD_MS = 15000;
-const AVATAR_SELECTION_TIMEOUT_MS = 30000;
+const GRACE_PERIOD_MS = 180000; // 3 minutes before marking as expelled
+const EXPELLED_REJOIN_WINDOW_MS = 600000; // 10 minutes to rejoin after being expelled
+const AVATAR_SELECTION_TIMEOUT_MS = 120000; // 2 minutes to select avatar
 
 // --- Multi-round Pictionary helpers ---
 
@@ -2866,6 +2871,15 @@ function setupSockets(io) {
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id);
 
+    // --- Clock Synchronization ---
+    // Responds with server time to allow clients to calculate clock offset
+    socket.on('requestServerTime', (data) => {
+      socket.emit('serverTime', {
+        serverTime: Date.now(),
+        clientSendTime: data.clientSendTime
+      });
+    });
+
     // --- User Online Status Events ---
 
     // User comes online (authenticated)
@@ -2980,11 +2994,12 @@ function setupSockets(io) {
       }
 
       const roomId = uuidv4().substring(0, 6).toUpperCase();
+      const rejoinToken = uuidv4(); // Generate unique rejoin token for this player
       const room = {
         id: roomId,
         name: data.roomName,
         master: data.playerName,
-        players: [{ name: data.playerName, isMaster: true, avatar: data.avatar || 'meta', socketId: socket.id, connected: true, score: 0 }],
+        players: [{ name: data.playerName, isMaster: true, avatar: data.avatar || 'meta', socketId: socket.id, connected: true, score: 0, rejoinToken }],
         selectedGames: [],
         difficulty: DEFAULT_DIFFICULTY,
         playerDifficulties: {}  // Map of playerName -> difficultyId for individual overrides
@@ -2993,7 +3008,7 @@ function setupSockets(io) {
       rooms.set(roomId, room);
       masterRooms.set(data.playerName, roomId);
       socket.join(roomId);
-      socket.emit('roomCreated', room);
+      socket.emit('roomCreated', { ...room, rejoinToken }); // Include rejoin token in response
       console.log(`Room ${roomId} created by ${data.playerName}`);
 
       // Start avatar selection timer if master starts with meta avatar
@@ -3012,7 +3027,7 @@ function setupSockets(io) {
           io.to(socket.id).emit('removedForNoAvatar', { roomId });
           masterRooms.delete(data.playerName);
           rooms.delete(roomId);
-          console.log(`Master ${data.playerName} removed from room ${roomId} for not selecting an avatar in 30 seconds - room closed`);
+          console.log(`Master ${data.playerName} removed from room ${roomId} for not selecting an avatar in 2 minutes - room closed`);
         }, AVATAR_SELECTION_TIMEOUT_MS);
 
         avatarSelectionTimers.set(timerKey, { timer });
@@ -3060,11 +3075,12 @@ function setupSockets(io) {
       }
 
       const avatar = data.avatar || 'meta';
-      room.players.push({ name: data.playerName, isMaster: false, avatar, socketId: socket.id, connected: true, score: 0 });
+      const rejoinToken = uuidv4(); // Generate unique rejoin token for this player
+      room.players.push({ name: data.playerName, isMaster: false, avatar, socketId: socket.id, connected: true, score: 0, rejoinToken });
       socket.join(data.roomId);
 
-      // Tell the joining player the full room state
-      socket.emit('roomJoined', room);
+      // Tell the joining player the full room state (include their rejoin token)
+      socket.emit('roomJoined', { ...room, rejoinToken });
       // Tell everyone else a new player joined
       socket.to(data.roomId).emit('playerJoined', { roomId: data.roomId, player: data.playerName, avatar });
       console.log(`${data.playerName} joined room ${data.roomId}`);
@@ -3084,7 +3100,7 @@ function setupSockets(io) {
           currentRoom.players = currentRoom.players.filter(p => p.name !== data.playerName);
           io.to(player.socketId).emit('removedForNoAvatar', { roomId: data.roomId });
           io.to(data.roomId).emit('playerLeft', { roomId: data.roomId, playerName: data.playerName, reason: 'noAvatar' });
-          console.log(`${data.playerName} removed from room ${data.roomId} for not selecting an avatar in 30 seconds`);
+          console.log(`${data.playerName} removed from room ${data.roomId} for not selecting an avatar in 2 minutes`);
 
           // Clean up room if empty
           if (currentRoom.players.length === 0) {
@@ -3099,7 +3115,7 @@ function setupSockets(io) {
 
     // --- Rejoin Room (after page refresh) ---
     socket.on('rejoinRoom', (data) => {
-      const { roomId, playerName, avatar } = data;
+      const { roomId, playerName, avatar, rejoinToken } = data;
       const room = rooms.get(roomId);
 
       if (!room) {
@@ -3107,24 +3123,65 @@ function setupSockets(io) {
         return;
       }
 
-      const player = room.players.find(p => p.name === playerName);
+      let player = room.players.find(p => p.name === playerName);
+
+      // If player not found in room, check expelled players cache
       if (!player) {
-        socket.emit('rejoinFailed', { message: 'You are no longer in this room' });
-        return;
+        const expelledKey = `${roomId}:${playerName}`;
+        const expelled = expelledPlayers.get(expelledKey);
+
+        if (expelled && expelled.playerData) {
+          // Verify rejoin token if provided (optional extra security)
+          if (rejoinToken && expelled.playerData.rejoinToken && rejoinToken !== expelled.playerData.rejoinToken) {
+            socket.emit('rejoinFailed', { message: 'Invalid rejoin token' });
+            return;
+          }
+
+          // Check if name is now taken by someone else
+          const nameTaken = room.players.some(p => p.name.toLowerCase() === playerName.toLowerCase());
+          if (nameTaken) {
+            socket.emit('rejoinFailed', { message: 'Your name has been taken by another player' });
+            return;
+          }
+
+          // Restore player from expelled cache
+          player = {
+            name: expelled.playerData.name,
+            avatar: expelled.playerData.avatar,
+            score: expelled.playerData.score || 0,
+            socketId: socket.id,
+            connected: true,
+            rejoinToken: expelled.playerData.rejoinToken
+          };
+          room.players.push(player);
+
+          // Clear expelled timer and remove from cache
+          clearTimeout(expelled.timer);
+          expelledPlayers.delete(expelledKey);
+
+          console.log(`${playerName} restored from expelled cache to room ${roomId} with score ${player.score}`);
+
+          // Notify other players
+          io.to(roomId).emit('playerRejoined', { roomId, playerName, avatar: player.avatar, score: player.score });
+        } else {
+          socket.emit('rejoinFailed', { message: 'You are no longer in this room' });
+          return;
+        }
+      } else {
+        // Player still in room - cancel grace period timer if pending
+        const key = `${roomId}:${playerName}`;
+        const pending = disconnectedPlayers.get(key);
+        if (pending) {
+          clearTimeout(pending.timer);
+          disconnectedPlayers.delete(key);
+          console.log(`Grace period cancelled for ${playerName} in room ${roomId}`);
+        }
+
+        // Update player's socket and mark connected
+        player.socketId = socket.id;
+        player.connected = true;
       }
 
-      // Cancel grace period timer if pending
-      const key = `${roomId}:${playerName}`;
-      const pending = disconnectedPlayers.get(key);
-      if (pending) {
-        clearTimeout(pending.timer);
-        disconnectedPlayers.delete(key);
-        console.log(`Grace period cancelled for ${playerName} in room ${roomId}`);
-      }
-
-      // Update player's socket and mark connected
-      player.socketId = socket.id;
-      player.connected = true;
       socket.join(roomId);
 
       // Send full room state back to the rejoining player (include gameHistory)
@@ -4748,11 +4805,36 @@ function setupSockets(io) {
           const currentRoom = rooms.get(roomId);
           if (!currentRoom) return;
 
+          // Find player data before removing (for expelled players cache)
+          const playerToExpel = currentRoom.players.find(p => p.name === player.name);
+
           // Remove the player
           currentRoom.players = currentRoom.players.filter(p => p.name !== player.name);
           console.log(`Grace period expired — ${player.name} removed from room ${roomId}`);
 
-          // If room is empty, delete it
+          // Save to expelled players so they can rejoin within extended window
+          if (playerToExpel) {
+            const expelledKey = `${roomId}:${player.name}`;
+            const expelledTimer = setTimeout(() => {
+              expelledPlayers.delete(expelledKey);
+              console.log(`Expelled player ${player.name} rejoin window expired for room ${roomId}`);
+            }, EXPELLED_REJOIN_WINDOW_MS);
+
+            expelledPlayers.set(expelledKey, {
+              playerData: {
+                name: playerToExpel.name,
+                avatar: playerToExpel.avatar,
+                score: playerToExpel.score || 0,
+                rejoinToken: playerToExpel.rejoinToken
+              },
+              roomId,
+              timer: expelledTimer,
+              expelledAt: Date.now()
+            });
+            console.log(`${player.name} added to expelled players cache (${EXPELLED_REJOIN_WINDOW_MS / 60000} min to rejoin)`);
+          }
+
+          // If room is empty, delete it (but keep expelled player data)
           if (currentRoom.players.length === 0) {
             // Clean up masterRooms tracking
             if (masterRooms.get(currentRoom.master) === roomId) {

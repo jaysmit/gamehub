@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CharacterSVG } from '../icons/CharacterSVGs';
 import { Check } from '../icons/UIIcons';
-import { socket } from '../socket';
+import { socket, getServerTime } from '../socket';
 
 const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds }) => {
     const canvasRef = useRef(null);
@@ -114,7 +114,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     useEffect(() => {
         const onGameTimerStart = ({ endTime }) => {
             timerEndTimeRef.current = endTime;
-            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            const remaining = Math.ceil((endTime - getServerTime()) / 1000);
             setGameTimer(Math.max(0, remaining));
             setCountdown(0);
             setShowRulesModal(false);
@@ -355,7 +355,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             } else if (timerEndTime) {
                 // Game is running, sync with server timer
                 timerEndTimeRef.current = timerEndTime;
-                const remaining = Math.ceil((timerEndTime - Date.now()) / 1000);
+                const remaining = Math.ceil((timerEndTime - getServerTime()) / 1000);
                 setGameTimer(Math.max(0, remaining));
                 setServerTimerStarted(true);
                 setTimerPaused(false);
@@ -406,7 +406,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             const timer = setInterval(() => {
                 const endTime = timerEndTimeRef.current;
                 if (!endTime) return;
-                const remaining = Math.ceil((endTime - Date.now()) / 1000);
+                const remaining = Math.ceil((endTime - getServerTime()) / 1000);
                 const clamped = Math.max(0, remaining);
 
                 setGameTimer(prev => {

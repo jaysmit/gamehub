@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CharacterSVG } from '../icons/CharacterSVGs';
-import { socket } from '../socket';
+import { socket, getServerTime } from '../socket';
 import { MATH_CATEGORY_ICONS } from '../data/mathQuestions';
 import GameMasterControls from '../components/GameMasterControls';
 import WinnerCelebration from '../components/WinnerCelebration';
@@ -405,7 +405,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         const tick = () => {
             const endTime = rulesEndTimeRef.current;
             if (!endTime) return;
-            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            const remaining = Math.ceil((endTime - getServerTime()) / 1000);
             setRulesTimer(Math.max(0, remaining));
         };
 
@@ -421,7 +421,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         const tick = () => {
             const endTime = questionEndTimeRef.current;
             if (!endTime) return;
-            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            const remaining = Math.ceil((endTime - getServerTime()) / 1000);
             setTimer(Math.max(0, remaining));
         };
 
@@ -437,7 +437,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         const tick = () => {
             const endTime = speedRoundEndTimeRef.current;
             if (!endTime) return;
-            const remaining = Math.ceil((endTime - Date.now()) / 1000);
+            const remaining = Math.ceil((endTime - getServerTime()) / 1000);
             setSpeedRoundTimer(Math.max(0, remaining));
         };
 
@@ -1149,14 +1149,6 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                         <span className="text-xs font-bold">Q{questionNumber}/{totalQuestions}</span>
                     </div>
 
-                    <div className={`${timer <= 3 ? (theme === 'tron' ? 'bg-red-500/30 text-red-400 border border-red-500' : theme === 'kids' ? 'bg-red-500 text-white' : 'bg-red-700/40 text-red-400 border border-red-700') : (theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-400' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-orange-700/40 text-orange-400 border border-orange-700')} px-2 py-0.5 rounded-lg flex items-center gap-1 ${timer <= 3 ? 'animate-pulse' : ''}`}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        <span className="text-sm font-black">{timer}s</span>
-                    </div>
-
                     {/* Group turn indicator */}
                     {groupInfo && groupInfo.currentGroup && (
                         <div className={`${theme === 'tron' ? 'bg-green-500/20 border border-green-500/30 text-green-400' : theme === 'kids' ? 'bg-green-400 text-white' : 'bg-green-700/40 text-green-400 border border-green-700'} px-2 py-0.5 rounded-lg`}>
@@ -1168,6 +1160,17 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
 
             {/* Question Card */}
             <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-xl p-3 md:p-4 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-2 border-orange-700'} mb-2`}>
+                {/* Prominent Timer - directly above question */}
+                <div className="flex justify-center mb-3">
+                    <div className={`${timer <= 3 ? (theme === 'tron' ? 'bg-red-500/30 text-red-400 border-2 border-red-500' : theme === 'kids' ? 'bg-red-500 text-white' : 'bg-red-700/40 text-red-400 border-2 border-red-700') : (theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-500 text-cyan-400' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-orange-700/40 text-orange-400 border-2 border-orange-700')} px-5 py-1.5 rounded-xl flex items-center gap-2 ${timer <= 3 ? 'animate-pulse' : ''}`}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span className="text-2xl md:text-3xl font-black">{timer}s</span>
+                    </div>
+                </div>
+
                 {/* Category */}
                 <div className="text-center mb-1">
                     <span className={`inline-block ${theme === 'tron' ? 'bg-cyan-500/20 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 text-purple-700' : 'bg-orange-900/30 text-orange-400'} px-2 py-0.5 rounded-full text-xs font-semibold`}>

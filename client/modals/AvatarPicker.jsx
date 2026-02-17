@@ -60,7 +60,7 @@ function AvatarPicker({
                 )}
 
                 {/* Scrollable Character Grid */}
-                <div className={`flex-1 overflow-y-auto px-6 md:px-8 min-h-0 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
+                <div className={`flex-1 overflow-y-auto px-6 md:px-8 py-2 min-h-0 ${theme === 'tron' ? 'scrollbar-tron' : theme === 'kids' ? 'scrollbar-kids' : 'scrollbar-scary'}`}>
                     {['common', 'uncommon', 'rare', 'epic', 'legendary'].map(rarity => {
                         const chars = availableCharacters.filter(c => (c.rarity || 'common') === rarity);
                         if (chars.length === 0) return null;
@@ -71,7 +71,7 @@ function AvatarPicker({
                                     <span className="text-xs font-bold tracking-widest uppercase" style={{ color: rc.color }}>{rc.label}</span>
                                     <div className="flex-1 h-px" style={{ background: rc.color, opacity: 0.3 }}></div>
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-1">
                                     {chars.map((character) => {
                                         const myRoomAvatar = currentRoom?.players.find(p => p.name === playerName)?.avatar;
                                         const isTaken = takenCharacters.filter(a => a !== myRoomAvatar).includes(character.id);

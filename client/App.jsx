@@ -82,6 +82,7 @@ function App() {
     const [characterInfoModal, setCharacterInfoModal] = useState(null);
     const [playerProfileModal, setPlayerProfileModal] = useState(null);
     const [gameHistory, setGameHistory] = useState([]);
+    const [rejoinToken, setRejoinToken] = useState(null); // Token for reconnecting after disconnection
     const [roomDifficulty, setRoomDifficulty] = useState('medium');
     const [playerDifficulties, setPlayerDifficulties] = useState({});
     const [showDifficultyModal, setShowDifficultyModal] = useState(false);
@@ -209,7 +210,8 @@ function App() {
             socket.emit('rejoinRoom', {
                 roomId: session.roomId,
                 playerName: session.playerName,
-                avatar: session.avatar
+                avatar: session.avatar,
+                rejoinToken: session.rejoinToken // Include token for expelled player recovery
             });
         };
 
@@ -263,9 +265,10 @@ function App() {
             isMaster,
             theme,
             page,
-            selectedGames
+            selectedGames,
+            rejoinToken // Include rejoin token for reconnection after browser close
         });
-    }, [currentRoom, playerName, selectedAvatar, isMaster, theme, page, selectedGames]);
+    }, [currentRoom, playerName, selectedAvatar, isMaster, theme, page, selectedGames, rejoinToken]);
 
     // Socket event handlers
     useEffect(() => {
@@ -279,6 +282,7 @@ function App() {
             setPlayerDifficulties(room.playerDifficulties || {});
             setLobbyChatMessages([]); // Clear chat from previous room
             setGameHistory([]); // Clear game history from previous room
+            setRejoinToken(room.rejoinToken || null); // Save rejoin token for reconnection
             setPage('room');
             setShowCreateInput(false);
             setAvatarPickerMode('initial');
@@ -296,6 +300,7 @@ function App() {
             setPlayerDifficulties(room.playerDifficulties || {});
             setLobbyChatMessages([]); // Clear chat from previous room
             setGameHistory([]); // Clear game history from previous room
+            setRejoinToken(room.rejoinToken || null); // Save rejoin token for reconnection
             setPage('room');
             setShowJoinInput(false);
             setAvatarPickerMode('initial');
@@ -1054,7 +1059,8 @@ function App() {
         socket.emit('rejoinRoom', {
             roomId: session.roomId,
             playerName: session.playerName,
-            avatar: session.avatar
+            avatar: session.avatar,
+            rejoinToken: session.rejoinToken // Include token for expelled player recovery
         });
 
         socket.once('rejoinSuccess', (room) => {
