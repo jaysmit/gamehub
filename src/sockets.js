@@ -3233,10 +3233,15 @@ function setupSockets(io) {
       const { roomId, playerName, avatar, rejoinToken } = data;
       const room = rooms.get(roomId);
 
+      console.log(`[REJOIN] Attempting rejoin - roomId: ${roomId}, playerName: ${playerName}`);
+
       if (!room) {
+        console.log(`[REJOIN] Room ${roomId} not found`);
         socket.emit('rejoinFailed', { message: 'Room no longer exists' });
         return;
       }
+
+      console.log(`[REJOIN] Room found - master: ${room.master}, players: ${room.players.map(p => p.name).join(', ')}`);
 
       let player = room.players.find(p => p.name === playerName);
 
@@ -3323,6 +3328,7 @@ function setupSockets(io) {
           phase: room.game.phase
         } : null
       };
+      console.log(`[REJOIN] Sending rejoinSuccess - id: ${roomData.id}, master: ${roomData.master}, players: ${roomData.players.map(p => p.name).join(', ')}, gameType: ${roomData.game?.gameType}`);
       socket.emit('rejoinSuccess', roomData);
 
       // If there's an active game, send game sync data based on game type
