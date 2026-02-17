@@ -3363,6 +3363,23 @@ function setupSockets(io) {
           // If this player is the drawer, send them their word
           if (game.drawerName === playerName) {
             socket.emit('yourWord', { word: game.currentWord });
+
+            // If game was paused because drawer disconnected, resume it
+            if (game.paused && game.timerRemainingMs > 0) {
+              console.log(`[PICTIONARY] Drawer ${playerName} reconnected, resuming game with ${game.timerRemainingMs}ms remaining`);
+
+              // Resume the timer
+              game.paused = false;
+              game.timerEndTime = Date.now() + game.timerRemainingMs;
+              game.timerRemainingMs = null;
+              delete game.drawerDisconnectedAt;
+
+              // Notify all players to resume
+              io.to(roomId).emit('gameResumed', {
+                drawerName: playerName,
+                timerEndTime: game.timerEndTime
+              });
+            }
           }
         }
       }
@@ -4892,17 +4909,54 @@ function setupSockets(io) {
           avatarSelectionTimers.delete(avatarTimerKey);
         }
 
-        // If disconnecting player is current drawer during active game, treat as noWinner + advance
-        if (room.game && room.game.drawerName === player.name) {
-          io.to(roomId).emit('roundResult', {
-            winnerName: null,
-            points: 0,
-            currentRound: room.game.currentRound,
-            totalRounds: room.game.totalRounds
-          });
-          setTimeout(() => {
-            advanceRound(io, room, roomId);
-          }, 3000);
+        // If disconnecting player is current drawer during active Pictionary game, PAUSE instead of skip
+        if (room.game && room.game.gameType === 'pictionary' && room.game.drawerName === player.name) {
+          // Pause the game instead of ending the round
+          if (room.game.timerEndTime && !room.game.paused) {
+            room.game.paused = true;
+            room.game.timerRemainingMs = Math.max(0, room.game.timerEndTime - Date.now());
+            room.game.timerEndTime = null;
+            room.game.drawerDisconnectedAt = Date.now();
+
+            console.log(`[PICTIONARY] Drawer ${player.name} disconnected, pausing game with ${room.game.timerRemainingMs}ms remaining`);
+
+            io.to(roomId).emit('gamePaused', {
+              reason: 'drawer_disconnected',
+              drawerName: player.name,
+              remainingMs: room.game.timerRemainingMs
+            });
+          }
+        }
+
+        // Handle Trivia/QuickMath disconnect - check if we need to advance because all remaining players answered
+        if (room.game && (room.game.gameType === 'trivia' || room.game.gameType === 'quickmath')) {
+          const game = room.game;
+
+          // For group-based games during question phase, check if disconnected player was blocking progress
+          if (game.phase === 'question' && game.difficultyGroups && game.currentGroupIndex !== undefined) {
+            const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+            if (currentGroup && currentGroup.playerNames.includes(player.name)) {
+              // Player was in active group - check if all remaining connected players in group answered
+              const connectedGroupPlayers = currentGroup.playerNames.filter(name => {
+                const p = room.players.find(pl => pl.name === name);
+                return p && p.connected !== false && p.name !== player.name; // Exclude disconnecting player
+              });
+              const answeredCount = connectedGroupPlayers.filter(name => game.answers && game.answers[name]).length;
+
+              console.log(`[${game.gameType.toUpperCase()}] Player ${player.name} disconnected from group ${currentGroup.difficulty}. ${answeredCount}/${connectedGroupPlayers.length} remaining answered.`);
+
+              // If all remaining connected players answered, advance
+              if (connectedGroupPlayers.length > 0 && answeredCount >= connectedGroupPlayers.length) {
+                if (game.gameType === 'trivia') {
+                  advanceToNextGroup(io, room, roomId);
+                } else {
+                  advanceToNextMathGroup(io, room, roomId);
+                }
+              }
+            }
+          }
+
+          console.log(`[${game.gameType.toUpperCase()}] Player ${player.name} disconnected during game, phase: ${game.phase}`);
         }
 
         // Mark disconnected but don't remove yet
@@ -4928,6 +4982,31 @@ function setupSockets(io) {
           currentRoom.players = currentRoom.players.filter(p => p.name !== player.name);
           console.log(`Grace period expired — ${player.name} removed from room ${roomId}`);
 
+          // If this was the drawer in a paused Pictionary game, skip their turn and advance
+          if (currentRoom.game && currentRoom.game.gameType === 'pictionary' &&
+              currentRoom.game.paused && currentRoom.game.drawerName === player.name) {
+            console.log(`[PICTIONARY] Drawer ${player.name} grace period expired, skipping turn`);
+
+            currentRoom.game.paused = false;
+            currentRoom.game.timerRemainingMs = null;
+
+            // Emit round result with no winner
+            io.to(roomId).emit('roundResult', {
+              winnerName: null,
+              points: 0,
+              currentRound: currentRoom.game.currentRound,
+              totalRounds: currentRoom.game.totalRounds,
+              reason: 'drawer_left'
+            });
+
+            // Advance to next round after delay
+            setTimeout(() => {
+              if (currentRoom.game && currentRoom.game.gameType === 'pictionary') {
+                advanceRound(io, currentRoom, roomId);
+              }
+            }, 3000);
+          }
+
           // Save to expelled players so they can rejoin within extended window
           if (playerToExpel) {
             const expelledKey = `${roomId}:${player.name}`;
@@ -4950,8 +5029,15 @@ function setupSockets(io) {
             console.log(`${player.name} added to expelled players cache (${EXPELLED_REJOIN_WINDOW_MS / 60000} min to rejoin)`);
           }
 
-          // If room is empty, delete it (but keep expelled player data)
+          // Check if there are still connected players
+          const connectedPlayers = currentRoom.players.filter(p => p.connected !== false);
+
+          // If room is empty (no players left at all), delete it
           if (currentRoom.players.length === 0) {
+            // Clean up any active game timers
+            if (currentRoom.game && currentRoom.game.questionTimer) {
+              clearTimeout(currentRoom.game.questionTimer);
+            }
             // Clean up masterRooms tracking
             if (masterRooms.get(currentRoom.master) === roomId) {
               masterRooms.delete(currentRoom.master);

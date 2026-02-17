@@ -276,11 +276,20 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             }
         };
 
-        const onGamePaused = ({ pickDuration }) => {
+        const onGamePaused = ({ pickDuration, reason, drawerName, remainingMs }) => {
             timerEndTimeRef.current = null;
             setTimerPaused(true);
             setChatFrozen(true);
-            // Start visible countdown for non-drawer overlay
+
+            // Handle drawer disconnect pause
+            if (reason === 'drawer_disconnected') {
+                console.log(`[PICTIONARY] Game paused - drawer ${drawerName} disconnected, ${remainingMs}ms remaining`);
+                // Store remaining time for display
+                setGameTimer(Math.ceil(remainingMs / 1000));
+                return;
+            }
+
+            // Start visible countdown for non-drawer overlay (original behavior)
             if (pickDuration > 0) {
                 clearInterval(pauseCountdownRef.current);
                 setPauseCountdown(pickDuration);
@@ -296,12 +305,17 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             }
         };
 
-        const onGameResumed = ({ endTime }) => {
-            if (endTime) timerEndTimeRef.current = endTime;
+        const onGameResumed = ({ endTime, timerEndTime, drawerName }) => {
+            const newEndTime = endTime || timerEndTime;
+            if (newEndTime) timerEndTimeRef.current = newEndTime;
             setTimerPaused(false);
             setChatFrozen(false);
             clearInterval(pauseCountdownRef.current);
             setPauseCountdown(0);
+
+            if (drawerName) {
+                console.log(`[PICTIONARY] Game resumed - drawer ${drawerName} reconnected`);
+            }
         };
 
         const onGameEnded = ({ finalScores: scores, cancelled }) => {
