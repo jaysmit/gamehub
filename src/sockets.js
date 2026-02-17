@@ -899,7 +899,10 @@ function startRound(io, room, roomId) {
 }
 
 function advanceRound(io, room, roomId) {
-  if (!room.game) return;
+  if (!room.game || !room.game.drawingOrder) {
+    console.error('[PICTIONARY] advanceRound called with missing game or drawingOrder');
+    return;
+  }
   room.game.currentDrawerIndex++;
   room.game.currentRound++;
 
@@ -1528,6 +1531,12 @@ function advanceToNextGroup(io, room, roomId) {
   if (!room.game || room.game.gameType !== 'trivia') return;
 
   const game = room.game;
+
+  // Safety check for required properties
+  if (!game.difficultyGroups || game.currentGroupIndex === undefined) {
+    console.error('[TRIVIA] advanceToNextGroup called with missing difficultyGroups or currentGroupIndex');
+    return;
+  }
 
   // Clear any existing timer
   if (game.questionTimer) {
@@ -2465,6 +2474,12 @@ function advanceToNextMathGroup(io, room, roomId) {
   if (!room.game || room.game.gameType !== 'quickmath') return;
 
   const game = room.game;
+
+  // Safety check for required properties
+  if (!game.difficultyGroups || game.currentGroupIndex === undefined) {
+    console.error('[MATH] advanceToNextMathGroup called with missing difficultyGroups or currentGroupIndex');
+    return;
+  }
 
   // Clear any existing timer
   if (game.questionTimer) {
@@ -4911,52 +4926,60 @@ function setupSockets(io) {
 
         // If disconnecting player is current drawer during active Pictionary game, PAUSE instead of skip
         if (room.game && room.game.gameType === 'pictionary' && room.game.drawerName === player.name) {
-          // Pause the game instead of ending the round
-          if (room.game.timerEndTime && !room.game.paused) {
-            room.game.paused = true;
-            room.game.timerRemainingMs = Math.max(0, room.game.timerEndTime - Date.now());
-            room.game.timerEndTime = null;
-            room.game.drawerDisconnectedAt = Date.now();
+          try {
+            // Pause the game instead of ending the round
+            if (room.game.timerEndTime && !room.game.paused) {
+              room.game.paused = true;
+              room.game.timerRemainingMs = Math.max(0, room.game.timerEndTime - Date.now());
+              room.game.timerEndTime = null;
+              room.game.drawerDisconnectedAt = Date.now();
 
-            console.log(`[PICTIONARY] Drawer ${player.name} disconnected, pausing game with ${room.game.timerRemainingMs}ms remaining`);
+              console.log(`[PICTIONARY] Drawer ${player.name} disconnected, pausing game with ${room.game.timerRemainingMs}ms remaining`);
 
-            io.to(roomId).emit('gamePaused', {
-              reason: 'drawer_disconnected',
-              drawerName: player.name,
-              remainingMs: room.game.timerRemainingMs
-            });
+              io.to(roomId).emit('gamePaused', {
+                reason: 'drawer_disconnected',
+                drawerName: player.name,
+                remainingMs: room.game.timerRemainingMs
+              });
+            }
+          } catch (err) {
+            console.error(`[PICTIONARY] Error handling drawer disconnect for ${player.name}:`, err);
           }
         }
 
         // Handle Trivia/QuickMath disconnect - check if we need to advance because all remaining players answered
         if (room.game && (room.game.gameType === 'trivia' || room.game.gameType === 'quickmath')) {
-          const game = room.game;
+          try {
+            const game = room.game;
 
-          // For group-based games during question phase, check if disconnected player was blocking progress
-          if (game.phase === 'question' && game.difficultyGroups && game.currentGroupIndex !== undefined) {
-            const currentGroup = game.difficultyGroups[game.currentGroupIndex];
-            if (currentGroup && currentGroup.playerNames.includes(player.name)) {
-              // Player was in active group - check if all remaining connected players in group answered
-              const connectedGroupPlayers = currentGroup.playerNames.filter(name => {
-                const p = room.players.find(pl => pl.name === name);
-                return p && p.connected !== false && p.name !== player.name; // Exclude disconnecting player
-              });
-              const answeredCount = connectedGroupPlayers.filter(name => game.answers && game.answers[name]).length;
+            // For group-based games during question phase, check if disconnected player was blocking progress
+            if (game.phase === 'question' && game.difficultyGroups && game.currentGroupIndex !== undefined) {
+              const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+              if (currentGroup && currentGroup.playerNames && currentGroup.playerNames.includes(player.name)) {
+                // Player was in active group - check if all remaining connected players in group answered
+                const connectedGroupPlayers = currentGroup.playerNames.filter(name => {
+                  const p = room.players.find(pl => pl.name === name);
+                  return p && p.connected !== false && p.name !== player.name; // Exclude disconnecting player
+                });
+                const answeredCount = connectedGroupPlayers.filter(name => game.answers && game.answers[name]).length;
 
-              console.log(`[${game.gameType.toUpperCase()}] Player ${player.name} disconnected from group ${currentGroup.difficulty}. ${answeredCount}/${connectedGroupPlayers.length} remaining answered.`);
+                console.log(`[${game.gameType.toUpperCase()}] Player ${player.name} disconnected from group ${currentGroup.difficulty}. ${answeredCount}/${connectedGroupPlayers.length} remaining answered.`);
 
-              // If all remaining connected players answered, advance
-              if (connectedGroupPlayers.length > 0 && answeredCount >= connectedGroupPlayers.length) {
-                if (game.gameType === 'trivia') {
-                  advanceToNextGroup(io, room, roomId);
-                } else {
-                  advanceToNextMathGroup(io, room, roomId);
+                // If all remaining connected players answered, advance
+                if (connectedGroupPlayers.length > 0 && answeredCount >= connectedGroupPlayers.length) {
+                  if (game.gameType === 'trivia') {
+                    advanceToNextGroup(io, room, roomId);
+                  } else {
+                    advanceToNextMathGroup(io, room, roomId);
+                  }
                 }
               }
             }
-          }
 
-          console.log(`[${game.gameType.toUpperCase()}] Player ${player.name} disconnected during game, phase: ${game.phase}`);
+            console.log(`[${game.gameType.toUpperCase()}] Player ${player.name} disconnected during game, phase: ${game.phase || 'unknown'}`);
+          } catch (err) {
+            console.error(`[${room.game.gameType?.toUpperCase() || 'GAME'}] Error handling disconnect for ${player.name}:`, err);
+          }
         }
 
         // Mark disconnected but don't remove yet
@@ -4985,26 +5008,34 @@ function setupSockets(io) {
           // If this was the drawer in a paused Pictionary game, skip their turn and advance
           if (currentRoom.game && currentRoom.game.gameType === 'pictionary' &&
               currentRoom.game.paused && currentRoom.game.drawerName === player.name) {
-            console.log(`[PICTIONARY] Drawer ${player.name} grace period expired, skipping turn`);
+            try {
+              console.log(`[PICTIONARY] Drawer ${player.name} grace period expired, skipping turn`);
 
-            currentRoom.game.paused = false;
-            currentRoom.game.timerRemainingMs = null;
+              currentRoom.game.paused = false;
+              currentRoom.game.timerRemainingMs = null;
 
-            // Emit round result with no winner
-            io.to(roomId).emit('roundResult', {
-              winnerName: null,
-              points: 0,
-              currentRound: currentRoom.game.currentRound,
-              totalRounds: currentRoom.game.totalRounds,
-              reason: 'drawer_left'
-            });
+              // Emit round result with no winner
+              io.to(roomId).emit('roundResult', {
+                winnerName: null,
+                points: 0,
+                currentRound: currentRoom.game.currentRound,
+                totalRounds: currentRoom.game.totalRounds,
+                reason: 'drawer_left'
+              });
 
-            // Advance to next round after delay
-            setTimeout(() => {
-              if (currentRoom.game && currentRoom.game.gameType === 'pictionary') {
-                advanceRound(io, currentRoom, roomId);
-              }
-            }, 3000);
+              // Advance to next round after delay
+              setTimeout(() => {
+                try {
+                  if (currentRoom.game && currentRoom.game.gameType === 'pictionary') {
+                    advanceRound(io, currentRoom, roomId);
+                  }
+                } catch (err) {
+                  console.error(`[PICTIONARY] Error advancing round after drawer left:`, err);
+                }
+              }, 3000);
+            } catch (err) {
+              console.error(`[PICTIONARY] Error handling drawer grace period expiry for ${player.name}:`, err);
+            }
           }
 
           // Save to expelled players so they can rejoin within extended window
