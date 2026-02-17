@@ -6,6 +6,7 @@ function GameSelector({
     theme,
     currentTheme,
     selectedGames,
+    isGameSelected,
     toggleGame,
     selectorMinAge,
     setSelectorMinAge,
@@ -139,7 +140,7 @@ function GameSelector({
                                 return (
                                 <div
                                     key={game.id}
-                                    className={`relative rounded-lg md:rounded-xl overflow-hidden transition-all duration-300 ${isImplemented ? 'hover:scale-105' : 'opacity-50 cursor-not-allowed'} ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} ${selectedGames.includes(game.id) ? (theme === 'tron' ? 'ring-2 ring-cyan-400' : theme === 'scary' ? 'ring-2 ring-orange-500' : 'ring-2 ring-purple-500') : ''}`}
+                                    className={`relative rounded-lg md:rounded-xl overflow-hidden transition-all duration-300 ${isImplemented ? 'hover:scale-105' : 'opacity-50 cursor-not-allowed'} ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} ${isGameSelected(game.id) ? (theme === 'tron' ? 'ring-2 ring-cyan-400' : theme === 'scary' ? 'ring-2 ring-orange-500' : 'ring-2 ring-purple-500') : ''}`}
                                 >
                                     <button
                                         onClick={() => isImplemented && toggleGame(game.id)}
@@ -170,7 +171,7 @@ function GameSelector({
                                             </div>
                                             <span className={`text-[0.5rem] md:text-[0.6rem] mt-0.5 ${theme === 'tron' ? 'text-cyan-500' : theme === 'scary' ? 'text-orange-500' : 'text-white/80'}`}>{game.players}</span>
                                         </div>
-                                        {selectedGames.includes(game.id) && (
+                                        {isGameSelected(game.id) && (
                                             <div className="absolute top-1 right-1 w-6 h-6 md:w-7 md:h-7 bg-green-500 rounded-full flex items-center justify-center z-20">
                                                 <Check className="w-3 h-3 md:w-4 md:h-4 text-white" strokeWidth={3} />
                                             </div>

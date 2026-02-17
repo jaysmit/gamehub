@@ -1,3 +1,18 @@
+// Default game configurations
+export const GAME_DEFAULTS = {
+    pictionary: {
+        drawerTime: 60,  // seconds per drawer
+        drawerTimeOptions: [30, 60, 90, 120, 150, 180]
+    },
+    trivia: {
+        themes: ['all'],  // 'all' or array of theme IDs
+        questionTime: 20  // seconds per question (currently controlled elsewhere)
+    },
+    quickmath: {
+        questionTime: 20  // seconds per question (currently controlled elsewhere)
+    }
+};
+
 export const MOCK_GAMES = [
     {
         id: 1,

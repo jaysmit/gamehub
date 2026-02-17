@@ -277,6 +277,30 @@ const TRIVIA_SPEED_CORRECT_DELAY = 1000;  // 1 second delay after correct answer
 const TRIVIA_REVEAL_DURATION = 3000;  // 3 seconds to show correct answer
 const TRIVIA_SPEED_REVEAL_DURATION = 1500;  // 1.5 seconds reveal in speed round (faster)
 const TRIVIA_BASE_POINTS = 100;
+
+// Trivia theme definitions (category groupings for game customization)
+const TRIVIA_THEMES = {
+  'entertainment': ['Movies', 'TV Shows', 'Music', 'Video Games'],
+  'science-nature': ['Science', 'Animals', 'Nature', 'Space'],
+  'history-world': ['History', 'Geography', 'Literature', 'Art'],
+  'kids-fun': ['Colors', 'Shapes', 'Food', 'Disney', 'Body', 'Numbers'],
+  'general': ['General', 'Sports', 'Technology', 'Mathematics', 'Medicine', 'Philosophy', 'Economics', 'Language', 'Politics']
+};
+
+// Get categories from theme IDs
+function getCategoriesFromThemes(themeIds) {
+  if (!themeIds || themeIds.length === 0 || themeIds.includes('all')) {
+    return null; // null means all categories
+  }
+  const categories = new Set();
+  themeIds.forEach(themeId => {
+    const themeCats = TRIVIA_THEMES[themeId];
+    if (themeCats) {
+      themeCats.forEach(cat => categories.add(cat));
+    }
+  });
+  return Array.from(categories);
+}
 const TRIVIA_TIME_BONUS_MAX = 50;
 const TRIVIA_GRACE_PERIOD = 2000;  // 2 seconds of max points before depletion starts
 const TRIVIA_SPEED_MULTIPLIER = 2;
@@ -592,6 +616,9 @@ function shuffleArray(array) {
 // status: 'online' | 'inRoom' | 'inGame'
 const onlineUsers = new Map();
 
+// Pictionary game constants
+const PICTIONARY_DEFAULT_DRAWER_TIME = 60; // Default 60 seconds per drawer (can be customized via game config)
+
 // Pictionary word banks by difficulty
 const PICTIONARY_WORDS_BY_DIFFICULTY = {
   'super-easy': [
@@ -860,8 +887,9 @@ function startRound(io, room, roomId) {
           io.to(drawer.socketId).emit('yourWord', { word: autoWord.word, autoSelected: true });
         }
 
-        // Now start the game timer
-        const endTime = Date.now() + 60000;
+        // Now start the game timer (use config or default)
+        const drawerTimeMs = (room.game.config?.drawerTime || PICTIONARY_DEFAULT_DRAWER_TIME) * 1000;
+        const endTime = Date.now() + drawerTimeMs;
         room.game.timerEndTime = endTime;
         room.game.timerRemainingMs = null;
         io.to(roomId).emit('gameTimerStart', { endTime });
@@ -964,8 +992,9 @@ function advanceRound(io, room, roomId) {
           io.to(newDrawer.socketId).emit('yourWord', { word: autoWord.word, autoSelected: true });
         }
 
-        // Now start the game timer
-        const endTime = Date.now() + 60000;
+        // Now start the game timer (use config or default)
+        const drawerTimeMs = (room.game.config?.drawerTime || PICTIONARY_DEFAULT_DRAWER_TIME) * 1000;
+        const endTime = Date.now() + drawerTimeMs;
         room.game.timerEndTime = endTime;
         room.game.timerRemainingMs = null;
         io.to(roomId).emit('gameTimerStart', { endTime });
@@ -986,15 +1015,16 @@ function broadcastToFriends(io, userId, friendIds, event, data) {
 
 // --- Trivia Game Helpers ---
 
-function getRandomTriviaQuestions(countOrDifficulty, countOrUsedIds = [], usedIdsParam = []) {
-  // Support both old signature (count, usedIds) and new signature (difficulty, count, usedIds)
+function getRandomTriviaQuestions(countOrDifficulty, countOrUsedIds = [], usedIdsParam = [], allowedCategories = null) {
+  // Support both old signature (count, usedIds) and new signature (difficulty, count, usedIds, allowedCategories)
   let difficulty, count, usedIds;
 
   if (typeof countOrDifficulty === 'string') {
-    // New signature: getRandomTriviaQuestions(difficulty, count, usedIds)
+    // New signature: getRandomTriviaQuestions(difficulty, count, usedIds, allowedCategories)
     difficulty = countOrDifficulty;
     count = countOrUsedIds;
     usedIds = usedIdsParam || [];
+    // allowedCategories passed as 4th param
   } else {
     // Legacy signature: getRandomTriviaQuestions(count, usedIds)
     difficulty = null;
@@ -1011,6 +1041,12 @@ function getRandomTriviaQuestions(countOrDifficulty, countOrUsedIds = [], usedId
     // Use all questions for legacy or unknown difficulty
     pool = TRIVIA_QUESTIONS;
     console.log(`[TRIVIA Q-SELECT] WARNING: Falling back to ALL questions pool (difficulty: ${difficulty})`);
+  }
+
+  // Filter by allowed categories if specified
+  if (allowedCategories && allowedCategories.length > 0) {
+    pool = pool.filter(q => allowedCategories.includes(q.category));
+    console.log(`[TRIVIA Q-SELECT] Filtered to ${pool.length} questions for categories: ${allowedCategories.join(', ')}`);
   }
 
   // First, get questions that haven't been used yet
@@ -1141,12 +1177,15 @@ function startTriviaRound(io, room, roomId) {
     const questionsPerGroup = getQuestionsPerRoundForGroupCount(groupCount);
     console.log(`[TRIVIA] Group count: ${groupCount}, questions per group: ${questionsPerGroup}`);
 
+    // Get allowed categories from game config (theme filtering)
+    const allowedCategories = getCategoriesFromThemes(game.config?.themes);
+
     // Generate questions for each group from their difficulty pool
     game.roundQuestionsByGroup = {};
     game.difficultyGroups.forEach((group, groupIndex) => {
       const difficulty = group.difficulty;
       const usedIds = game.usedQuestionIdsByDifficulty[difficulty] || [];
-      const questions = getRandomTriviaQuestions(difficulty, questionsPerGroup, usedIds);
+      const questions = getRandomTriviaQuestions(difficulty, questionsPerGroup, usedIds, allowedCategories);
       game.roundQuestionsByGroup[groupIndex] = questions;
 
       // Track used IDs per difficulty
@@ -1169,11 +1208,14 @@ function startTriviaRound(io, room, roomId) {
 
   // For speed round, generate per-difficulty question pools
   if (isSpeedRound) {
+    // Get allowed categories from game config (theme filtering)
+    const allowedCategories = getCategoriesFromThemes(game.config?.themes);
+
     // Generate 30 questions for each difficulty level
     game.speedRoundQuestionsByDifficulty = {};
     DIFFICULTY_LEVELS.forEach(difficulty => {
       const usedIds = game.usedQuestionIdsByDifficulty[difficulty] || [];
-      const questions = getRandomTriviaQuestions(difficulty, 30, usedIds);
+      const questions = getRandomTriviaQuestions(difficulty, 30, usedIds, allowedCategories);
 
       // Pre-shuffle answers for each question
       game.speedRoundQuestionsByDifficulty[difficulty] = questions.map(q => {
@@ -3609,17 +3651,55 @@ function setupSockets(io) {
       console.log(`Player ${data.playerName} difficulty set to ${data.difficulty} in room ${data.roomId}`);
     });
 
-    // --- Toggle Game Selection ---
+    // --- Toggle Game Selection (legacy - opens settings modal on client) ---
     socket.on('toggleGame', (data) => {
+      // Legacy handler - client now uses updateGameConfig/removeGame
+      // Keep for backward compatibility
       const room = rooms.get(data.roomId);
       if (!room) return;
 
-      const index = room.selectedGames.indexOf(data.gameId);
+      const index = room.selectedGames.findIndex(g =>
+        (typeof g === 'object' ? g.gameId : g) === data.gameId
+      );
       if (index > -1) {
         room.selectedGames.splice(index, 1);
       } else {
-        room.selectedGames.push(data.gameId);
+        room.selectedGames.push({ gameId: data.gameId, config: {} });
       }
+
+      io.to(data.roomId).emit('gamesUpdated', { roomId: data.roomId, selectedGames: room.selectedGames });
+    });
+
+    // --- Update Game Config (add or update game with settings) ---
+    socket.on('updateGameConfig', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room) return;
+
+      const { gameId, config } = data;
+      const index = room.selectedGames.findIndex(g =>
+        (typeof g === 'object' ? g.gameId : g) === gameId
+      );
+
+      if (index > -1) {
+        // Update existing
+        room.selectedGames[index] = { gameId, config };
+      } else {
+        // Add new
+        room.selectedGames.push({ gameId, config });
+      }
+
+      io.to(data.roomId).emit('gamesUpdated', { roomId: data.roomId, selectedGames: room.selectedGames });
+    });
+
+    // --- Remove Game from Queue ---
+    socket.on('removeGame', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room) return;
+
+      const { gameId } = data;
+      room.selectedGames = room.selectedGames.filter(g =>
+        (typeof g === 'object' ? g.gameId : g) !== gameId
+      );
 
       io.to(data.roomId).emit('gamesUpdated', { roomId: data.roomId, selectedGames: room.selectedGames });
     });
@@ -3629,9 +3709,13 @@ function setupSockets(io) {
       const room = rooms.get(data.roomId);
       if (!room) return;
 
+      // Get first selected game (handle both old and new format)
+      const firstGame = room.selectedGames[0];
+      const firstGameId = typeof firstGame === 'object' ? firstGame.gameId : firstGame;
+      const gameConfig = typeof firstGame === 'object' ? (firstGame.config || {}) : {};
+
       // Determine game type from the FIRST selected game
       // Game ID 1 = Trivia Master, Game ID 2 = Drawing Battle (Pictionary), Game ID 5 = Quick Math
-      const firstGameId = room.selectedGames[0];
       let gameType = 'pictionary'; // default
       if (firstGameId === 1) {
         gameType = 'trivia';
@@ -3689,6 +3773,7 @@ function setupSockets(io) {
         // Initialize Trivia game with per-difficulty question tracking
         room.game = {
           gameType: 'trivia',
+          config: gameConfig,  // Store game config (themes, etc.)
           currentRound: 1,
           totalRounds: 4,
           questionsPerRound: [5, 5, 5, 10],  // Default - will be overridden based on group count
@@ -3744,6 +3829,7 @@ function setupSockets(io) {
 
         room.game = {
           gameType: 'pictionary',
+          config: gameConfig,  // Store game config (drawerTime, etc.)
           drawingOrder,
           currentDrawerIndex: 0,
           currentRound: 1,
@@ -3809,8 +3895,9 @@ function setupSockets(io) {
       // Send the selected word back to the drawer
       io.to(sender.socketId).emit('yourWord', { word: data.word });
 
-      // Start the game timer now
-      const endTime = Date.now() + 60000;
+      // Start the game timer now (use config or default)
+      const drawerTimeMs = (room.game.config?.drawerTime || PICTIONARY_DEFAULT_DRAWER_TIME) * 1000;
+      const endTime = Date.now() + drawerTimeMs;
       room.game.timerEndTime = endTime;
       room.game.timerRemainingMs = null;
       io.to(data.roomId).emit('gameTimerStart', { endTime });

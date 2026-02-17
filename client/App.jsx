@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { socket } from './socket';
-import { MOCK_GAMES } from './data/games';
+import { MOCK_GAMES, GAME_DEFAULTS } from './data/games';
 import { themes, rarityConfig } from './data/themes';
 import { MUSIC_TRACKS, DEFAULT_TRACK } from './data/music';
 import { DIFFICULTY_LEVELS, DEFAULT_DIFFICULTY, getDifficultyById, getPlayerDifficulty } from './data/difficulty';
@@ -23,6 +23,7 @@ import FriendsPage from './pages/FriendsPage';
 import SettingsPage from './pages/SettingsPage';
 import HelpPage from './pages/HelpPage';
 import AvatarPicker from './modals/AvatarPicker';
+import GameSettingsModal from './modals/GameSettingsModal';
 import CharacterInfo from './modals/CharacterInfo';
 import MasterTips from './modals/MasterTips';
 import PlayerProfile from './modals/PlayerProfile';
@@ -45,7 +46,8 @@ function App() {
     const [currentRoom, setCurrentRoom] = useState(null);
     const [isMaster, setIsMaster] = useState(false);
     const [showGameSelector, setShowGameSelector] = useState(false);
-    const [selectedGames, setSelectedGames] = useState([]);
+    const [selectedGames, setSelectedGames] = useState([]); // Array of { gameId, config }
+    const [gameSettingsModal, setGameSettingsModal] = useState(null); // Game being configured
     const [completedGames, setCompletedGames] = useState([]); // Array of { gameId, timestamp, scores }
     const [accumulatedScores, setAccumulatedScores] = useState({}); // { playerName: totalScore } - persists across games
     const [countdown, setCountdown] = useState(3);
@@ -223,7 +225,7 @@ function App() {
 
         const onRejoinSuccess = (room) => {
             setCurrentRoom(room);
-            setSelectedGames(room.selectedGames || []);
+            setSelectedGames(normalizeSelectedGames(room.selectedGames));
             if (room.gameHistory) setGameHistory(room.gameHistory);
             setRoomDifficulty(room.difficulty || 'medium');
             setPlayerDifficulties(room.playerDifficulties || {});
@@ -275,7 +277,7 @@ function App() {
         const onRoomCreated = (room) => {
             setCurrentRoom(room);
             setIsMaster(true);
-            setSelectedGames(room.selectedGames || []);
+            setSelectedGames(normalizeSelectedGames(room.selectedGames));
             setCompletedGames([]); // Reset completed games for new room
             setAccumulatedScores({}); // Reset accumulated scores for new room
             setRoomDifficulty(room.difficulty || 'medium');
@@ -293,7 +295,7 @@ function App() {
         const onRoomJoined = (room) => {
             setCurrentRoom(room);
             setIsMaster(false);
-            setSelectedGames(room.selectedGames || []);
+            setSelectedGames(normalizeSelectedGames(room.selectedGames));
             setCompletedGames([]); // Reset completed games for new room
             setAccumulatedScores({}); // Reset accumulated scores for new room
             setRoomDifficulty(room.difficulty || 'medium');
@@ -321,7 +323,7 @@ function App() {
         const onGamesUpdated = (data) => {
             setCurrentRoom(prev => {
                 if (!prev || prev.id !== data.roomId) return prev;
-                setSelectedGames(data.selectedGames);
+                setSelectedGames(normalizeSelectedGames(data.selectedGames));
                 return prev;
             });
         };
@@ -736,13 +738,91 @@ function App() {
         }
     };
 
+    // Normalize selectedGames from server (handles both old [id] and new [{gameId, config}] formats)
+    const normalizeSelectedGames = useCallback((games) => {
+        if (!games || !Array.isArray(games)) return [];
+        return games.map(g => {
+            // Already in new format
+            if (typeof g === 'object' && g.gameId !== undefined) {
+                return g;
+            }
+            // Old format: just game ID
+            const game = MOCK_GAMES.find(mg => mg.id === g);
+            const gameType = game?.gameType;
+            const defaultConfig = GAME_DEFAULTS[gameType] ?
+                { ...GAME_DEFAULTS[gameType] } : {};
+            // Remove non-config properties like options arrays
+            delete defaultConfig.drawerTimeOptions;
+            return {
+                gameId: g,
+                config: defaultConfig
+            };
+        });
+    }, []);
+
+    // Helper to check if a game is selected
+    const isGameSelected = (gameId) => selectedGames.some(g => g.gameId === gameId);
+
+    // Helper to get config for a selected game
+    const getGameConfig = (gameId) => selectedGames.find(g => g.gameId === gameId)?.config || null;
+
+    // Open game settings modal (for adding or editing)
+    const openGameSettings = (gameId) => {
+        const game = MOCK_GAMES.find(g => g.id === gameId);
+        if (!game) return;
+        const existingConfig = getGameConfig(gameId);
+        setGameSettingsModal({
+            gameId,
+            game,
+            config: existingConfig || getDefaultConfig(game.gameType),
+            isEditing: !!existingConfig
+        });
+    };
+
+    // Get default config based on game type
+    const getDefaultConfig = (gameType) => {
+        const defaults = {
+            pictionary: { drawerTime: 60 },
+            trivia: { themes: ['all'] },
+            quickmath: {}
+        };
+        return defaults[gameType] || {};
+    };
+
+    // Add or update game with config
+    const saveGameWithConfig = (gameId, config) => {
+        const isEditing = isGameSelected(gameId);
+
+        if (isEditing) {
+            // Update existing
+            setSelectedGames(prev =>
+                prev.map(g => g.gameId === gameId ? { ...g, config } : g)
+            );
+        } else {
+            // Add new
+            setSelectedGames(prev => [...prev, { gameId, config }]);
+        }
+
+        // Emit to server
+        socket.emit('updateGameConfig', { roomId: currentRoom.id, gameId, config });
+        setGameSettingsModal(null);
+    };
+
+    // Remove game from queue
+    const removeGameFromQueue = (gameId) => {
+        setSelectedGames(prev => prev.filter(g => g.gameId !== gameId));
+        socket.emit('removeGame', { roomId: currentRoom.id, gameId });
+        setGameSettingsModal(null);
+    };
+
+    // Legacy toggleGame for backward compatibility (used in some places)
     const toggleGame = (gameId) => {
-        socket.emit('toggleGame', { roomId: currentRoom.id, gameId });
-        setSelectedGames(prev =>
-            prev.includes(gameId)
-                ? prev.filter(id => id !== gameId)
-                : [...prev, gameId]
-        );
+        const game = MOCK_GAMES.find(g => g.id === gameId);
+        if (!game?.gameType) {
+            // Not implemented game - do nothing
+            return;
+        }
+        openGameSettings(gameId);
     };
 
     const sendLobbyChat = () => {
@@ -1065,7 +1145,7 @@ function App() {
 
         socket.once('rejoinSuccess', (room) => {
             setCurrentRoom(room);
-            setSelectedGames(room.selectedGames || []);
+            setSelectedGames(normalizeSelectedGames(room.selectedGames));
             if (room.gameHistory) setGameHistory(room.gameHistory);
             setRoomDifficulty(room.difficulty || 'medium');
             setPlayerDifficulties(room.playerDifficulties || {});
@@ -1385,6 +1465,7 @@ function App() {
                 playerName={playerName}
                 isMaster={isMaster}
                 selectedGames={selectedGames}
+                isGameSelected={isGameSelected}
                 selectedAvatar={selectedAvatar}
                 availableCharacters={availableCharacters}
                 setShowGameSelector={setShowGameSelector}
@@ -1463,6 +1544,7 @@ function App() {
                     currentTheme={currentTheme}
                     MOCK_GAMES={MOCK_GAMES}
                     selectedGames={selectedGames}
+                    isGameSelected={isGameSelected}
                     toggleGame={toggleGame}
                     selectorMinAge={selectorMinAge}
                     setSelectorMinAge={setSelectorMinAge}
@@ -1479,6 +1561,17 @@ function App() {
                     getGameIcon={getGameIcon}
                     StarRating={StarRating}
                     isMaster={isMaster}
+                />
+            )}
+
+            {gameSettingsModal && (
+                <GameSettingsModal
+                    theme={theme}
+                    currentTheme={currentTheme}
+                    gameSettingsModal={gameSettingsModal}
+                    onSave={saveGameWithConfig}
+                    onRemove={removeGameFromQueue}
+                    onClose={() => setGameSettingsModal(null)}
                 />
             )}
 

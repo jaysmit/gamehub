@@ -260,6 +260,40 @@ export const CATEGORY_ICONS = {
     'Politics': '🏛️'
 };
 
+// Theme groups for game customization
+export const TRIVIA_THEMES = {
+    'entertainment': {
+        name: 'Entertainment',
+        icon: '🎬',
+        description: 'Movies, TV, Music & Gaming',
+        categories: ['Movies', 'TV Shows', 'Music', 'Video Games']
+    },
+    'science-nature': {
+        name: 'Science & Nature',
+        icon: '🔬',
+        description: 'Science, Animals, Nature & Space',
+        categories: ['Science', 'Animals', 'Nature', 'Space']
+    },
+    'history-world': {
+        name: 'History & World',
+        icon: '🌍',
+        description: 'History, Geography, Literature & Art',
+        categories: ['History', 'Geography', 'Literature', 'Art']
+    },
+    'kids-fun': {
+        name: 'Kids & Fun',
+        icon: '🎈',
+        description: 'Colors, Shapes, Food, Disney & more',
+        categories: ['Colors', 'Shapes', 'Food', 'Disney', 'Body', 'Numbers']
+    },
+    'general': {
+        name: 'General Knowledge',
+        icon: '🧠',
+        description: 'Sports, Technology & General facts',
+        categories: ['General', 'Sports', 'Technology', 'Mathematics', 'Medicine', 'Philosophy', 'Economics', 'Language', 'Politics']
+    }
+};
+
 /**
  * Get random questions from a specific difficulty level
  * @param {string} difficulty - Difficulty level ID
@@ -285,4 +319,51 @@ export function getRandomQuestions(difficulty, count, usedIds = []) {
 export function getDifficultyOrderValue(difficulty) {
     const order = { 'super-easy': 0, 'very-easy': 1, 'easy': 2, 'medium': 3, 'hard': 4, 'very-hard': 5, 'genius': 6 };
     return order[difficulty] ?? 3;
+}
+
+/**
+ * Get categories included in selected themes
+ * @param {array} themeIds - Array of theme IDs (e.g., ['entertainment', 'science-nature']) or ['all']
+ * @returns {array} Array of category names
+ */
+export function getCategoriesFromThemes(themeIds) {
+    if (!themeIds || themeIds.length === 0 || themeIds.includes('all')) {
+        // Return all categories
+        return Object.keys(CATEGORY_ICONS);
+    }
+
+    const categories = new Set();
+    themeIds.forEach(themeId => {
+        const theme = TRIVIA_THEMES[themeId];
+        if (theme) {
+            theme.categories.forEach(cat => categories.add(cat));
+        }
+    });
+    return Array.from(categories);
+}
+
+/**
+ * Get random questions filtered by themes
+ * @param {string} difficulty - Difficulty level ID
+ * @param {number} count - Number of questions to return
+ * @param {array} themeIds - Theme IDs to filter by (or ['all'])
+ * @param {array} usedIds - Question IDs already used (to avoid repeats)
+ * @returns {array} Array of question objects
+ */
+export function getRandomQuestionsByThemes(difficulty, count, themeIds = ['all'], usedIds = []) {
+    const questions = ALL_TRIVIA_QUESTIONS[difficulty] || TRIVIA_MEDIUM;
+    const allowedCategories = getCategoriesFromThemes(themeIds);
+
+    // Filter by category and not used
+    const filtered = questions.filter(q =>
+        allowedCategories.includes(q.category) && !usedIds.includes(q.id)
+    );
+
+    // If not enough filtered questions, use all from allowed categories (allow repeats)
+    const pool = filtered.length >= count ? filtered :
+        questions.filter(q => allowedCategories.includes(q.category));
+
+    // Shuffle and take first 'count' questions
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, count);
 }

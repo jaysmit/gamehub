@@ -15,6 +15,7 @@ function RoomPage({
     playerName,
     selectedAvatar,
     selectedGames,
+    isGameSelected,
     availableCharacters,
     avatarPickerMode,
     setAvatarPickerMode,
@@ -562,7 +563,8 @@ function RoomPage({
                                                 {theme === 'tron' ? '> No games selected' : theme === 'kids' ? 'No games selected yet' : '> The chamber awaits...'}
                                             </p>
                                         ) : (
-                                            selectedGames.map((gameId, idx) => {
+                                            selectedGames.map((gameEntry, idx) => {
+                                                const gameId = gameEntry.gameId;
                                                 const game = MOCK_GAMES.find(g => g.id === gameId);
                                                 const isUpNext = idx === 0;
                                                 return (
@@ -934,7 +936,7 @@ function RoomPage({
                                         .map((game) => (
                                         <div
                                             key={game.id}
-                                            className={`relative rounded-lg md:rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} ${selectedGames.includes(game.id) ? (theme === 'tron' ? 'ring-2 ring-cyan-400' : theme === 'scary' ? 'ring-2 ring-orange-500' : 'ring-2 ring-purple-500') : ''}`}
+                                            className={`relative rounded-lg md:rounded-xl overflow-hidden transition-all duration-300 hover:scale-105 ${theme === 'tron' ? 'border border-cyan-500/30' : theme === 'kids' ? 'border-2 border-purple-300' : 'border border-orange-700/50'} ${isGameSelected(game.id) ? (theme === 'tron' ? 'ring-2 ring-cyan-400' : theme === 'scary' ? 'ring-2 ring-orange-500' : 'ring-2 ring-purple-500') : ''}`}
                                         >
                                             <button
                                                 onClick={() => toggleGame(game.id)}
@@ -956,12 +958,12 @@ function RoomPage({
                                                     </div>
                                                     <span className={`text-[0.5rem] md:text-[0.6rem] mt-0.5 ${theme === 'tron' ? 'text-cyan-500' : theme === 'scary' ? 'text-orange-500' : 'text-white/80'}`}>{game.players}</span>
                                                 </div>
-                                                {selectedGames.includes(game.id) && (
+                                                {isGameSelected(game.id) && (
                                                     <div className="absolute top-1 right-1 w-6 h-6 md:w-7 md:h-7 bg-green-500 rounded-full flex items-center justify-center">
                                                         <Check className="w-3 h-3 md:w-4 md:h-4 text-white" strokeWidth={3} />
                                                     </div>
                                                 )}
-                                                {completedGames.some(cg => cg.gameId === game.id) && !selectedGames.includes(game.id) && (
+                                                {completedGames.some(cg => cg.gameId === game.id) && !isGameSelected(game.id) && (
                                                     <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[0.5rem] font-bold ${theme === 'tron' ? 'bg-green-500/80 text-black' : theme === 'kids' ? 'bg-green-500 text-white' : 'bg-green-600/80 text-white'}`}>
                                                         Played
                                                     </div>
@@ -1165,7 +1167,7 @@ function RoomPage({
                                 <button
                                     onClick={() => {
                                         // Re-add this game to the queue as a fresh entry
-                                        if (!selectedGames.includes(selectedCompletedGame.gameId)) {
+                                        if (!isGameSelected(selectedCompletedGame.gameId)) {
                                             toggleGame(selectedCompletedGame.gameId);
                                         }
                                         setSelectedCompletedGame(null);
