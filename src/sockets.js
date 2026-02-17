@@ -874,8 +874,8 @@ function startRound(io, room, roomId) {
   // But set a backup timeout in case drawer doesn't select
   room.game.wordSelectionTimeout = setTimeout(() => {
     if (room.game && !room.game.wordSelected) {
-      // Auto-select the first (easiest) word if drawer doesn't pick
-      const autoWord = wordOptions[0];
+      // Auto-select a random word if drawer doesn't pick
+      const autoWord = wordOptions[Math.floor(Math.random() * wordOptions.length)];
       if (autoWord) {
         room.game.currentWord = autoWord.word;
         room.game.wordSelected = true;
@@ -895,7 +895,7 @@ function startRound(io, room, roomId) {
         io.to(roomId).emit('gameTimerStart', { endTime });
       }
     }
-  }, 15000); // 15 seconds to pick (10s countdown + 5s buffer)
+  }, 11000); // 11 seconds to pick (6s countdown + 5s buffer)
 }
 
 function advanceRound(io, room, roomId) {
@@ -982,8 +982,8 @@ function advanceRound(io, room, roomId) {
   // Set a backup timeout in case drawer doesn't select
   room.game.wordSelectionTimeout = setTimeout(() => {
     if (room.game && !room.game.wordSelected) {
-      // Auto-select the first (easiest) word if drawer doesn't pick
-      const autoWord = wordOptions[0];
+      // Auto-select a random word if drawer doesn't pick
+      const autoWord = wordOptions[Math.floor(Math.random() * wordOptions.length)];
       if (autoWord) {
         room.game.currentWord = autoWord.word;
         room.game.wordSelected = true;
@@ -1003,7 +1003,7 @@ function advanceRound(io, room, roomId) {
         io.to(roomId).emit('gameTimerStart', { endTime });
       }
     }
-  }, 15000);
+  }, 11000); // 11 seconds to pick (6s countdown + 5s buffer)
 }
 
 // Helper to broadcast friend status changes

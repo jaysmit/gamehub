@@ -97,7 +97,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     // Countdown timer — runs independently of modal visibility
     useEffect(() => {
         if (roundCounter === 0) return;
-        setCountdown(10);
+        setCountdown(6);
         const timer = setInterval(() => {
             setCountdown(prev => {
                 if (prev <= 1) {
@@ -773,9 +773,24 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                     style={{ maxHeight: '450px', touchAction: 'none' }}
                                 />
                                 {countdown > 0 && (
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                        {/* Show word to drawer during countdown so they can prepare */}
+                                        {isDrawer && currentWord && (
+                                            <div className={`mb-4 px-6 py-3 rounded-xl ${theme === 'tron' ? 'bg-cyan-500/90' : theme === 'kids' ? 'bg-purple-500' : 'bg-orange-600'} shadow-lg`}>
+                                                <p className="text-white text-sm font-bold mb-1">Your word:</p>
+                                                <p className="text-white text-2xl font-black">{currentWord}</p>
+                                            </div>
+                                        )}
                                         <div className="bg-red-600/80 text-white rounded-full w-16 h-16 flex items-center justify-center font-black text-2xl animate-pulse shadow-lg shadow-red-500/50">
                                             {countdown}
+                                        </div>
+                                    </div>
+                                )}
+                                {/* Word display for drawer on canvas */}
+                                {isDrawer && currentWord && countdown <= 0 && (
+                                    <div className="absolute top-2 left-2 pointer-events-none">
+                                        <div className={`${theme === 'tron' ? 'bg-cyan-500/90' : theme === 'kids' ? 'bg-purple-500/90' : 'bg-orange-600/90'} text-white px-3 py-1.5 rounded-lg shadow-lg`}>
+                                            <span className="text-lg font-black">{currentWord}</span>
                                         </div>
                                     </div>
                                 )}
