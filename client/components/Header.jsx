@@ -12,6 +12,13 @@ const LogInIcon = ({ className }) => (
     </svg>
 );
 
+// Rejoin icon
+const RejoinIcon = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M15 18l-6-6 6-6"/>
+    </svg>
+);
+
 function Header({
     theme,
     currentTheme,
@@ -32,7 +39,10 @@ function Header({
     isLoggedIn = false,
     currentUser = null,
     navigateTo = () => {},
-    handleLogout = () => {}
+    handleLogout = () => {},
+    // Rejoin props
+    pendingSession = null,
+    handleRejoinFromLanding = () => {}
 }) {
     const [showMusicMenu, setShowMusicMenu] = useState(false);
     const musicMenuRef = useRef(null);
@@ -114,6 +124,18 @@ function Header({
                     </button>
 
                     <div className="flex items-center gap-1 sm:gap-2">
+                        {/* Rejoin Button - show when there's a pending session and not already in room/game */}
+                        {pendingSession && pendingSession.roomId && !['room', 'game', 'countdown'].includes(page) && (
+                            <button
+                                onClick={handleRejoinFromLanding}
+                                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 h-9 sm:h-10 md:h-12 ${theme === 'tron' ? 'bg-red-500/80 hover:bg-red-400 text-white' : theme === 'kids' ? 'bg-red-500 hover:bg-red-400 text-white' : 'bg-red-600 hover:bg-red-500 text-white'} rounded-xl font-bold transition-all hover:scale-105 animate-pulse`}
+                                title={`Rejoin room ${pendingSession.roomId}`}
+                            >
+                                <RejoinIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <span className="text-xs sm:text-sm hidden sm:inline">Rejoin</span>
+                            </button>
+                        )}
+
                         {/* Theme Dropdown */}
                         <div className="relative">
                             <select

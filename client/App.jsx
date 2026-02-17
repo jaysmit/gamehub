@@ -892,6 +892,13 @@ function App() {
         // NOTE: session is NOT cleared here so the user can rejoin via the
         // landing-page button. The future "Exit Room" button will call
         // clearSession() to fully leave.
+
+        // Update pendingSession so the rejoin button appears on landing page
+        const currentSession = loadSession();
+        if (currentSession && currentSession.roomId) {
+            setPendingSession(currentSession);
+        }
+
         setPage('landing');
         setCurrentRoom(null);
         setIsMaster(false);
@@ -1227,7 +1234,10 @@ function App() {
         isLoggedIn,
         currentUser: user,
         navigateTo,
-        handleLogout
+        handleLogout,
+        // Rejoin props
+        pendingSession,
+        handleRejoinFromLanding
     };
 
     // --- Page Rendering ---
