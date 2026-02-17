@@ -3417,41 +3417,49 @@ function setupSockets(io) {
           }
 
         } else {
-          // Pictionary game sync (existing logic)
-          const gameSync = {
-            gameType: 'pictionary',
-            drawerName: game.drawerName,
-            currentRound: game.currentRound,
-            totalRounds: game.totalRounds,
-            currentPickValue: game.currentPickValue,
-            paused: game.paused || false,
-            timerEndTime: game.timerEndTime,
-            timerRemainingMs: game.timerRemainingMs,
-            drawingOrder: game.drawingOrder
-          };
+          try {
+            // Pictionary game sync - create clean serializable copy
+            const gameSync = {
+              gameType: 'pictionary',
+              drawerName: game.drawerName,
+              currentRound: game.currentRound || 1,
+              totalRounds: game.totalRounds || 1,
+              currentPickValue: game.currentPickValue,
+              paused: game.paused || false,
+              timerEndTime: game.timerEndTime,
+              timerRemainingMs: game.timerRemainingMs,
+              // Clean copy of drawingOrder to avoid any circular refs
+              drawingOrder: game.drawingOrder ? game.drawingOrder.map(d => ({
+                name: d.name,
+                avatar: d.avatar
+              })) : []
+            };
 
-          socket.emit('gameSync', gameSync);
+            socket.emit('gameSync', gameSync);
 
-          // If this player is the drawer, send them their word
-          if (game.drawerName === playerName) {
-            socket.emit('yourWord', { word: game.currentWord });
+            // If this player is the drawer, send them their word
+            if (game.drawerName === playerName) {
+              socket.emit('yourWord', { word: game.currentWord });
 
-            // If game was paused because drawer disconnected, resume it
-            if (game.paused && game.timerRemainingMs > 0) {
-              console.log(`[PICTIONARY] Drawer ${playerName} reconnected, resuming game with ${game.timerRemainingMs}ms remaining`);
+              // If game was paused because drawer disconnected, resume it
+              if (game.paused && game.timerRemainingMs > 0) {
+                console.log(`[PICTIONARY] Drawer ${playerName} reconnected, resuming game with ${game.timerRemainingMs}ms remaining`);
 
-              // Resume the timer
-              game.paused = false;
-              game.timerEndTime = Date.now() + game.timerRemainingMs;
-              game.timerRemainingMs = null;
-              delete game.drawerDisconnectedAt;
+                // Resume the timer
+                game.paused = false;
+                game.timerEndTime = Date.now() + game.timerRemainingMs;
+                game.timerRemainingMs = null;
+                delete game.drawerDisconnectedAt;
 
-              // Notify all players to resume
-              io.to(roomId).emit('gameResumed', {
-                drawerName: playerName,
-                timerEndTime: game.timerEndTime
-              });
+                // Notify all players to resume
+                io.to(roomId).emit('gameResumed', {
+                  drawerName: playerName,
+                  timerEndTime: game.timerEndTime
+                });
+              }
             }
+          } catch (err) {
+            console.error(`[REJOIN] Error sending gameSync for ${playerName}:`, err);
           }
         }
       }
