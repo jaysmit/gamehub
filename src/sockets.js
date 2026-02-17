@@ -3089,7 +3089,8 @@ function setupSockets(io) {
       socket.join(roomId);
       // Create clean serializable copy to avoid circular reference issues
       const roomData = {
-        roomId: room.roomId,
+        id: room.id,
+        name: room.name,
         master: room.master,
         players: room.players.map(p => ({
           name: p.name,
@@ -3099,6 +3100,8 @@ function setupSockets(io) {
           connected: p.connected !== false
         })),
         selectedGames: room.selectedGames || [],
+        difficulty: room.difficulty,
+        playerDifficulties: room.playerDifficulties || {},
         theme: room.theme,
         rejoinToken
       };
@@ -3176,7 +3179,8 @@ function setupSockets(io) {
       // Tell the joining player the full room state (include their rejoin token)
       // Create clean serializable copy to avoid circular reference issues
       const roomData = {
-        roomId: room.roomId,
+        id: room.id,
+        name: room.name,
         master: room.master,
         players: room.players.map(p => ({
           name: p.name,
@@ -3186,6 +3190,8 @@ function setupSockets(io) {
           connected: p.connected !== false
         })),
         selectedGames: room.selectedGames || [],
+        difficulty: room.difficulty,
+        playerDifficulties: room.playerDifficulties || {},
         theme: room.theme,
         rejoinToken
       };
@@ -3296,15 +3302,19 @@ function setupSockets(io) {
       // Send full room state back to the rejoining player (include gameHistory)
       // Create a clean serializable copy to avoid circular reference issues
       const roomData = {
-        roomId: roomId,
+        id: room.id,
+        name: room.name,
         master: room.master,
         players: room.players.map(p => ({
           name: p.name,
           avatar: p.avatar,
           score: p.score || 0,
+          isMaster: p.isMaster,
           connected: p.connected !== false
         })),
         selectedGames: room.selectedGames || [],
+        difficulty: room.difficulty,
+        playerDifficulties: room.playerDifficulties || {},
         gameHistory: room.gameHistory || [],
         theme: room.theme,
         // Include basic game info if active (detailed sync sent separately)
