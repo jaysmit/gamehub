@@ -792,6 +792,7 @@ function App() {
     // Add or update game with config
     const saveGameWithConfig = (gameId, config) => {
         const isEditing = isGameSelected(gameId);
+        console.log(`[CLIENT] saveGameWithConfig - gameId: ${gameId}, config:`, JSON.stringify(config));
 
         if (isEditing) {
             // Update existing
@@ -804,6 +805,7 @@ function App() {
         }
 
         // Emit to server
+        console.log(`[CLIENT] Emitting updateGameConfig - roomId: ${currentRoom.id}, gameId: ${gameId}, config:`, JSON.stringify(config));
         socket.emit('updateGameConfig', { roomId: currentRoom.id, gameId, config });
         setGameSettingsModal(null);
     };
@@ -858,6 +860,7 @@ function App() {
 
     const startGame = () => {
         if (selectedGames.length > 0) {
+            console.log(`[CLIENT] Starting game - selectedGames:`, JSON.stringify(selectedGames));
             socket.emit('startGame', { roomId: currentRoom.id });
         }
     };
