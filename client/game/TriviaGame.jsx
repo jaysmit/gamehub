@@ -1915,10 +1915,10 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
                             {/* Action buttons */}
                             <div className="mt-4 space-y-2">
-                                {/* Master controls */}
+                                {/* Master controls - always show buttons */}
                                 {isMaster && (
                                     <>
-                                        {/* Reveal All Questions button - show if not all revealed yet */}
+                                        {/* Reveal All Questions button - show while animation is still running */}
                                         {!allQuestionsRevealed && !animationComplete && (
                                             <button
                                                 onClick={handleRevealAllQuestions}
@@ -1928,18 +1928,16 @@ const TriviaGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                                             </button>
                                         )}
 
-                                        {/* Go to Next Round / View Final Results button - show when animation complete or all revealed */}
-                                        {(animationComplete || allQuestionsRevealed) && (
-                                            <button
-                                                onClick={handleNextRound}
-                                                className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg`}
-                                            >
-                                                {recapData?.isLastRound
-                                                    ? (theme === 'tron' ? '[ VIEW_RESULTS ]' : 'View Final Results')
-                                                    : (theme === 'tron' ? '[ NEXT_ROUND ]' : 'Go to Next Round')
-                                                }
-                                            </button>
-                                        )}
+                                        {/* Go to Next Round / View Final Results button - always visible for master */}
+                                        <button
+                                            onClick={handleNextRound}
+                                            className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg`}
+                                        >
+                                            {recapData?.isLastRound
+                                                ? (theme === 'tron' ? '[ VIEW_RESULTS ]' : 'View Final Results')
+                                                : (theme === 'tron' ? '[ NEXT_ROUND ]' : 'Go to Next Round')
+                                            }
+                                        </button>
                                     </>
                                 )}
 
