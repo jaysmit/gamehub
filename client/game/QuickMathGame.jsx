@@ -45,6 +45,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
     const [flyingPoints, setFlyingPoints] = useState([]);
     const [speedRoundDifficulty, setSpeedRoundDifficulty] = useState(null);
     const [revealedPlayers, setRevealedPlayers] = useState({});       // { playerName: { revealed: true, correct: boolean } }
+    const [allQuestionsRevealed, setAllQuestionsRevealed] = useState(false);  // Master can reveal all at once
 
     // Speed round race recap state
     const [raceData, setRaceData] = useState(null);
@@ -182,6 +183,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             setAnimatedStandings([]);
             setShowingQuestion(true);
             setNextRoundCountdown(null);
+            setAllQuestionsRevealed(false);  // Reset reveal state
             setPhase('recap');
             setRecapData(data);
             setStandings(data.standings);
@@ -663,11 +665,8 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                             standings.forEach(p => { finalScores[p.name] = p.score; });
                             setPreviousRoundScores(finalScores);
 
-                            // Advance to next round
+                            // Mark animation complete - master controls when to proceed
                             setShowingQuestion(false);
-                            if (currentRoom?.id) {
-                                socket.emit('mathNextRound', { roomId: currentRoom.id });
-                            }
                         }
                     }, viewingTime);
                 }
@@ -876,6 +875,68 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         if (currentRoom?.id) {
             socket.emit('mathNextRound', { roomId: currentRoom.id });
         }
+    };
+
+    // Master reveals all questions at once
+    const handleRevealAllQuestions = () => {
+        if (!isMaster || phase !== 'recap') return;
+
+        const questionHistory = recapData?.questionHistory || [];
+        if (questionHistory.length === 0) return;
+
+        // Set to last question index
+        setRecapQuestionIndex(questionHistory.length - 1);
+
+        // Reveal all players immediately
+        const allPlayers = {};
+        questionHistory.forEach(q => {
+            if (q.groupData && Array.isArray(q.groupData)) {
+                q.groupData.forEach(g => {
+                    const playerNames = g.playerNames || Object.keys(g.playerResults || {});
+                    playerNames.forEach(name => {
+                        const result = g.playerResults?.[name];
+                        allPlayers[name] = { revealed: true, correct: result?.isCorrect || false };
+                    });
+                });
+            } else if (q.playerResults) {
+                Object.entries(q.playerResults).forEach(([name, result]) => {
+                    allPlayers[name] = { revealed: true, correct: result?.isCorrect || false };
+                });
+            }
+        });
+        setRevealedPlayers(allPlayers);
+
+        // Update standings with all points
+        const updatedStandings = standings.map(player => {
+            let totalPoints = 0;
+            questionHistory.forEach(q => {
+                if (q.groupData && Array.isArray(q.groupData)) {
+                    q.groupData.forEach(g => {
+                        const result = g.playerResults?.[player.name];
+                        if (result?.isCorrect && result.pointsEarned) {
+                            totalPoints += result.pointsEarned;
+                        }
+                    });
+                } else if (q.playerResults?.[player.name]) {
+                    const result = q.playerResults[player.name];
+                    if (result?.isCorrect && result.pointsEarned) {
+                        totalPoints += result.pointsEarned;
+                    }
+                }
+            });
+            return { ...player, score: player.score + totalPoints };
+        });
+        setAnimatedStandings(updatedStandings.sort((a, b) => b.score - a.score));
+
+        // Mark animation as complete
+        setRecapAnimPhase(2);
+        setShowingQuestion(false);
+        setAllQuestionsRevealed(true);
+
+        // Save final scores for next round's frozen scoreboard
+        const finalScores = {};
+        updatedStandings.forEach(p => { finalScores[p.name] = p.score; });
+        setPreviousRoundScores(finalScores);
     };
 
     // End game early (master only)
@@ -1444,7 +1505,10 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                     </h2>
                     {questionHistory.length > 0 && (
                         <div className={`text-sm ${currentTheme.textSecondary} mt-1`}>
-                            Question {recapQuestionIndex + 1} of {questionHistory.length}
+                            {allQuestionsRevealed
+                                ? `All ${questionHistory.length} Questions`
+                                : `Question ${recapQuestionIndex + 1} of ${questionHistory.length}`
+                            }
                         </div>
                     )}
                 </div>
@@ -1460,7 +1524,89 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
 
                             {/* Vertical list of ALL groups */}
                             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                                {activeGroups.length > 0 ? activeGroups.map((groupData, groupIdx) => {
+                                {/* When all questions revealed, show everything from question history */}
+                                {allQuestionsRevealed ? (
+                                    questionHistory.map((q, qIdx) => {
+                                        // Get groups for this question
+                                        const groups = q.groupData && Array.isArray(q.groupData)
+                                            ? q.groupData.filter(g => g && (g.question || g.correctAnswer))
+                                            : (q.question ? [{ question: q.question, correctAnswer: q.correctAnswer, playerResults: q.playerResults || {}, difficultyLabel: null }] : []);
+
+                                        return groups.map((groupData, gIdx) => (
+                                            <div
+                                                key={`${qIdx}-${gIdx}`}
+                                                className={`transition-all duration-300 ${
+                                                    theme === 'tron' ? 'bg-cyan-500/10 border border-cyan-500/50' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-300' : 'bg-orange-900/20 border border-orange-700/50'
+                                                } p-4 rounded-xl`}
+                                            >
+                                                {/* Question number and difficulty label */}
+                                                <div className="flex items-start gap-2 mb-2">
+                                                    <span className={`text-xs px-2 py-0.5 rounded font-bold whitespace-nowrap ${
+                                                        theme === 'tron' ? 'bg-gray-700 text-cyan-300' : theme === 'kids' ? 'bg-gray-300 text-gray-700' : 'bg-gray-700 text-orange-300'
+                                                    }`}>
+                                                        Q{qIdx + 1}
+                                                    </span>
+                                                    {groupData.difficultyLabel && (
+                                                        <span className={`text-xs px-2 py-0.5 rounded font-bold whitespace-nowrap ${
+                                                            theme === 'tron' ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50' : theme === 'kids' ? 'bg-purple-300 text-purple-800' : 'bg-orange-700/50 text-orange-300'
+                                                        }`}>
+                                                            {groupData.difficultyLabel}
+                                                        </span>
+                                                    )}
+                                                    <div className={`text-2xl md:text-3xl font-black ${currentTheme.text} flex-1 text-center`}>
+                                                        {groupData.question}
+                                                    </div>
+                                                </div>
+
+                                                {/* Correct answer */}
+                                                <div className="flex items-center justify-center gap-2 mb-3">
+                                                    <span className="text-green-400 font-bold">✓</span>
+                                                    <span className="text-green-400 text-xl font-black">{groupData.correctAnswer}</span>
+                                                </div>
+
+                                                {/* Player results */}
+                                                <div className="flex flex-wrap gap-2 justify-center min-h-[28px]">
+                                                    {Object.entries(groupData.playerResults || {}).map(([name, result]) => {
+                                                        const player = currentRoom?.players.find(p => p.name === name);
+                                                        const character = availableCharacters.find(c => c.id === player?.avatar) || availableCharacters[0];
+                                                        const isCorrect = result?.isCorrect || false;
+                                                        const pointsEarned = result?.pointsEarned || 0;
+
+                                                        return (
+                                                            <div
+                                                                key={`${qIdx}-${gIdx}-${name}`}
+                                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-sm ${
+                                                                    isCorrect
+                                                                        ? (theme === 'tron' ? 'bg-green-500/20 border border-green-500/50' : theme === 'kids' ? 'bg-green-200 border border-green-400' : 'bg-green-700/30 border border-green-600/50')
+                                                                        : (theme === 'tron' ? 'bg-red-500/20 border border-red-500/50' : theme === 'kids' ? 'bg-red-200 border border-red-400' : 'bg-red-700/30 border border-red-600/50')
+                                                                }`}
+                                                            >
+                                                                <div className="w-5 h-5">
+                                                                    <CharacterSVG characterId={player?.avatar} size={20} color={character.color} />
+                                                                </div>
+                                                                <span className={`font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                                                    {name}
+                                                                </span>
+                                                                {isCorrect ? (
+                                                                    <>
+                                                                        <span>🪙</span>
+                                                                        {pointsEarned > 0 && (
+                                                                            <span className="text-yellow-400 font-bold">
+                                                                                +{pointsEarned}
+                                                                            </span>
+                                                                        )}
+                                                                    </>
+                                                                ) : (
+                                                                    <span className="text-red-500 font-bold text-lg">✕</span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ));
+                                    })
+                                ) : activeGroups.length > 0 ? activeGroups.map((groupData, groupIdx) => {
                                     // Get all players for this group
                                     const allPlayerResults = Object.entries(groupData.playerResults || {});
 
@@ -1609,26 +1755,45 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                             </div>
 
                             {/* Action buttons */}
-                            <div className="mt-4">
-                                {/* View Final Results button for master */}
-                                {isMaster && recapData?.isLastRound && animationComplete && (
-                                    <button
-                                        onClick={handleNextRound}
-                                        className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg mb-3`}
-                                    >
-                                        {theme === 'tron' ? '[ VIEW_RESULTS ]' : 'View Final Results'}
-                                    </button>
+                            <div className="mt-4 space-y-2">
+                                {/* Master controls */}
+                                {isMaster && (
+                                    <>
+                                        {/* Reveal All Questions button - show if not all revealed yet */}
+                                        {!allQuestionsRevealed && !animationComplete && (
+                                            <button
+                                                onClick={handleRevealAllQuestions}
+                                                className={`w-full ${theme === 'tron' ? 'bg-purple-500 hover:bg-purple-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-purple-700 hover:bg-purple-600 text-white'} font-bold py-2 rounded-xl transition-all text-sm`}
+                                            >
+                                                {theme === 'tron' ? '[ REVEAL_ALL ]' : 'Reveal All Questions'}
+                                            </button>
+                                        )}
+
+                                        {/* Go to Next Round / View Final Results button - show when animation complete or all revealed */}
+                                        {(animationComplete || allQuestionsRevealed) && (
+                                            <button
+                                                onClick={handleNextRound}
+                                                className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg`}
+                                            >
+                                                {recapData?.isLastRound
+                                                    ? (theme === 'tron' ? '[ VIEW_RESULTS ]' : 'View Final Results')
+                                                    : (theme === 'tron' ? '[ NEXT_ROUND ]' : 'Go to Next Round')
+                                                }
+                                            </button>
+                                        )}
+                                    </>
                                 )}
 
-                                {!isMaster && !animationComplete && (
+                                {/* Non-master status messages */}
+                                {!isMaster && !animationComplete && !allQuestionsRevealed && (
                                     <div className={`text-center ${currentTheme.textSecondary} text-sm`}>
                                         Reviewing questions...
                                     </div>
                                 )}
 
-                                {!isMaster && animationComplete && nextRoundCountdown !== null && (
+                                {!isMaster && (animationComplete || allQuestionsRevealed) && (
                                     <div className={`text-center ${currentTheme.textSecondary} text-sm`}>
-                                        {recapData?.isLastRound ? 'Final results incoming...' : 'Next round starting...'}
+                                        Waiting for game master to continue...
                                     </div>
                                 )}
                             </div>

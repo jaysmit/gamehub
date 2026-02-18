@@ -27,7 +27,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'SE17', category: 'Simple', question: 'What is fluffy and says "meow"?', answers: ['Cat', 'Dog', 'Bird', 'Fish'], correctIndex: 0 },
     { id: 'SE18', category: 'Simple', question: 'What flies in the sky?', answers: ['Bird', 'Fish', 'Cat', 'Dog'], correctIndex: 0 },
     { id: 'SE19', category: 'Simple', question: 'What do you sleep in?', answers: ['Bed', 'Car', 'Tree', 'Pool'], correctIndex: 0 },
-    { id: 'SE20', category: 'Simple', question: 'What do you eat with?', answers: ['Spoon', 'Shoe', 'Hat', 'Book'], correctIndex: 0 }
+    { id: 'SE20', category: 'Simple', question: 'What do you eat with?', answers: ['Spoon', 'Shoe', 'Hat', 'Book'], correctIndex: 0 },
+    { id: 'SE21', category: 'Animals', question: 'What says "cock-a-doodle-doo"?', answers: ['Rooster', 'Dog', 'Cat', 'Pig'], correctIndex: 0 },
+    { id: 'SE22', category: 'Animals', question: 'What says "ribbit"?', answers: ['Frog', 'Dog', 'Bird', 'Cat'], correctIndex: 0 },
+    { id: 'SE23', category: 'Animals', question: 'What says "hiss"?', answers: ['Snake', 'Dog', 'Cat', 'Cow'], correctIndex: 0 },
+    { id: 'SE24', category: 'Animals', question: 'What says "buzz"?', answers: ['Bee', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'SE25', category: 'YesNo', question: 'Is water wet?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE26', category: 'YesNo', question: 'Is fire hot?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE27', category: 'YesNo', question: 'Do cats meow?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE28', category: 'YesNo', question: 'Do frogs hop?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE29', category: 'Simple', question: 'What do you wear on your feet?', answers: ['Shoes', 'Hat', 'Gloves', 'Scarf'], correctIndex: 0 },
+    { id: 'SE30', category: 'Simple', question: 'What gives us light at night?', answers: ['Moon', 'Sun', 'Stars', 'Clouds'], correctIndex: 0 },
+    { id: 'SE31', category: 'Simple', question: 'What do you drink?', answers: ['Water', 'Rocks', 'Paper', 'Shoes'], correctIndex: 0 },
+    { id: 'SE32', category: 'Simple', question: 'What do you play with?', answers: ['Toys', 'Rocks', 'Dirt', 'Sticks'], correctIndex: 0 },
+    { id: 'SE33', category: 'Animals', question: 'What animal is orange with black stripes?', answers: ['Tiger', 'Cow', 'Pig', 'Dog'], correctIndex: 0 },
+    { id: 'SE34', category: 'Animals', question: 'What animal has big ears and hops?', answers: ['Rabbit', 'Cat', 'Dog', 'Fish'], correctIndex: 0 },
+    { id: 'SE35', category: 'YesNo', question: 'Is the moon round?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE36', category: 'YesNo', question: 'Do elephants have trunks?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE37', category: 'Simple', question: 'What is red and round?', answers: ['Apple', 'Banana', 'Carrot', 'Milk'], correctIndex: 0 },
+    { id: 'SE38', category: 'Simple', question: 'What do you read?', answers: ['Book', 'Chair', 'Table', 'Lamp'], correctIndex: 0 },
+    { id: 'SE39', category: 'YesNo', question: 'Do butterflies fly?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE40', category: 'YesNo', question: 'Is grass green?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE41', category: 'Animals', question: 'What animal gives us milk?', answers: ['Cow', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'SE42', category: 'Simple', question: 'What is yellow and long?', answers: ['Banana', 'Apple', 'Orange', 'Grape'], correctIndex: 0 },
+    { id: 'SE43', category: 'YesNo', question: 'Do rabbits have long ears?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE44', category: 'YesNo', question: 'Is a ball round?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE45', category: 'Simple', question: 'What shines in the sky during day?', answers: ['Sun', 'Moon', 'Stars', 'Clouds'], correctIndex: 0 },
+    { id: 'SE46', category: 'Animals', question: 'What animal has wings and feathers?', answers: ['Bird', 'Dog', 'Cat', 'Fish'], correctIndex: 0 },
+    { id: 'SE47', category: 'YesNo', question: 'Do monkeys climb trees?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE48', category: 'Simple', question: 'What do you wear when it rains?', answers: ['Raincoat', 'Shorts', 'Sandals', 'Sunglasses'], correctIndex: 0 },
+    { id: 'SE49', category: 'YesNo', question: 'Is chocolate sweet?', answers: ['Yes', 'No'], correctIndex: 0 },
+    { id: 'SE50', category: 'Simple', question: 'What do you brush your teeth with?', answers: ['Toothbrush', 'Comb', 'Spoon', 'Fork'], correctIndex: 0 }
   ],
   'very-easy': [
     // Colors, shapes, counting for young children (ages 5-7) - UNIQUE to this level
@@ -50,7 +80,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'VE17', category: 'Nature', question: 'The sun comes out during the...?', answers: ['Day', 'Night', 'Evening', 'Never', 'Midnight', 'Dawn'], correctIndex: 0 },
     { id: 'VE18', category: 'Nature', question: 'Snow is what color?', answers: ['White', 'Blue', 'Yellow', 'Green', 'Red', 'Pink'], correctIndex: 0 },
     { id: 'VE19', category: 'Disney', question: 'Mickey Mouse has two big...?', answers: ['Ears', 'Noses', 'Feet', 'Hands', 'Eyes', 'Teeth'], correctIndex: 0 },
-    { id: 'VE20', category: 'Disney', question: 'In The Lion King, Simba is a...?', answers: ['Lion', 'Zebra', 'Bird', 'Elephant', 'Giraffe', 'Hippo'], correctIndex: 0 }
+    { id: 'VE20', category: 'Disney', question: 'In The Lion King, Simba is a...?', answers: ['Lion', 'Zebra', 'Bird', 'Elephant', 'Giraffe', 'Hippo'], correctIndex: 0 },
+    { id: 'VE21', category: 'Animals', question: 'What animal has black and white stripes?', answers: ['Zebra', 'Lion', 'Bear', 'Dog'], correctIndex: 0 },
+    { id: 'VE22', category: 'Animals', question: 'What animal has a shell on its back?', answers: ['Turtle', 'Dog', 'Cat', 'Bird'], correctIndex: 0 },
+    { id: 'VE23', category: 'Colors', question: 'What color is a strawberry?', answers: ['Red', 'Blue', 'Yellow', 'Green'], correctIndex: 0 },
+    { id: 'VE24', category: 'Colors', question: 'What color is chocolate?', answers: ['Brown', 'Black', 'White', 'Red'], correctIndex: 0 },
+    { id: 'VE25', category: 'Food', question: 'What do cows give us to drink?', answers: ['Milk', 'Juice', 'Water', 'Soda'], correctIndex: 0 },
+    { id: 'VE26', category: 'Food', question: 'What frozen treat comes in a cone?', answers: ['Ice cream', 'Pizza', 'Cake', 'Cookies'], correctIndex: 0 },
+    { id: 'VE27', category: 'Nature', question: 'What comes out at night and shines in the sky?', answers: ['Stars', 'Sun', 'Clouds', 'Rain'], correctIndex: 0 },
+    { id: 'VE28', category: 'Nature', question: 'What season is cold with snow?', answers: ['Winter', 'Summer', 'Spring', 'Fall'], correctIndex: 0 },
+    { id: 'VE29', category: 'Disney', question: 'What color is Elsa\'s dress in Frozen?', answers: ['Blue', 'Red', 'Yellow', 'Green'], correctIndex: 0 },
+    { id: 'VE30', category: 'Disney', question: 'What princess has a magic carpet?', answers: ['Jasmine', 'Cinderella', 'Ariel', 'Belle'], correctIndex: 0 },
+    { id: 'VE31', category: 'Body', question: 'What do you use to smell?', answers: ['Nose', 'Eyes', 'Ears', 'Mouth'], correctIndex: 0 },
+    { id: 'VE32', category: 'Body', question: 'How many legs do people have?', answers: ['2', '4', '6', '8'], correctIndex: 0 },
+    { id: 'VE33', category: 'Animals', question: 'What is a baby dog called?', answers: ['Puppy', 'Kitten', 'Calf', 'Chick'], correctIndex: 0 },
+    { id: 'VE34', category: 'Animals', question: 'What is a baby cat called?', answers: ['Kitten', 'Puppy', 'Cub', 'Lamb'], correctIndex: 0 },
+    { id: 'VE35', category: 'Colors', question: 'What color is a lemon?', answers: ['Yellow', 'Red', 'Blue', 'Green'], correctIndex: 0 },
+    { id: 'VE36', category: 'Colors', question: 'What color is a grape?', answers: ['Purple', 'Orange', 'Yellow', 'Blue'], correctIndex: 0 },
+    { id: 'VE37', category: 'Food', question: 'What do bees make?', answers: ['Honey', 'Milk', 'Butter', 'Cheese'], correctIndex: 0 },
+    { id: 'VE38', category: 'Food', question: 'What is round and has cheese on it?', answers: ['Pizza', 'Cake', 'Bread', 'Cookie'], correctIndex: 0 },
+    { id: 'VE39', category: 'Nature', question: 'What do flowers need to grow?', answers: ['Water', 'Ice', 'Sand', 'Rocks'], correctIndex: 0 },
+    { id: 'VE40', category: 'Nature', question: 'What falls from clouds?', answers: ['Rain', 'Leaves', 'Sand', 'Rocks'], correctIndex: 0 },
+    { id: 'VE41', category: 'Shapes', question: 'What shape is a wheel?', answers: ['Circle', 'Square', 'Triangle', 'Star'], correctIndex: 0 },
+    { id: 'VE42', category: 'Shapes', question: 'What shape is a slice of pizza?', answers: ['Triangle', 'Circle', 'Square', 'Rectangle'], correctIndex: 0 },
+    { id: 'VE43', category: 'Numbers', question: 'How many fingers do you have on both hands?', answers: ['10', '8', '12', '5'], correctIndex: 0 },
+    { id: 'VE44', category: 'Numbers', question: 'How many wheels does a car have?', answers: ['4', '2', '6', '8'], correctIndex: 0 },
+    { id: 'VE45', category: 'Disney', question: 'What is the name of the fish in Finding Nemo?', answers: ['Nemo', 'Dory', 'Marlin', 'Bruce'], correctIndex: 0 },
+    { id: 'VE46', category: 'Disney', question: 'Who is Mickey Mouse\'s girlfriend?', answers: ['Minnie', 'Daisy', 'Pluto', 'Goofy'], correctIndex: 0 },
+    { id: 'VE47', category: 'Animals', question: 'What animal is orange and has black stripes?', answers: ['Tiger', 'Lion', 'Bear', 'Wolf'], correctIndex: 0 },
+    { id: 'VE48', category: 'Animals', question: 'What animal lives in a hive and buzzes?', answers: ['Bee', 'Bird', 'Butterfly', 'Ant'], correctIndex: 0 },
+    { id: 'VE49', category: 'Body', question: 'What do you use to walk?', answers: ['Legs', 'Arms', 'Ears', 'Eyes'], correctIndex: 0 },
+    { id: 'VE50', category: 'Body', question: 'What pumps blood in your body?', answers: ['Heart', 'Brain', 'Lungs', 'Stomach'], correctIndex: 0 }
   ],
   'easy': [
     { id: 'E1', category: 'Movies', question: 'Which Disney movie features a character named Simba?', answers: ['The Lion King', 'Frozen', 'Moana', 'Aladdin', 'Tarzan', 'Bambi'], correctIndex: 0 },
@@ -72,7 +132,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'E17', category: 'Sports', question: 'How many rings are in the Olympic symbol?', answers: ['5', '4', '6', '7', '3', '8'], correctIndex: 0 },
     { id: 'E18', category: 'Video Games', question: 'In Minecraft, what explodes when it gets close?', answers: ['Creeper', 'Zombie', 'Skeleton', 'Enderman', 'Spider', 'Witch'], correctIndex: 0 },
     { id: 'E19', category: 'General', question: 'How many colors are in a rainbow?', answers: ['7', '6', '5', '8', '9', '10'], correctIndex: 0 },
-    { id: 'E20', category: 'General', question: 'What do bees make?', answers: ['Honey', 'Milk', 'Silk', 'Wax', 'Nectar', 'Pollen'], correctIndex: 0 }
+    { id: 'E20', category: 'General', question: 'What do bees make?', answers: ['Honey', 'Milk', 'Silk', 'Wax', 'Nectar', 'Pollen'], correctIndex: 0 },
+    { id: 'E21', category: 'Movies', question: 'In "Cars", what type of vehicle is Lightning McQueen?', answers: ['Race car', 'Truck', 'Bus', 'Helicopter'], correctIndex: 0 },
+    { id: 'E22', category: 'Movies', question: 'In "Inside Out", what color is Sadness?', answers: ['Blue', 'Yellow', 'Red', 'Green'], correctIndex: 0 },
+    { id: 'E23', category: 'Movies', question: 'In "Kung Fu Panda", what animal is Po?', answers: ['Panda', 'Tiger', 'Snake', 'Crane'], correctIndex: 0 },
+    { id: 'E24', category: 'Movies', question: 'What superhero lives in Gotham City?', answers: ['Batman', 'Superman', 'Spider-Man', 'Iron Man'], correctIndex: 0 },
+    { id: 'E25', category: 'Movies', question: 'What is the name of Shrek\'s wife?', answers: ['Fiona', 'Cinderella', 'Ariel', 'Belle'], correctIndex: 0 },
+    { id: 'E26', category: 'TV Shows', question: 'In "Phineas and Ferb", what is their pet platypus named?', answers: ['Perry', 'Paul', 'Pete', 'Plato'], correctIndex: 0 },
+    { id: 'E27', category: 'TV Shows', question: 'What color is Clifford the Big Red Dog?', answers: ['Red', 'Blue', 'Yellow', 'Green'], correctIndex: 0 },
+    { id: 'E28', category: 'TV Shows', question: 'What is the name of the talking dog in Scooby-Doo?', answers: ['Scooby-Doo', 'Shaggy', 'Velma', 'Fred'], correctIndex: 0 },
+    { id: 'E29', category: 'Video Games', question: 'What game features catching creatures called Pokemon?', answers: ['Pokemon', 'Mario', 'Zelda', 'Sonic'], correctIndex: 0 },
+    { id: 'E30', category: 'Video Games', question: 'In "Angry Birds", what do you launch at pigs?', answers: ['Birds', 'Balls', 'Rocks', 'Eggs'], correctIndex: 0 },
+    { id: 'E31', category: 'Video Games', question: 'What yellow character eats dots and avoids ghosts?', answers: ['Pac-Man', 'Pikachu', 'Sonic', 'Mario'], correctIndex: 0 },
+    { id: 'E32', category: 'Animals', question: 'What is the tallest animal in the world?', answers: ['Giraffe', 'Elephant', 'Horse', 'Camel'], correctIndex: 0 },
+    { id: 'E33', category: 'Animals', question: 'What animal has black and white fur and eats bamboo?', answers: ['Panda', 'Zebra', 'Penguin', 'Skunk'], correctIndex: 0 },
+    { id: 'E34', category: 'Animals', question: 'What is a group of fish called?', answers: ['School', 'Herd', 'Pack', 'Flock'], correctIndex: 0 },
+    { id: 'E35', category: 'Animals', question: 'What sea animal has eight arms?', answers: ['Octopus', 'Starfish', 'Jellyfish', 'Crab'], correctIndex: 0 },
+    { id: 'E36', category: 'Sports', question: 'What sport uses a racket and a shuttlecock?', answers: ['Badminton', 'Tennis', 'Squash', 'Ping Pong'], correctIndex: 0 },
+    { id: 'E37', category: 'Sports', question: 'In what sport do you try to get a hole in one?', answers: ['Golf', 'Bowling', 'Basketball', 'Soccer'], correctIndex: 0 },
+    { id: 'E38', category: 'Sports', question: 'How many players are on a basketball team on the court?', answers: ['5', '6', '7', '11'], correctIndex: 0 },
+    { id: 'E39', category: 'Science', question: 'What planet is known for having rings?', answers: ['Saturn', 'Mars', 'Venus', 'Mercury'], correctIndex: 0 },
+    { id: 'E40', category: 'Science', question: 'What is the name of our galaxy?', answers: ['Milky Way', 'Andromeda', 'Spiral', 'Solar'], correctIndex: 0 },
+    { id: 'E41', category: 'Science', question: 'What makes a rainbow appear?', answers: ['Sunlight and rain', 'Wind', 'Clouds', 'Snow'], correctIndex: 0 },
+    { id: 'E42', category: 'General', question: 'What holiday do people dress up in costumes?', answers: ['Halloween', 'Christmas', 'Easter', 'Thanksgiving'], correctIndex: 0 },
+    { id: 'E43', category: 'General', question: 'What imaginary creature breathes fire?', answers: ['Dragon', 'Unicorn', 'Mermaid', 'Giant'], correctIndex: 0 },
+    { id: 'E44', category: 'History', question: 'What did the ancient Egyptians build for their kings?', answers: ['Pyramids', 'Castles', 'Churches', 'Bridges'], correctIndex: 0 },
+    { id: 'E45', category: 'History', question: 'What famous ship hit an iceberg and sank?', answers: ['Titanic', 'Mayflower', 'Santa Maria', 'Queen Mary'], correctIndex: 0 },
+    { id: 'E46', category: 'Geography', question: 'What is the largest continent?', answers: ['Asia', 'Africa', 'North America', 'Europe'], correctIndex: 0 },
+    { id: 'E47', category: 'Geography', question: 'What ocean is between America and Europe?', answers: ['Atlantic', 'Pacific', 'Indian', 'Arctic'], correctIndex: 0 },
+    { id: 'E48', category: 'Geography', question: 'In what country is the Great Wall?', answers: ['China', 'Japan', 'India', 'Korea'], correctIndex: 0 },
+    { id: 'E49', category: 'Movies', question: 'In "Zootopia", what kind of animal is Judy Hopps?', answers: ['Rabbit', 'Fox', 'Lion', 'Elephant'], correctIndex: 0 },
+    { id: 'E50', category: 'General', question: 'What do you blow out on a birthday cake?', answers: ['Candles', 'Balloons', 'Confetti', 'Streamers'], correctIndex: 0 }
   ],
   'medium': [
     { id: 'M1', category: 'Movies', question: 'Which superhero is known as the "Dark Knight"?', answers: ['Batman', 'Superman', 'Spider-Man', 'Iron Man', 'Thor', 'Captain America'], correctIndex: 0 },
@@ -94,7 +184,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'M17', category: 'TV Shows', question: 'In Avatar: The Last Airbender, what element does Aang master first?', answers: ['Air', 'Water', 'Earth', 'Fire', 'Metal', 'Lightning'], correctIndex: 0 },
     { id: 'M18', category: 'General', question: 'What gas do plants breathe in?', answers: ['Carbon dioxide', 'Oxygen', 'Nitrogen', 'Hydrogen', 'Helium', 'Methane'], correctIndex: 0 },
     { id: 'M19', category: 'Video Games', question: 'In Roblox, what is the in-game currency called?', answers: ['Robux', 'Coins', 'Gems', 'Bucks', 'Credits', 'Tokens'], correctIndex: 0 },
-    { id: 'M20', category: 'Sports', question: 'What color belt is highest in karate?', answers: ['Black', 'White', 'Red', 'Brown', 'Blue', 'Green'], correctIndex: 0 }
+    { id: 'M20', category: 'Sports', question: 'What color belt is highest in karate?', answers: ['Black', 'White', 'Red', 'Brown', 'Blue', 'Green'], correctIndex: 0 },
+    { id: 'M21', category: 'Movies', question: 'In "The Hunger Games", what is the name of the main character?', answers: ['Katniss', 'Tris', 'Hermione', 'Bella'], correctIndex: 0 },
+    { id: 'M22', category: 'Movies', question: 'In "Avatar", what color are the Na\'vi people?', answers: ['Blue', 'Green', 'Purple', 'Red'], correctIndex: 0 },
+    { id: 'M23', category: 'Movies', question: 'What wizard school does Harry Potter attend?', answers: ['Hogwarts', 'Beauxbatons', 'Durmstrang', 'Ilvermorny'], correctIndex: 0 },
+    { id: 'M24', category: 'Movies', question: 'In "Guardians of the Galaxy", what is Rocket?', answers: ['Raccoon', 'Fox', 'Squirrel', 'Possum'], correctIndex: 0 },
+    { id: 'M25', category: 'TV Shows', question: 'In "Breaking Bad", what subject does Walter White teach?', answers: ['Chemistry', 'Math', 'Physics', 'Biology'], correctIndex: 0 },
+    { id: 'M26', category: 'TV Shows', question: 'In "The Mandalorian", what is Din Djarin\'s ship called?', answers: ['Razor Crest', 'Millennium Falcon', 'Ghost', 'Slave I'], correctIndex: 0 },
+    { id: 'M27', category: 'Music', question: 'What pop star is known as the "Material Girl"?', answers: ['Madonna', 'Cyndi Lauper', 'Whitney Houston', 'Janet Jackson'], correctIndex: 0 },
+    { id: 'M28', category: 'Music', question: 'What artist released "Shape of You"?', answers: ['Ed Sheeran', 'Justin Bieber', 'Bruno Mars', 'The Weeknd'], correctIndex: 0 },
+    { id: 'M29', category: 'Music', question: 'What artist is known for "Uptown Funk"?', answers: ['Bruno Mars', 'Drake', 'Kanye West', 'Post Malone'], correctIndex: 0 },
+    { id: 'M30', category: 'Video Games', question: 'In "League of Legends", how many players are on each team?', answers: ['5', '6', '4', '3'], correctIndex: 0 },
+    { id: 'M31', category: 'Video Games', question: 'In "Valorant", what are the playable characters called?', answers: ['Agents', 'Legends', 'Champions', 'Heroes'], correctIndex: 0 },
+    { id: 'M32', category: 'Video Games', question: 'In "Overwatch", what role does Mercy play?', answers: ['Support', 'Tank', 'Damage', 'Defense'], correctIndex: 0 },
+    { id: 'M33', category: 'Science', question: 'What is the chemical formula for table salt?', answers: ['NaCl', 'H2O', 'CO2', 'O2'], correctIndex: 0 },
+    { id: 'M34', category: 'Science', question: 'What planet is closest to the Sun?', answers: ['Mercury', 'Venus', 'Mars', 'Earth'], correctIndex: 0 },
+    { id: 'M35', category: 'Science', question: 'What is the largest organ in the human body?', answers: ['Skin', 'Liver', 'Brain', 'Heart'], correctIndex: 0 },
+    { id: 'M36', category: 'Sports', question: 'How many innings are in a standard baseball game?', answers: ['9', '7', '10', '8'], correctIndex: 0 },
+    { id: 'M37', category: 'Sports', question: 'How many points is a three-pointer worth in basketball?', answers: ['3', '2', '4', '1'], correctIndex: 0 },
+    { id: 'M38', category: 'Sports', question: 'What is the highest score possible in bowling?', answers: ['300', '200', '400', '250'], correctIndex: 0 },
+    { id: 'M39', category: 'General', question: 'What is the capital of France?', answers: ['Paris', 'London', 'Berlin', 'Rome'], correctIndex: 0 },
+    { id: 'M40', category: 'General', question: 'How many states are in the United States?', answers: ['50', '48', '52', '45'], correctIndex: 0 },
+    { id: 'M41', category: 'General', question: 'What is the currency used in Japan?', answers: ['Yen', 'Won', 'Yuan', 'Dollar'], correctIndex: 0 },
+    { id: 'M42', category: 'History', question: 'Who was the first man to walk on the moon?', answers: ['Neil Armstrong', 'Buzz Aldrin', 'Yuri Gagarin', 'John Glenn'], correctIndex: 0 },
+    { id: 'M43', category: 'History', question: 'What year did World War II begin?', answers: ['1939', '1941', '1937', '1945'], correctIndex: 0 },
+    { id: 'M44', category: 'History', question: 'Who painted the Mona Lisa?', answers: ['Leonardo da Vinci', 'Michelangelo', 'Raphael', 'Rembrandt'], correctIndex: 0 },
+    { id: 'M45', category: 'Geography', question: 'What is the largest desert in the world?', answers: ['Antarctic Desert', 'Sahara', 'Arabian', 'Gobi'], correctIndex: 0 },
+    { id: 'M46', category: 'Geography', question: 'What river flows through London?', answers: ['Thames', 'Seine', 'Danube', 'Rhine'], correctIndex: 0 },
+    { id: 'M47', category: 'Technology', question: 'What company makes the iPhone?', answers: ['Apple', 'Samsung', 'Google', 'Microsoft'], correctIndex: 0 },
+    { id: 'M48', category: 'Technology', question: 'What company created the PlayStation?', answers: ['Sony', 'Microsoft', 'Nintendo', 'Sega'], correctIndex: 0 },
+    { id: 'M49', category: 'Technology', question: 'What AI chatbot was released by OpenAI in 2022?', answers: ['ChatGPT', 'Siri', 'Alexa', 'Cortana'], correctIndex: 0 },
+    { id: 'M50', category: 'Music', question: 'Which K-pop girl group performed "Kill This Love"?', answers: ['BLACKPINK', 'TWICE', 'Red Velvet', 'ITZY'], correctIndex: 0 }
   ],
   'hard': [
     { id: 'H1', category: 'Science', question: 'What is the chemical symbol for gold?', answers: ['Au', 'Ag', 'Fe', 'Cu', 'Pb', 'Hg'], correctIndex: 0 },
@@ -116,7 +236,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'H17', category: 'Science', question: 'What is the largest organ in the human body?', answers: ['Skin', 'Liver', 'Brain', 'Heart', 'Lungs', 'Intestines'], correctIndex: 0 },
     { id: 'H18', category: 'Geography', question: 'Mount Everest is located between which two countries?', answers: ['Nepal and China', 'India and China', 'Nepal and India', 'Tibet and Nepal', 'China and Bhutan', 'India and Tibet'], correctIndex: 0 },
     { id: 'H19', category: 'Art', question: 'Which artist cut off his own ear?', answers: ['Van Gogh', 'Picasso', 'Monet', 'Rembrandt', 'Dali', 'Warhol'], correctIndex: 0 },
-    { id: 'H20', category: 'Science', question: 'What is the chemical formula for water?', answers: ['H2O', 'CO2', 'NaCl', 'O2', 'H2O2', 'CH4'], correctIndex: 0 }
+    { id: 'H20', category: 'Science', question: 'What is the chemical formula for water?', answers: ['H2O', 'CO2', 'NaCl', 'O2', 'H2O2', 'CH4'], correctIndex: 0 },
+    { id: 'H21', category: 'History', question: 'Who was the leader of Nazi Germany?', answers: ['Adolf Hitler', 'Joseph Stalin', 'Benito Mussolini', 'Winston Churchill'], correctIndex: 0 },
+    { id: 'H22', category: 'History', question: 'Which empire was ruled by Julius Caesar?', answers: ['Roman Empire', 'Greek Empire', 'Persian Empire', 'Ottoman Empire'], correctIndex: 0 },
+    { id: 'H23', category: 'History', question: 'What was the name of the ship that brought the Pilgrims to America?', answers: ['Mayflower', 'Santa Maria', 'Pinta', 'Victoria'], correctIndex: 0 },
+    { id: 'H24', category: 'History', question: 'Who was the first female pilot to fly solo across the Atlantic?', answers: ['Amelia Earhart', 'Harriet Quimby', 'Bessie Coleman', 'Jacqueline Cochran'], correctIndex: 0 },
+    { id: 'H25', category: 'History', question: 'What ancient civilization built Machu Picchu?', answers: ['Inca', 'Aztec', 'Maya', 'Olmec'], correctIndex: 0 },
+    { id: 'H26', category: 'Science', question: 'What is the chemical symbol for potassium?', answers: ['K', 'Po', 'Pt', 'P'], correctIndex: 0 },
+    { id: 'H27', category: 'Science', question: 'What type of bond is formed when atoms share electrons?', answers: ['Covalent', 'Ionic', 'Metallic', 'Hydrogen'], correctIndex: 0 },
+    { id: 'H28', category: 'Science', question: 'What is the largest bone in the human body?', answers: ['Femur', 'Tibia', 'Humerus', 'Spine'], correctIndex: 0 },
+    { id: 'H29', category: 'Science', question: 'What is the SI unit of electric current?', answers: ['Ampere', 'Volt', 'Watt', 'Ohm'], correctIndex: 0 },
+    { id: 'H30', category: 'Science', question: 'What planet is known as the "Morning Star"?', answers: ['Venus', 'Mars', 'Mercury', 'Jupiter'], correctIndex: 0 },
+    { id: 'H31', category: 'Geography', question: 'What is the capital of Brazil?', answers: ['Brasilia', 'Rio de Janeiro', 'Sao Paulo', 'Salvador'], correctIndex: 0 },
+    { id: 'H32', category: 'Geography', question: 'Which country has the most natural lakes?', answers: ['Canada', 'United States', 'Russia', 'Finland'], correctIndex: 0 },
+    { id: 'H33', category: 'Geography', question: 'What country is home to the Great Barrier Reef?', answers: ['Australia', 'Indonesia', 'Philippines', 'Thailand'], correctIndex: 0 },
+    { id: 'H34', category: 'Geography', question: 'What is the capital of South Korea?', answers: ['Seoul', 'Busan', 'Pyongyang', 'Tokyo'], correctIndex: 0 },
+    { id: 'H35', category: 'Literature', question: 'Who wrote "To Kill a Mockingbird"?', answers: ['Harper Lee', 'Mark Twain', 'John Steinbeck', 'Ernest Hemingway'], correctIndex: 0 },
+    { id: 'H36', category: 'Literature', question: 'Who wrote "The Odyssey"?', answers: ['Homer', 'Virgil', 'Sophocles', 'Aristotle'], correctIndex: 0 },
+    { id: 'H37', category: 'Literature', question: 'What dystopian novel features the character Winston Smith?', answers: ['1984', 'Brave New World', 'Fahrenheit 451', 'Handmaids Tale'], correctIndex: 0 },
+    { id: 'H38', category: 'Movies', question: 'What film won Best Picture at the 2023 Academy Awards?', answers: ['Everything Everywhere', 'The Fabelmans', 'Top Gun Maverick', 'Avatar 2'], correctIndex: 0 },
+    { id: 'H39', category: 'Movies', question: 'Who directed "Schindlers List"?', answers: ['Steven Spielberg', 'Martin Scorsese', 'Francis Coppola', 'Ridley Scott'], correctIndex: 0 },
+    { id: 'H40', category: 'Movies', question: 'In "The Dark Knight", who played the Joker?', answers: ['Heath Ledger', 'Jack Nicholson', 'Jared Leto', 'Joaquin Phoenix'], correctIndex: 0 },
+    { id: 'H41', category: 'Music', question: 'What is the best-selling album of all time?', answers: ['Thriller', 'Back in Black', 'Dark Side of Moon', 'Bat Out of Hell'], correctIndex: 0 },
+    { id: 'H42', category: 'Music', question: 'What band was Freddie Mercury the lead singer of?', answers: ['Queen', 'Rolling Stones', 'Led Zeppelin', 'Pink Floyd'], correctIndex: 0 },
+    { id: 'H43', category: 'Music', question: 'What music festival takes place in Indio, California?', answers: ['Coachella', 'Lollapalooza', 'Bonnaroo', 'Burning Man'], correctIndex: 0 },
+    { id: 'H44', category: 'Technology', question: 'What company was founded by Bill Gates?', answers: ['Microsoft', 'Apple', 'IBM', 'Dell'], correctIndex: 0 },
+    { id: 'H45', category: 'Technology', question: 'What was the first widely-used web browser?', answers: ['Netscape', 'Internet Explorer', 'Firefox', 'Chrome'], correctIndex: 0 },
+    { id: 'H46', category: 'Technology', question: 'What does CPU stand for?', answers: ['Central Processing Unit', 'Computer Personal Unit', 'Central Power Unit', 'Computing Process Unit'], correctIndex: 0 },
+    { id: 'H47', category: 'Art', question: 'Who sculpted the statue of David?', answers: ['Michelangelo', 'Donatello', 'Bernini', 'Rodin'], correctIndex: 0 },
+    { id: 'H48', category: 'Art', question: 'What art movement was Claude Monet associated with?', answers: ['Impressionism', 'Cubism', 'Surrealism', 'Baroque'], correctIndex: 0 },
+    { id: 'H49', category: 'Sports', question: 'What tennis player has won the most Grand Slam titles (men)?', answers: ['Novak Djokovic', 'Roger Federer', 'Rafael Nadal', 'Pete Sampras'], correctIndex: 0 },
+    { id: 'H50', category: 'Sports', question: 'What country has won the most Olympic gold medals in history?', answers: ['United States', 'Russia', 'China', 'Germany'], correctIndex: 0 }
   ],
   'very-hard': [
     // Challenging adult-level questions - distinct from 'hard' (19+)
@@ -139,7 +289,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'VH17', category: 'Science', question: 'What is the largest moon of Saturn?', answers: ['Titan', 'Europa', 'Ganymede', 'Callisto', 'Io', 'Triton'], correctIndex: 0 },
     { id: 'VH18', category: 'Geography', question: 'Which country has the most islands in the world?', answers: ['Sweden', 'Finland', 'Norway', 'Indonesia', 'Philippines', 'Japan'], correctIndex: 0 },
     { id: 'VH19', category: 'Art', question: 'Who sculpted "The Thinker"?', answers: ['Auguste Rodin', 'Michelangelo', 'Donatello', 'Bernini', 'Canova', 'Henry Moore'], correctIndex: 0 },
-    { id: 'VH20', category: 'Science', question: 'What is the process by which plants make food using sunlight?', answers: ['Photosynthesis', 'Respiration', 'Fermentation', 'Oxidation', 'Transpiration', 'Digestion'], correctIndex: 0 }
+    { id: 'VH20', category: 'Science', question: 'What is the process by which plants make food using sunlight?', answers: ['Photosynthesis', 'Respiration', 'Fermentation', 'Oxidation', 'Transpiration', 'Digestion'], correctIndex: 0 },
+    { id: 'VH21', category: 'History', question: 'What event started World War I?', answers: ['Franz Ferdinand assassination', 'Invasion of Poland', 'Pearl Harbor', 'Lusitania sinking'], correctIndex: 0 },
+    { id: 'VH22', category: 'History', question: 'Who was the British PM during most of WWII?', answers: ['Winston Churchill', 'Neville Chamberlain', 'Clement Attlee', 'Anthony Eden'], correctIndex: 0 },
+    { id: 'VH23', category: 'History', question: 'The French Revolution began in which year?', answers: ['1789', '1776', '1799', '1804'], correctIndex: 0 },
+    { id: 'VH24', category: 'History', question: 'What was the first artificial satellite launched into space?', answers: ['Sputnik 1', 'Explorer 1', 'Vanguard 1', 'Luna 1'], correctIndex: 0 },
+    { id: 'VH25', category: 'Science', question: 'What is the study of earthquakes called?', answers: ['Seismology', 'Geology', 'Volcanology', 'Tectonics'], correctIndex: 0 },
+    { id: 'VH26', category: 'Science', question: 'What is the chemical symbol for lead?', answers: ['Pb', 'Ld', 'Le', 'Pl'], correctIndex: 0 },
+    { id: 'VH27', category: 'Science', question: 'What is the name of the boundary around a black hole?', answers: ['Event horizon', 'Singularity', 'Photon sphere', 'Accretion disk'], correctIndex: 0 },
+    { id: 'VH28', category: 'Science', question: 'What is the most common element in the universe?', answers: ['Hydrogen', 'Helium', 'Oxygen', 'Carbon'], correctIndex: 0 },
+    { id: 'VH29', category: 'Geography', question: 'What is the capital of Canada?', answers: ['Ottawa', 'Toronto', 'Vancouver', 'Montreal'], correctIndex: 0 },
+    { id: 'VH30', category: 'Geography', question: 'What is the largest island in the world?', answers: ['Greenland', 'Madagascar', 'Borneo', 'New Guinea'], correctIndex: 0 },
+    { id: 'VH31', category: 'Geography', question: 'Through which city does the Prime Meridian pass?', answers: ['London', 'Paris', 'Berlin', 'Madrid'], correctIndex: 0 },
+    { id: 'VH32', category: 'Geography', question: 'Which river is the longest in Europe?', answers: ['Volga', 'Danube', 'Rhine', 'Seine'], correctIndex: 0 },
+    { id: 'VH33', category: 'Literature', question: 'Who wrote "Pride and Prejudice"?', answers: ['Jane Austen', 'Charlotte Bronte', 'Emily Bronte', 'Mary Shelley'], correctIndex: 0 },
+    { id: 'VH34', category: 'Literature', question: 'Who wrote "The Great Gatsby"?', answers: ['F. Scott Fitzgerald', 'Ernest Hemingway', 'John Steinbeck', 'William Faulkner'], correctIndex: 0 },
+    { id: 'VH35', category: 'Literature', question: 'Who wrote "Crime and Punishment"?', answers: ['Fyodor Dostoevsky', 'Leo Tolstoy', 'Anton Chekhov', 'Ivan Turgenev'], correctIndex: 0 },
+    { id: 'VH36', category: 'Movies', question: 'Who directed "Pulp Fiction"?', answers: ['Quentin Tarantino', 'Martin Scorsese', 'Steven Spielberg', 'Christopher Nolan'], correctIndex: 0 },
+    { id: 'VH37', category: 'Movies', question: 'In "Inception", what determines if one is in a dream?', answers: ['Spinning top', 'Watch', 'Coin', 'Dice'], correctIndex: 0 },
+    { id: 'VH38', category: 'Movies', question: 'What year was the original "Star Wars" released?', answers: ['1977', '1979', '1975', '1980'], correctIndex: 0 },
+    { id: 'VH39', category: 'Music', question: 'What classical composer became deaf later in life?', answers: ['Beethoven', 'Mozart', 'Bach', 'Chopin'], correctIndex: 0 },
+    { id: 'VH40', category: 'Music', question: 'What is the highest female singing voice?', answers: ['Soprano', 'Alto', 'Mezzo-soprano', 'Contralto'], correctIndex: 0 },
+    { id: 'VH41', category: 'Music', question: 'Which artist released the album "Thriller"?', answers: ['Michael Jackson', 'Prince', 'Whitney Houston', 'Madonna'], correctIndex: 0 },
+    { id: 'VH42', category: 'Art', question: 'Who painted "The Birth of Venus"?', answers: ['Sandro Botticelli', 'Leonardo da Vinci', 'Raphael', 'Titian'], correctIndex: 0 },
+    { id: 'VH43', category: 'Art', question: 'What is the name of the effect where light bends around massive objects?', answers: ['Gravitational lensing', 'Doppler effect', 'Redshift', 'Parallax'], correctIndex: 0 },
+    { id: 'VH44', category: 'Sports', question: 'How long is an Olympic swimming pool in meters?', answers: ['50 meters', '25 meters', '100 meters', '75 meters'], correctIndex: 0 },
+    { id: 'VH45', category: 'Sports', question: 'What country has won the most FIFA World Cup titles?', answers: ['Brazil', 'Germany', 'Italy', 'Argentina'], correctIndex: 0 },
+    { id: 'VH46', category: 'Technology', question: 'Who is credited with inventing the World Wide Web?', answers: ['Tim Berners-Lee', 'Vint Cerf', 'Robert Kahn', 'Marc Andreessen'], correctIndex: 0 },
+    { id: 'VH47', category: 'Technology', question: 'What does RAM stand for in computing?', answers: ['Random Access Memory', 'Read Access Memory', 'Rapid Access Memory', 'Runtime Access Memory'], correctIndex: 0 },
+    { id: 'VH48', category: 'Technology', question: 'What programming language was created by Guido van Rossum?', answers: ['Python', 'Java', 'Ruby', 'C++'], correctIndex: 0 },
+    { id: 'VH49', category: 'Science', question: 'What blood type is considered the universal donor?', answers: ['O negative', 'AB positive', 'A positive', 'B negative'], correctIndex: 0 },
+    { id: 'VH50', category: 'Science', question: 'What is the study of fungi called?', answers: ['Mycology', 'Biology', 'Botany', 'Zoology'], correctIndex: 0 }
   ],
   'genius': [
     // Expert-level questions
@@ -162,7 +342,37 @@ const TRIVIA_QUESTIONS_BY_DIFFICULTY = {
     { id: 'G17', category: 'History', question: 'The Taiping Rebellion occurred in which country?', answers: ['China', 'Japan', 'India', 'Vietnam', 'Korea', 'Philippines'], correctIndex: 0 },
     { id: 'G18', category: 'Math', question: 'What is the golden ratio (phi) approximately equal to?', answers: ['1.618', '1.414', '2.718', '3.141', '1.732', '2.236'], correctIndex: 0 },
     { id: 'G19', category: 'Science', question: 'What is CRISPR primarily used for?', answers: ['Gene editing', 'Protein synthesis', 'Cell division', 'DNA replication', 'RNA transcription', 'Mutation detection'], correctIndex: 0 },
-    { id: 'G20', category: 'Philosophy', question: 'Who proposed the "Veil of Ignorance" thought experiment?', answers: ['John Rawls', 'Robert Nozick', 'Peter Singer', 'John Stuart Mill', 'Immanuel Kant', 'Jeremy Bentham'], correctIndex: 0 }
+    { id: 'G20', category: 'Philosophy', question: 'Who proposed the "Veil of Ignorance" thought experiment?', answers: ['John Rawls', 'Robert Nozick', 'Peter Singer', 'John Stuart Mill', 'Immanuel Kant', 'Jeremy Bentham'], correctIndex: 0 },
+    { id: 'G21', category: 'Science', question: 'What subatomic particles make up a proton?', answers: ['Two up quarks and one down', 'Two down quarks and one up', 'Three up quarks', 'Three down quarks'], correctIndex: 0 },
+    { id: 'G22', category: 'Science', question: 'What enzyme unwinds DNA during replication?', answers: ['Helicase', 'Polymerase', 'Ligase', 'Primase'], correctIndex: 0 },
+    { id: 'G23', category: 'Science', question: 'What is the approximate age of the universe?', answers: ['13.8 billion years', '10.5 billion years', '15.2 billion years', '18 billion years'], correctIndex: 0 },
+    { id: 'G24', category: 'History', question: 'What empire was ruled by Suleiman the Magnificent?', answers: ['Ottoman Empire', 'Byzantine Empire', 'Mongol Empire', 'Persian Empire'], correctIndex: 0 },
+    { id: 'G25', category: 'History', question: 'What was the primary cause of the Peloponnesian War?', answers: ['Athens and Sparta rivalry', 'Persian invasion', 'Trade disputes', 'Religious differences'], correctIndex: 0 },
+    { id: 'G26', category: 'History', question: 'Who was the first Holy Roman Emperor?', answers: ['Charlemagne', 'Otto I', 'Frederick Barbarossa', 'Charles V'], correctIndex: 0 },
+    { id: 'G27', category: 'Philosophy', question: 'Who wrote "Thus Spoke Zarathustra"?', answers: ['Friedrich Nietzsche', 'Immanuel Kant', 'Georg Hegel', 'Arthur Schopenhauer'], correctIndex: 0 },
+    { id: 'G28', category: 'Philosophy', question: 'What is the philosophical study of knowledge called?', answers: ['Epistemology', 'Ontology', 'Ethics', 'Aesthetics'], correctIndex: 0 },
+    { id: 'G29', category: 'Philosophy', question: 'Who wrote "Being and Nothingness"?', answers: ['Jean-Paul Sartre', 'Martin Heidegger', 'Albert Camus', 'Simone de Beauvoir'], correctIndex: 0 },
+    { id: 'G30', category: 'Literature', question: 'Who wrote "In Search of Lost Time"?', answers: ['Marcel Proust', 'James Joyce', 'Virginia Woolf', 'Franz Kafka'], correctIndex: 0 },
+    { id: 'G31', category: 'Literature', question: 'What is the longest epic poem in history?', answers: ['Mahabharata', 'Iliad', 'Odyssey', 'Beowulf'], correctIndex: 0 },
+    { id: 'G32', category: 'Literature', question: 'Who wrote "One Hundred Years of Solitude"?', answers: ['Gabriel Garcia Marquez', 'Jorge Luis Borges', 'Pablo Neruda', 'Isabel Allende'], correctIndex: 0 },
+    { id: 'G33', category: 'Art', question: 'What artistic technique uses small dots of color?', answers: ['Pointillism', 'Impressionism', 'Cubism', 'Fauvism'], correctIndex: 0 },
+    { id: 'G34', category: 'Art', question: 'Who founded the Bauhaus school?', answers: ['Walter Gropius', 'Ludwig Mies van der Rohe', 'Le Corbusier', 'Frank Lloyd Wright'], correctIndex: 0 },
+    { id: 'G35', category: 'Art', question: 'Who painted "The Garden of Earthly Delights"?', answers: ['Hieronymus Bosch', 'Jan van Eyck', 'Pieter Bruegel', 'Albrecht Durer'], correctIndex: 0 },
+    { id: 'G36', category: 'Music', question: 'What is the lowest female singing voice?', answers: ['Contralto', 'Alto', 'Mezzo-soprano', 'Soprano'], correctIndex: 0 },
+    { id: 'G37', category: 'Music', question: 'Which composer wrote "The Rite of Spring"?', answers: ['Igor Stravinsky', 'Sergei Prokofiev', 'Dmitri Shostakovich', 'Pyotr Tchaikovsky'], correctIndex: 0 },
+    { id: 'G38', category: 'Music', question: 'What is the Italian term for playing music very softly?', answers: ['Pianissimo', 'Fortissimo', 'Mezzo-forte', 'Sforzando'], correctIndex: 0 },
+    { id: 'G39', category: 'Math', question: 'What is the derivative of e^x?', answers: ['e^x', 'x*e^(x-1)', 'ln(x)', '1/x'], correctIndex: 0 },
+    { id: 'G40', category: 'Math', question: 'What mathematical concept did Galois contribute to?', answers: ['Group theory', 'Calculus', 'Set theory', 'Topology'], correctIndex: 0 },
+    { id: 'G41', category: 'Economics', question: 'Who wrote "The Wealth of Nations"?', answers: ['Adam Smith', 'John Maynard Keynes', 'Karl Marx', 'Milton Friedman'], correctIndex: 0 },
+    { id: 'G42', category: 'Economics', question: 'What is the term for a market with a single seller?', answers: ['Monopoly', 'Oligopoly', 'Monopsony', 'Perfect competition'], correctIndex: 0 },
+    { id: 'G43', category: 'Geography', question: 'What is the driest place on Earth?', answers: ['Atacama Desert', 'Sahara Desert', 'Antarctica', 'Death Valley'], correctIndex: 0 },
+    { id: 'G44', category: 'Geography', question: 'What two countries share the longest international border?', answers: ['Canada and USA', 'Russia and China', 'Argentina and Chile', 'India and Bangladesh'], correctIndex: 0 },
+    { id: 'G45', category: 'Science', question: 'What is the Fermi Paradox primarily concerned with?', answers: ['Absence of alien civilizations', 'Universe expansion', 'Dark matter', 'Speed of light limit'], correctIndex: 0 },
+    { id: 'G46', category: 'Science', question: 'What is the Riemann Hypothesis concerned with?', answers: ['Distribution of prime numbers', 'Fermats theorem', 'Goldbach conjecture', 'Twin primes'], correctIndex: 0 },
+    { id: 'G47', category: 'History', question: 'What was the capital of the Byzantine Empire?', answers: ['Constantinople', 'Rome', 'Athens', 'Alexandria'], correctIndex: 0 },
+    { id: 'G48', category: 'History', question: 'The Hundred Years War was fought between which countries?', answers: ['England and France', 'England and Spain', 'France and Germany', 'Spain and Portugal'], correctIndex: 0 },
+    { id: 'G49', category: 'History', question: 'What ancient civilization created the first known writing system?', answers: ['Sumerians', 'Egyptians', 'Chinese', 'Greeks'], correctIndex: 0 },
+    { id: 'G50', category: 'Philosophy', question: 'What is "tabula rasa"?', answers: ['Blank slate theory of mind', 'Categorical imperative', 'Social contract', 'Existential dread'], correctIndex: 0 }
   ]
 };
 
@@ -738,8 +948,10 @@ const avatarSelectionTimers = new Map();
 // Key: masterName, Value: roomId
 const masterRooms = new Map();
 
-const GRACE_PERIOD_MS = 180000; // 3 minutes before marking as expelled
-const EXPELLED_REJOIN_WINDOW_MS = 600000; // 10 minutes to rejoin after being expelled
+// No auto-kick - players stay disconnected until master kicks them manually
+// Only used for room cleanup when ALL players are disconnected
+const EMPTY_ROOM_CLEANUP_MS = 1800000; // 30 minutes before cleaning up completely empty rooms
+const EXPELLED_REJOIN_WINDOW_MS = 600000; // 10 minutes to rejoin after being manually kicked
 const AVATAR_SELECTION_TIMEOUT_MS = 120000; // 2 minutes to select avatar
 
 // --- Multi-round Pictionary helpers ---
@@ -3282,6 +3494,15 @@ function setupSockets(io) {
 
           console.log(`${playerName} restored from expelled cache to room ${roomId} with score ${player.score}`);
 
+          // Cancel room cleanup timer if someone rejoined
+          const roomCleanupKey = `room:${roomId}`;
+          const roomCleanup = disconnectedPlayers.get(roomCleanupKey);
+          if (roomCleanup) {
+            if (roomCleanup.timer) clearTimeout(roomCleanup.timer);
+            disconnectedPlayers.delete(roomCleanupKey);
+            console.log(`Room cleanup timer cancelled for ${roomId} - expelled player rejoined`);
+          }
+
           // Notify other players
           io.to(roomId).emit('playerRejoined', { roomId, playerName, avatar: player.avatar, score: player.score });
         } else {
@@ -3289,18 +3510,28 @@ function setupSockets(io) {
           return;
         }
       } else {
-        // Player still in room - cancel grace period timer if pending
+        // Player still in room - clean up disconnected tracking
         const key = `${roomId}:${playerName}`;
         const pending = disconnectedPlayers.get(key);
         if (pending) {
-          clearTimeout(pending.timer);
+          if (pending.timer) clearTimeout(pending.timer);
           disconnectedPlayers.delete(key);
-          console.log(`Grace period cancelled for ${playerName} in room ${roomId}`);
+          console.log(`Disconnected tracking cleared for ${playerName} in room ${roomId}`);
         }
 
         // Update player's socket and mark connected
         player.socketId = socket.id;
         player.connected = true;
+        delete player.disconnectedAt;
+
+        // Cancel room cleanup timer if someone reconnected
+        const roomCleanupKey = `room:${roomId}`;
+        const roomCleanup = disconnectedPlayers.get(roomCleanupKey);
+        if (roomCleanup) {
+          if (roomCleanup.timer) clearTimeout(roomCleanup.timer);
+          disconnectedPlayers.delete(roomCleanupKey);
+          console.log(`Room cleanup timer cancelled for ${roomId} - player reconnected`);
+        }
       }
 
       socket.join(roomId);
@@ -3338,6 +3569,33 @@ function setupSockets(io) {
 
         if (game.gameType === 'trivia') {
           try {
+            // Re-add player to their difficulty group if missing (happens after expelled cache restore)
+            if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+              const playerDifficulty = getPlayerDifficulty(playerName, room);
+              const playerGroup = game.difficultyGroups.find(g => g.difficulty === playerDifficulty);
+
+              if (playerGroup) {
+                if (!playerGroup.playerNames.includes(playerName)) {
+                  playerGroup.playerNames.push(playerName);
+                  const playerObj = room.players.find(p => p.name === playerName);
+                  if (playerObj) {
+                    playerGroup.players.push(playerObj);
+                  }
+                  console.log(`[REJOIN] Added ${playerName} back to trivia difficulty group ${playerDifficulty}`);
+                }
+              } else {
+                console.log(`[REJOIN] No trivia group found for ${playerName}'s difficulty ${playerDifficulty}, creating new group`);
+                const playerObj = room.players.find(p => p.name === playerName);
+                if (playerObj) {
+                  game.difficultyGroups.push({
+                    difficulty: playerDifficulty,
+                    players: [playerObj],
+                    playerNames: [playerName]
+                  });
+                }
+              }
+            }
+
             // Send Trivia-specific sync data
             const hasAnswered = game.answers && game.answers[playerName] !== undefined;
             const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
@@ -3384,6 +3642,35 @@ function setupSockets(io) {
 
         } else if (game.gameType === 'quickmath') {
           try {
+            // Re-add player to their difficulty group if missing (happens after expelled cache restore)
+            if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+              const playerDifficulty = getPlayerDifficulty(playerName, room);
+              const playerGroup = game.difficultyGroups.find(g => g.difficulty === playerDifficulty);
+
+              if (playerGroup) {
+                // Check if player is already in the group
+                if (!playerGroup.playerNames.includes(playerName)) {
+                  playerGroup.playerNames.push(playerName);
+                  const playerObj = room.players.find(p => p.name === playerName);
+                  if (playerObj) {
+                    playerGroup.players.push(playerObj);
+                  }
+                  console.log(`[REJOIN] Added ${playerName} back to difficulty group ${playerDifficulty}`);
+                }
+              } else {
+                // No group exists for this difficulty, create one or add to closest
+                console.log(`[REJOIN] No group found for ${playerName}'s difficulty ${playerDifficulty}, creating new group`);
+                const playerObj = room.players.find(p => p.name === playerName);
+                if (playerObj) {
+                  game.difficultyGroups.push({
+                    difficulty: playerDifficulty,
+                    players: [playerObj],
+                    playerNames: [playerName]
+                  });
+                }
+              }
+            }
+
             // Send Quick Math-specific sync data
             const hasAnswered = game.answers && game.answers[playerName] !== undefined;
             const answeredPlayers = game.answers ? Object.keys(game.answers) : [];
@@ -4207,13 +4494,33 @@ function setupSockets(io) {
       // Can't kick yourself
       if (playerToKick.name === sender.name) return;
 
-      // Cancel any pending grace period for this player
+      // Cancel any pending disconnected tracking for this player
       const key = `${data.roomId}:${data.playerName}`;
       const pending = disconnectedPlayers.get(key);
       if (pending) {
-        clearTimeout(pending.timer);
+        if (pending.timer) clearTimeout(pending.timer);
         disconnectedPlayers.delete(key);
       }
+
+      // Save player data to expelled cache before removing (so they can rejoin)
+      const expelledKey = `${data.roomId}:${data.playerName}`;
+      const expelledTimer = setTimeout(() => {
+        expelledPlayers.delete(expelledKey);
+        console.log(`Kicked player ${data.playerName} rejoin window expired for room ${data.roomId}`);
+      }, EXPELLED_REJOIN_WINDOW_MS);
+
+      expelledPlayers.set(expelledKey, {
+        playerData: {
+          name: playerToKick.name,
+          avatar: playerToKick.avatar,
+          score: playerToKick.score || 0,
+          isMaster: playerToKick.isMaster || false,
+          rejoinToken: playerToKick.rejoinToken
+        },
+        roomId: data.roomId,
+        timer: expelledTimer,
+        expelledAt: Date.now()
+      });
 
       // Remove player from room
       room.players = room.players.filter(p => p.name !== data.playerName);
@@ -4370,11 +4677,11 @@ function setupSockets(io) {
       const playerName = player.name;
       const wasMaster = player.name === room.master;
 
-      // Cancel any pending grace period
+      // Cancel any pending disconnected tracking
       const key = `${data.roomId}:${playerName}`;
       const pending = disconnectedPlayers.get(key);
       if (pending) {
-        clearTimeout(pending.timer);
+        if (pending.timer) clearTimeout(pending.timer);
         disconnectedPlayers.delete(key);
       }
 
@@ -5082,107 +5389,49 @@ function setupSockets(io) {
           }
         }
 
-        // Mark disconnected but don't remove yet
+        // Mark disconnected - player stays in room until master kicks them manually
         player.connected = false;
+        player.disconnectedAt = Date.now();
         const key = `${roomId}:${player.name}`;
 
-        // Notify other players that this player is disconnected (but not removed yet)
+        // Notify other players that this player is disconnected (shows as AFK)
         io.to(roomId).emit('playerDisconnected', { roomId, playerName: player.name });
 
-        console.log(`${player.name} disconnected from room ${roomId}, grace period started (${GRACE_PERIOD_MS / 1000}s)`);
+        console.log(`${player.name} disconnected from room ${roomId} (will stay until master kicks)`);
 
-        const timer = setTimeout(() => {
-          disconnectedPlayers.delete(key);
+        // Track disconnected player (for cancellation on rejoin) but NO auto-kick timer
+        disconnectedPlayers.set(key, { disconnectedAt: Date.now() });
 
-          // Re-check room still exists
-          const currentRoom = rooms.get(roomId);
-          if (!currentRoom) return;
+        // Check if ALL players are now disconnected - start room cleanup timer
+        const connectedPlayers = room.players.filter(p => p.connected !== false);
+        if (connectedPlayers.length === 0) {
+          // Start a long cleanup timer for completely empty rooms
+          const roomCleanupKey = `room:${roomId}`;
+          if (!disconnectedPlayers.has(roomCleanupKey)) {
+            console.log(`Room ${roomId} has no connected players, cleanup timer started (${EMPTY_ROOM_CLEANUP_MS / 60000} min)`);
+            const cleanupTimer = setTimeout(() => {
+              disconnectedPlayers.delete(roomCleanupKey);
+              const currentRoom = rooms.get(roomId);
+              if (!currentRoom) return;
 
-          // Find player data before removing (for expelled players cache)
-          const playerToExpel = currentRoom.players.find(p => p.name === player.name);
-
-          // Remove the player
-          currentRoom.players = currentRoom.players.filter(p => p.name !== player.name);
-          console.log(`Grace period expired — ${player.name} removed from room ${roomId}`);
-
-          // If this was the drawer in a paused Pictionary game, skip their turn and advance
-          if (currentRoom.game && currentRoom.game.gameType === 'pictionary' &&
-              currentRoom.game.paused && currentRoom.game.drawerName === player.name) {
-            try {
-              console.log(`[PICTIONARY] Drawer ${player.name} grace period expired, skipping turn`);
-
-              currentRoom.game.paused = false;
-              currentRoom.game.timerRemainingMs = null;
-
-              // Emit round result with no winner
-              io.to(roomId).emit('roundResult', {
-                winnerName: null,
-                points: 0,
-                currentRound: currentRoom.game.currentRound,
-                totalRounds: currentRoom.game.totalRounds,
-                reason: 'drawer_left'
-              });
-
-              // Advance to next round after delay
-              setTimeout(() => {
-                try {
-                  if (currentRoom.game && currentRoom.game.gameType === 'pictionary') {
-                    advanceRound(io, currentRoom, roomId);
-                  }
-                } catch (err) {
-                  console.error(`[PICTIONARY] Error advancing round after drawer left:`, err);
+              // Re-check if still no connected players
+              const stillConnected = currentRoom.players.filter(p => p.connected !== false);
+              if (stillConnected.length === 0) {
+                // Clean up any active game timers
+                if (currentRoom.game && currentRoom.game.questionTimer) {
+                  clearTimeout(currentRoom.game.questionTimer);
                 }
-              }, 3000);
-            } catch (err) {
-              console.error(`[PICTIONARY] Error handling drawer grace period expiry for ${player.name}:`, err);
-            }
+                // Clean up masterRooms tracking
+                if (masterRooms.get(currentRoom.master) === roomId) {
+                  masterRooms.delete(currentRoom.master);
+                }
+                rooms.delete(roomId);
+                console.log(`Room ${roomId} removed (all players disconnected for ${EMPTY_ROOM_CLEANUP_MS / 60000} min)`);
+              }
+            }, EMPTY_ROOM_CLEANUP_MS);
+            disconnectedPlayers.set(roomCleanupKey, { timer: cleanupTimer });
           }
-
-          // Save to expelled players so they can rejoin within extended window
-          if (playerToExpel) {
-            const expelledKey = `${roomId}:${player.name}`;
-            const expelledTimer = setTimeout(() => {
-              expelledPlayers.delete(expelledKey);
-              console.log(`Expelled player ${player.name} rejoin window expired for room ${roomId}`);
-            }, EXPELLED_REJOIN_WINDOW_MS);
-
-            expelledPlayers.set(expelledKey, {
-              playerData: {
-                name: playerToExpel.name,
-                avatar: playerToExpel.avatar,
-                score: playerToExpel.score || 0,
-                isMaster: playerToExpel.isMaster || false,
-                rejoinToken: playerToExpel.rejoinToken
-              },
-              roomId,
-              timer: expelledTimer,
-              expelledAt: Date.now()
-            });
-            console.log(`${player.name} added to expelled players cache (${EXPELLED_REJOIN_WINDOW_MS / 60000} min to rejoin)`);
-          }
-
-          // Check if there are still connected players
-          const connectedPlayers = currentRoom.players.filter(p => p.connected !== false);
-
-          // If room is empty (no players left at all), delete it
-          if (currentRoom.players.length === 0) {
-            // Clean up any active game timers
-            if (currentRoom.game && currentRoom.game.questionTimer) {
-              clearTimeout(currentRoom.game.questionTimer);
-            }
-            // Clean up masterRooms tracking
-            if (masterRooms.get(currentRoom.master) === roomId) {
-              masterRooms.delete(currentRoom.master);
-            }
-            rooms.delete(roomId);
-            console.log(`Room ${roomId} removed (empty)`);
-          } else {
-            // Notify remaining players
-            io.to(roomId).emit('playerLeft', { roomId, playerName: player.name });
-          }
-        }, GRACE_PERIOD_MS);
-
-        disconnectedPlayers.set(key, { timer });
+        }
       });
     });
   });
