@@ -18,6 +18,7 @@ const GameMasterControls = ({
 }) => {
     const [showKickModal, setShowKickModal] = useState(false);
     const [showEndGameModal, setShowEndGameModal] = useState(false);
+    const [showCustomizeModal, setShowCustomizeModal] = useState(false);
     const [selectedPlayerToKick, setSelectedPlayerToKick] = useState(null);
 
     if (!isMaster) return null;
@@ -149,10 +150,55 @@ const GameMasterControls = ({
         </div>
     );
 
+    // Customize Game Modal
+    const renderCustomizeModal = () => (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl p-6 md:p-8 max-w-sm w-full ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
+                <div className="text-center mb-4">
+                    <div className="text-4xl mb-3">&#9881;&#65039;</div>
+                    <h2 className={`text-xl font-black ${currentTheme.text} mb-2 ${currentTheme.font}`}>
+                        {theme === 'tron' ? '> CUSTOMIZE_GAME' : 'Customize Game'}
+                    </h2>
+                    <p className={`${currentTheme.textSecondary} text-sm`}>
+                        To customize game settings, you need to return to the <strong className={theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}>Game Room</strong>.
+                        This will end the current game and all progress will be lost.
+                    </p>
+                </div>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setShowCustomizeModal(false)}
+                        className={`flex-1 ${theme === 'tron' ? 'bg-gray-800 hover:bg-gray-700 text-cyan-400' : theme === 'kids' ? 'bg-purple-200 hover:bg-purple-300 text-purple-900' : 'bg-gray-800 hover:bg-gray-700 text-orange-400'} font-bold py-3 rounded-xl transition-all`}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={() => {
+                            setShowCustomizeModal(false);
+                            handleEndGame();
+                        }}
+                        className={`flex-1 ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-600 hover:bg-orange-500 text-white'} font-bold py-3 rounded-xl transition-all`}
+                    >
+                        Go to Room
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <>
             {/* Control Buttons */}
             <div className="flex flex-col gap-2">
+                <button
+                    onClick={() => setShowCustomizeModal(true)}
+                    className={`w-full ${theme === 'tron' ? 'bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 border border-cyan-500/30' : theme === 'kids' ? 'bg-purple-400 hover:bg-purple-500 text-white' : 'bg-orange-700/30 hover:bg-orange-700/50 text-orange-400 border border-orange-700/50'} px-4 py-2 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    Customize Game
+                </button>
                 <button
                     onClick={() => setShowKickModal(true)}
                     className={`w-full ${theme === 'tron' ? 'bg-yellow-500/20 hover:bg-yellow-500/40 text-yellow-400 border border-yellow-500/30' : theme === 'kids' ? 'bg-yellow-400 hover:bg-yellow-500 text-white' : 'bg-yellow-700/30 hover:bg-yellow-700/50 text-yellow-400 border border-yellow-700/50'} px-4 py-2 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2`}
@@ -181,6 +227,7 @@ const GameMasterControls = ({
             {/* Modals */}
             {showKickModal && renderKickModal()}
             {showEndGameModal && renderEndGameModal()}
+            {showCustomizeModal && renderCustomizeModal()}
         </>
     );
 };
