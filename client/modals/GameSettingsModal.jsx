@@ -159,19 +159,125 @@ function GameSettingsModal({
                         })}
                     </div>
                 </div>
+
+                {/* Divider */}
+                <div className={`border-t my-4 ${theme === 'tron' ? 'border-cyan-500/30' : theme === 'kids' ? 'border-purple-300' : 'border-orange-700/50'}`} />
+
+                {/* Shared Quiz Settings */}
+                {renderSharedQuizSettings()}
             </div>
         );
     };
 
-    // Quick Math Settings (minimal for now)
-    const renderQuickMathSettings = () => {
+    // Shared Quiz Settings (used by both Trivia and Quick Math)
+    const renderSharedQuizSettings = () => {
+        const settings = GAME_DEFAULTS.sharedQuizSettings;
+
         return (
-            <div className="text-center py-4">
-                <p className={`${currentTheme.textSecondary}`}>
-                    Quick Math uses default settings.
-                </p>
+            <div className="space-y-5">
+                {/* Questions per Round */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={`${currentTheme.textSecondary} text-sm font-semibold`}>
+                            Questions per Round
+                        </label>
+                        <span className={`font-bold text-lg ${
+                            theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                        }`}>
+                            {config.questionsPerRound || settings.questionsPerRound.default}
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min={settings.questionsPerRound.min}
+                        max={settings.questionsPerRound.max}
+                        value={config.questionsPerRound || settings.questionsPerRound.default}
+                        onChange={(e) => setConfig({ ...config, questionsPerRound: parseInt(e.target.value) })}
+                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                            theme === 'tron'
+                                ? 'bg-gray-700 accent-cyan-500'
+                                : theme === 'kids'
+                                    ? 'bg-purple-200 accent-purple-500'
+                                    : 'bg-gray-700 accent-orange-500'
+                        }`}
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                        <span className={currentTheme.textSecondary}>{settings.questionsPerRound.min}</span>
+                        <span className={currentTheme.textSecondary}>{settings.questionsPerRound.max}</span>
+                    </div>
+                </div>
+
+                {/* Time per Question */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={`${currentTheme.textSecondary} text-sm font-semibold`}>
+                            Time per Question
+                        </label>
+                        <span className={`font-bold text-lg ${
+                            theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                        }`}>
+                            {config.questionTime || settings.questionTime.default}s
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min={settings.questionTime.min}
+                        max={settings.questionTime.max}
+                        value={config.questionTime || settings.questionTime.default}
+                        onChange={(e) => setConfig({ ...config, questionTime: parseInt(e.target.value) })}
+                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                            theme === 'tron'
+                                ? 'bg-gray-700 accent-cyan-500'
+                                : theme === 'kids'
+                                    ? 'bg-purple-200 accent-purple-500'
+                                    : 'bg-gray-700 accent-orange-500'
+                        }`}
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                        <span className={currentTheme.textSecondary}>{settings.questionTime.min}s</span>
+                        <span className={currentTheme.textSecondary}>{settings.questionTime.max}s</span>
+                    </div>
+                </div>
+
+                {/* Speed Round Duration */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={`${currentTheme.textSecondary} text-sm font-semibold`}>
+                            Speed Round Duration
+                        </label>
+                        <span className={`font-bold text-lg ${
+                            theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                        }`}>
+                            {config.speedRoundDuration || settings.speedRoundDuration.default}s
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min={settings.speedRoundDuration.min}
+                        max={settings.speedRoundDuration.max}
+                        step={10}
+                        value={config.speedRoundDuration || settings.speedRoundDuration.default}
+                        onChange={(e) => setConfig({ ...config, speedRoundDuration: parseInt(e.target.value) })}
+                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                            theme === 'tron'
+                                ? 'bg-gray-700 accent-cyan-500'
+                                : theme === 'kids'
+                                    ? 'bg-purple-200 accent-purple-500'
+                                    : 'bg-gray-700 accent-orange-500'
+                        }`}
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                        <span className={currentTheme.textSecondary}>{settings.speedRoundDuration.min}s</span>
+                        <span className={currentTheme.textSecondary}>{settings.speedRoundDuration.max}s</span>
+                    </div>
+                </div>
             </div>
         );
+    };
+
+    // Quick Math Settings
+    const renderQuickMathSettings = () => {
+        return renderSharedQuizSettings();
     };
 
     return (

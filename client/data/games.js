@@ -6,10 +6,22 @@ export const GAME_DEFAULTS = {
     },
     trivia: {
         themes: ['all'],  // 'all' or array of theme IDs
-        questionTime: 20  // seconds per question (currently controlled elsewhere)
+        // Shared quiz settings (also used by quickmath)
+        questionsPerRound: 5,        // 3-15 questions per round
+        speedRoundDuration: 60,      // 30-120 seconds
+        questionTime: 15             // 10-30 seconds per question
     },
     quickmath: {
-        questionTime: 20  // seconds per question (currently controlled elsewhere)
+        // Uses same shared settings structure
+        questionsPerRound: 5,
+        speedRoundDuration: 60,
+        questionTime: 15
+    },
+    // Shared settings ranges for UI sliders
+    sharedQuizSettings: {
+        questionsPerRound: { min: 3, max: 15, default: 5 },
+        speedRoundDuration: { min: 30, max: 120, default: 60 },
+        questionTime: { min: 10, max: 30, default: 15 }
     }
 };
 

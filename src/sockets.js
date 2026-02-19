@@ -480,8 +480,8 @@ const TRIVIA_QUESTIONS_LEGACY = [
 const TRIVIA_RULES_DURATION_ROUND1 = 10000;  // 10 seconds for first round (full rules)
 const TRIVIA_RULES_DURATION_NORMAL = 3000;   // 3 seconds for rounds 2-3
 const TRIVIA_RULES_DURATION_SPEED = 5000;    // 5 seconds for speed round announcement
-const TRIVIA_QUESTION_DURATION = 20000;  // 20 seconds per question
-const TRIVIA_SPEED_ROUND_DURATION = 60000;  // 60 seconds total for speed round
+const TRIVIA_QUESTION_DURATION = 15000;  // 15 seconds per question (default, configurable 10-30s)
+const TRIVIA_SPEED_ROUND_DURATION = 60000;  // 60 seconds total for speed round (default, configurable 30-120s)
 const TRIVIA_SPEED_WRONG_DELAY = 3000;  // 3 seconds delay after wrong answer in speed round
 const TRIVIA_SPEED_CORRECT_DELAY = 1000;  // 1 second delay after correct answer to show green feedback
 const TRIVIA_REVEAL_DURATION = 3000;  // 3 seconds to show correct answer
@@ -520,8 +520,8 @@ const TRIVIA_SPEED_FIXED_POINTS = 200;  // Fixed points per correct answer in sp
 const MATH_RULES_DURATION_ROUND1 = 10000;  // 10 seconds for first round (full rules)
 const MATH_RULES_DURATION_NORMAL = 3000;   // 3 seconds for rounds 2-3
 const MATH_RULES_DURATION_SPEED = 5000;    // 5 seconds for speed round announcement
-const MATH_QUESTION_DURATION = 20000;  // 20 seconds per question
-const MATH_SPEED_ROUND_DURATION = 60000;  // 60 seconds total for speed round
+const MATH_QUESTION_DURATION = 15000;  // 15 seconds per question (default, configurable 10-30s)
+const MATH_SPEED_ROUND_DURATION = 60000;  // 60 seconds total for speed round (default, configurable 30-120s)
 const MATH_SPEED_WRONG_DELAY = 3000;  // 3 seconds delay after wrong answer in speed round
 const MATH_SPEED_CORRECT_DELAY = 1000;  // 1 second delay after correct answer
 const MATH_REVEAL_DURATION = 3000;  // 3 seconds to show correct answer
@@ -1539,8 +1539,9 @@ function startTriviaRound(io, room, roomId) {
   // Initialize ready players for this round
   game.readyPlayers = [];
 
-  // For speed round, calculate when the 60s will end (after rules)
-  const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + TRIVIA_SPEED_ROUND_DURATION : null;
+  // For speed round, calculate when it will end (after rules) - using configurable duration
+  const speedRoundDuration = game.speedRoundDurationMs || TRIVIA_SPEED_ROUND_DURATION;
+  const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + speedRoundDuration : null;
   game.speedRoundEndTime = speedRoundEndTime;
 
   // Include difficulty groups info for client display
@@ -1667,7 +1668,7 @@ function advanceTriviaQuestion(io, room, roomId) {
         return;
       }
     } else {
-      questionDuration = TRIVIA_QUESTION_DURATION;
+      questionDuration = game.questionTimeMs || TRIVIA_QUESTION_DURATION;
     }
 
     const questionEndTime = Date.now() + questionDuration;
@@ -1709,7 +1710,7 @@ function startGroupTurn(io, room, roomId) {
   }
 
   const currentGroup = groups[currentGroupIdx];
-  const questionDuration = TRIVIA_QUESTION_DURATION;
+  const questionDuration = game.questionTimeMs || TRIVIA_QUESTION_DURATION;
   const questionEndTime = Date.now() + questionDuration;
   game.questionEndTime = questionEndTime;
   game.groupStartTime = Date.now();  // Track when this group's turn started
@@ -1834,7 +1835,7 @@ function revealTriviaAnswer(io, room, roomId) {
   game.phase = 'reveal';
 
   // For difficulty groups, validate each player against their group's question
-  const questionDuration = game.isSpeedRound ? TRIVIA_SPEED_QUESTION_DURATION : TRIVIA_QUESTION_DURATION;
+  const questionDuration = game.isSpeedRound ? TRIVIA_SPEED_QUESTION_DURATION : (game.questionTimeMs || TRIVIA_QUESTION_DURATION);
   const hasGroupQuestions = !game.isSpeedRound && game.currentQuestionsByGroup && game.difficultyGroups;
 
   // Build a map of player to their group index
@@ -2143,10 +2144,11 @@ function startSpeedRound(io, room, roomId) {
 
   // Set timer to end speed round after 60s
   console.log(`[SPEED] Setting 60s timer to end speed round`);
+  const speedRoundDuration = game.speedRoundDurationMs || TRIVIA_SPEED_ROUND_DURATION;
   game.speedRoundTimer = setTimeout(() => {
-    console.log(`[SPEED] 60s timer fired, ending speed round`);
+    console.log(`[SPEED] ${speedRoundDuration / 1000}s timer fired, ending speed round`);
     endSpeedRound(io, room, roomId);
-  }, TRIVIA_SPEED_ROUND_DURATION);
+  }, speedRoundDuration);
 }
 
 function sendSpeedRoundQuestion(io, room, roomId, player) {
@@ -2534,7 +2536,9 @@ function startMathRound(io, room, roomId) {
   game.rulesEndTime = rulesEndTime;
   game.readyPlayers = [];
 
-  const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + MATH_SPEED_ROUND_DURATION : null;
+  // For speed round, calculate when it will end (after rules) - using configurable duration
+  const speedRoundDuration = game.speedRoundDurationMs || MATH_SPEED_ROUND_DURATION;
+  const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + speedRoundDuration : null;
   game.speedRoundEndTime = speedRoundEndTime;
 
   // Include difficulty groups info for client display
@@ -2608,7 +2612,7 @@ function advanceMathQuestion(io, room, roomId) {
     if (!question) return;
 
     game.currentQuestion = question;
-    const questionDuration = MATH_QUESTION_DURATION;
+    const questionDuration = game.questionTimeMs || MATH_QUESTION_DURATION;
     const questionEndTime = Date.now() + questionDuration;
     game.questionEndTime = questionEndTime;
 
@@ -2646,7 +2650,7 @@ function startMathGroupTurn(io, room, roomId) {
   }
 
   const currentGroup = groups[currentGroupIdx];
-  const questionDuration = MATH_QUESTION_DURATION;
+  const questionDuration = game.questionTimeMs || MATH_QUESTION_DURATION;
   const questionEndTime = Date.now() + questionDuration;
   game.questionEndTime = questionEndTime;
   game.groupStartTime = Date.now();
@@ -2775,7 +2779,7 @@ function revealMathAnswer(io, room, roomId) {
   }
 
   game.phase = 'reveal';
-  const questionDuration = MATH_QUESTION_DURATION;
+  const questionDuration = game.questionTimeMs || MATH_QUESTION_DURATION;
 
   // Build per-group results for the new structure
   const groupData = [];
@@ -3052,9 +3056,10 @@ function startMathSpeedRound(io, room, roomId) {
     }
   });
 
+  const speedRoundDuration = game.speedRoundDurationMs || MATH_SPEED_ROUND_DURATION;
   game.speedRoundTimer = setTimeout(() => {
     endMathSpeedRound(io, room, roomId);
-  }, MATH_SPEED_ROUND_DURATION);
+  }, speedRoundDuration);
 }
 
 function sendMathSpeedRoundQuestion(io, room, roomId, player) {
@@ -4262,12 +4267,21 @@ function setupSockets(io) {
       }
 
       if (gameType === 'quickmath') {
+        // Get configurable settings with defaults
+        const questionsPerRoundConfig = gameConfig.questionsPerRound || 5;
+        const speedRoundDurationConfig = gameConfig.speedRoundDuration || 60;  // in seconds
+        const questionTimeConfig = gameConfig.questionTime || 15;  // in seconds
+
         // Initialize Quick Math game with per-difficulty question tracking
         room.game = {
           gameType: 'quickmath',
+          config: gameConfig,  // Store full config
           currentRound: 1,
           totalRounds: 4,
-          questionsPerRound: [5, 5, 5, 30],  // Rounds 1-3: 5 questions, Round 4: 30 speed questions
+          questionsPerRound: [questionsPerRoundConfig, questionsPerRoundConfig, questionsPerRoundConfig, 30],
+          questionsInRound: questionsPerRoundConfig,  // For easy access
+          speedRoundDurationMs: speedRoundDurationConfig * 1000,
+          questionTimeMs: questionTimeConfig * 1000,
           currentQuestionIndex: 0,
           currentQuestion: null,
           questionEndTime: null,
@@ -4306,13 +4320,21 @@ function setupSockets(io) {
         }, 4000);
 
       } else if (gameType === 'trivia') {
+        // Get configurable settings with defaults
+        const questionsPerRoundConfig = gameConfig.questionsPerRound || 5;
+        const speedRoundDurationConfig = gameConfig.speedRoundDuration || 60;  // in seconds
+        const questionTimeConfig = gameConfig.questionTime || 15;  // in seconds
+
         // Initialize Trivia game with per-difficulty question tracking
         room.game = {
           gameType: 'trivia',
           config: gameConfig,  // Store game config (themes, etc.)
           currentRound: 1,
           totalRounds: 4,
-          questionsPerRound: [5, 5, 5, 10],  // Default - will be overridden based on group count
+          questionsPerRound: [questionsPerRoundConfig, questionsPerRoundConfig, questionsPerRoundConfig, 10],
+          questionsInRound: questionsPerRoundConfig,  // For easy access
+          speedRoundDurationMs: speedRoundDurationConfig * 1000,
+          questionTimeMs: questionTimeConfig * 1000,
           currentQuestionIndex: 0,
           currentQuestion: null,
           currentQuestionsByGroup: {},  // Per-group questions at current index
@@ -5264,7 +5286,8 @@ function setupSockets(io) {
 
         // Initialize speed round state
         game.phase = 'speedRound';
-        game.speedRoundEndTime = Date.now() + MATH_SPEED_ROUND_DURATION;
+        const speedRoundDuration = game.speedRoundDurationMs || MATH_SPEED_ROUND_DURATION;
+        game.speedRoundEndTime = Date.now() + speedRoundDuration;
 
         startMathSpeedRound(io, room, data.roomId);
       }
