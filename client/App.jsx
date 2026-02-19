@@ -148,6 +148,7 @@ function App() {
     const playerStatsRef = useRef(playerStats);
     const playerNameRef = useRef(playerName);
     const selectedAvatarRef = useRef(selectedAvatar);
+    const gameTypeRef = useRef(gameType);
 
     // Derived state
     const availableCharacters = characterAvatars[theme] || characterAvatars.tron;
@@ -196,6 +197,10 @@ function App() {
     useEffect(() => {
         selectedAvatarRef.current = selectedAvatar;
     }, [selectedAvatar]);
+
+    useEffect(() => {
+        gameTypeRef.current = gameType;
+    }, [gameType]);
 
     // Rejoin room on mount (after page refresh)
     useEffect(() => {
@@ -429,6 +434,13 @@ function App() {
                 }
                 return prev;
             });
+            // For Pictionary, don't transition immediately - let the game show winner celebration first
+            // The game component will call onCelebrationComplete to trigger the transition
+            const currentGameType = gameTypeRef.current;
+            if (currentGameType === 'pictionary' && !data?.cancelled && data?.finalScores?.length > 0) {
+                // Don't transition yet - PictionaryGame will handle it after celebration
+                return;
+            }
             setPage('room');
             setDrawingOrder([]);
             setCurrentRound(0);
@@ -1477,6 +1489,13 @@ function App() {
                     currentRound={currentRound}
                     totalRounds={totalRounds}
                     gameType={gameType}
+                    onCelebrationComplete={() => {
+                        // Called by PictionaryGame when winner celebration ends
+                        setPage('room');
+                        setDrawingOrder([]);
+                        setCurrentRound(0);
+                        setTotalRounds(0);
+                    }}
                 />
             </>
         );

@@ -3,7 +3,7 @@ import PictionaryGame from '../game/PictionaryGame';
 import TriviaGame from '../game/TriviaGame';
 import QuickMathGame from '../game/QuickMathGame';
 
-const GamePage = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds, gameType }) => {
+const GamePage = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds, gameType, onCelebrationComplete }) => {
     // Route to the appropriate game component based on gameType
     if (gameType === 'quickmath') {
         return (
@@ -49,6 +49,7 @@ const GamePage = ({ theme, currentTheme, playerName, selectedAvatar, availableCh
             drawingOrder={drawingOrder}
             currentRound={currentRound}
             totalRounds={totalRounds}
+            onCelebrationComplete={onCelebrationComplete}
         />
     );
 };

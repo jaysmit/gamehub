@@ -4,7 +4,7 @@ import { Check } from '../icons/UIIcons';
 import { socket, getServerTime } from '../socket';
 import WinnerCelebration from '../components/WinnerCelebration';
 
-const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds }) => {
+const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds, onCelebrationComplete }) => {
     const canvasRef = useRef(null);
     const chatEndRef = useRef(null);
     const lastPointRef = useRef(null);
@@ -45,7 +45,6 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
     // Winner celebration state
     const [showWinnerCelebration, setShowWinnerCelebration] = useState(false);
     const [finalScores, setFinalScores] = useState([]);
-    const [celebrationCountdown, setCelebrationCountdown] = useState(8);
 
     // Word picker state (drawer chooses from difficulty-based options)
     const [wordOptions, setWordOptions] = useState([]);
@@ -340,7 +339,6 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             // Show winner celebration if game wasn't cancelled and has scores
             if (!cancelled && scores && scores.length > 0) {
                 setFinalScores(scores);
-                setCelebrationCountdown(8);
                 setShowWinnerCelebration(true);
             }
         };
@@ -464,21 +462,8 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         }
     }, [gameTimer, pointsEarned, isDrawer, countdown, timerPaused, serverTimerStarted]);
 
-    // Winner celebration countdown timer
-    useEffect(() => {
-        if (!showWinnerCelebration) return;
-
-        if (celebrationCountdown <= 0) {
-            setShowWinnerCelebration(false);
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            setCelebrationCountdown(prev => prev - 1);
-        }, 1000);
-
-        return () => clearTimeout(timer);
-    }, [showWinnerCelebration, celebrationCountdown]);
+    // Note: Winner celebration countdown is handled by WinnerCelebration component internally
+    // It calls onDismiss when complete, which triggers onCelebrationComplete
 
     // Pick timer helpers
     const startPickTimer = (duration) => {
@@ -1456,9 +1441,9 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                     autoDismissSeconds={8}
                     onDismiss={() => {
                         setShowWinnerCelebration(false);
-                        // Notify server that celebration is complete
-                        if (currentRoom?.id) {
-                            socket.emit('pictionaryCelebrationComplete', { roomId: currentRoom.id });
+                        // Transition to room page after celebration
+                        if (onCelebrationComplete) {
+                            onCelebrationComplete();
                         }
                     }}
                 />
