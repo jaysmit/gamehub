@@ -46,6 +46,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
     const [speedRoundDifficulty, setSpeedRoundDifficulty] = useState(null);
     const [revealedPlayers, setRevealedPlayers] = useState({});       // { playerName: { revealed: true, correct: boolean } }
     const [allQuestionsRevealed, setAllQuestionsRevealed] = useState(false);  // Master can reveal all at once
+    const [nextRoundButtonFlashing, setNextRoundButtonFlashing] = useState(false);  // Flash after 10s of reveal all
 
     // Speed round race recap state
     const [raceData, setRaceData] = useState(null);
@@ -79,6 +80,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
     const standingsRef = useRef([]);
     const speedRoundEndTimeRef = useRef(null);
     const previousRoundScoresRef = useRef({});  // Track pre-speed round scores
+    const revealAllTimerRef = useRef(null);     // Timer for flashing next round button
 
     // Keep refs in sync
     useEffect(() => { roomIdRef.current = currentRoom?.id; }, [currentRoom?.id]);
@@ -304,7 +306,36 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                 setGroupInfo(data.groupInfo);
                 setIsActiveGroup(data.isActiveGroup !== false);
                 setWaitingFor(data.waitingFor || null);
-            } else {
+            }
+
+            // Handle speed round sync for reconnecting players
+            if (data.isSpeedRound && data.phase === 'speedRound') {
+                if (data.speedRoundWaiting) {
+                    // Player finished all questions
+                    setSpeedRoundWaiting(true);
+                    setSpeedRoundStats({
+                        answered: data.speedQuestionsAnswered || 0,
+                        correct: data.speedCorrectAnswers || 0,
+                        points: data.speedTotalPoints || 0
+                    });
+                } else if (data.speedQuestion) {
+                    // Player has a current question
+                    setCurrentQuestion(data.speedQuestion);
+                    setSpeedRoundAnswers(data.speedAnswers || []);
+                    setCategory(data.speedCategory || '');
+                    setSpeedRoundDifficulty(data.speedDifficulty);
+                    setSpeedRoundStats({
+                        answered: data.speedQuestionsAnswered || 0,
+                        correct: data.speedCorrectAnswers || 0,
+                        points: 0
+                    });
+                    setSpeedRoundWaiting(false);
+                    setSpeedRoundFeedback(null);
+                    setSelectedAnswer(null);
+                }
+            }
+
+            if (!data.groupInfo) {
                 setGroupInfo(null);
                 setIsActiveGroup(true);
                 setWaitingFor(null);
@@ -363,6 +394,49 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             setWaitingFor(null);
         };
 
+        const onMathRevealAll = (data) => {
+            // Master revealed all questions - apply to all players
+            const questionHistory = data.questionHistory || [];
+            if (questionHistory.length === 0) return;
+
+            // Set to last question index
+            setRecapQuestionIndex(questionHistory.length - 1);
+
+            // Reveal all players immediately
+            const allPlayers = {};
+            questionHistory.forEach(q => {
+                if (q.groupData && Array.isArray(q.groupData)) {
+                    q.groupData.forEach(g => {
+                        const playerNames = g.playerNames || Object.keys(g.playerResults || {});
+                        playerNames.forEach(name => {
+                            const result = g.playerResults?.[name];
+                            allPlayers[name] = { revealed: true, correct: result?.isCorrect || false };
+                        });
+                    });
+                } else if (q.playerResults) {
+                    Object.entries(q.playerResults).forEach(([name, result]) => {
+                        allPlayers[name] = { revealed: true, correct: result?.isCorrect || false };
+                    });
+                }
+            });
+            setRevealedPlayers(allPlayers);
+
+            // Update standings from server data
+            if (data.standings) {
+                setAnimatedStandings(data.standings);
+                // Save final scores for next round's frozen scoreboard
+                const finalScores = {};
+                data.standings.forEach(p => { finalScores[p.name] = p.score; });
+                setPreviousRoundScores(finalScores);
+            }
+
+            // Mark animation as complete
+            setRecapAnimPhase(2);
+            setShowingQuestion(false);
+            setAllQuestionsRevealed(true);
+            setNextRoundButtonFlashing(false);
+        };
+
         socket.on('mathRulesStart', onMathRulesStart);
         socket.on('mathQuestion', onMathQuestion);
         socket.on('mathGroupWaiting', onMathGroupWaiting);
@@ -379,6 +453,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         socket.on('speedRoundWaiting', onSpeedRoundWaiting);
         socket.on('speedRoundRecap', onSpeedRoundRecap);
         socket.on('mathPlayerReady', onMathPlayerReady);
+        socket.on('mathRevealAll', onMathRevealAll);
 
         return () => {
             socket.off('mathRulesStart', onMathRulesStart);
@@ -397,8 +472,33 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
             socket.off('speedRoundWaiting', onSpeedRoundWaiting);
             socket.off('speedRoundRecap', onSpeedRoundRecap);
             socket.off('mathPlayerReady', onMathPlayerReady);
+            socket.off('mathRevealAll', onMathRevealAll);
         };
     }, []);
+
+    // Timer for flashing Next Round button after reveal all (master only)
+    useEffect(() => {
+        if (!isMaster || !allQuestionsRevealed || phase !== 'recap') {
+            setNextRoundButtonFlashing(false);
+            if (revealAllTimerRef.current) {
+                clearTimeout(revealAllTimerRef.current);
+                revealAllTimerRef.current = null;
+            }
+            return;
+        }
+
+        // Start 10 second timer for flashing
+        revealAllTimerRef.current = setTimeout(() => {
+            setNextRoundButtonFlashing(true);
+        }, 10000);
+
+        return () => {
+            if (revealAllTimerRef.current) {
+                clearTimeout(revealAllTimerRef.current);
+                revealAllTimerRef.current = null;
+            }
+        };
+    }, [isMaster, allQuestionsRevealed, phase]);
 
     // Rules timer countdown
     useEffect(() => {
@@ -877,66 +977,13 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
         }
     };
 
-    // Master reveals all questions at once
+    // Master reveals all questions at once - emit socket event to sync to all players
     const handleRevealAllQuestions = () => {
         if (!isMaster || phase !== 'recap') return;
+        if (!currentRoom?.id) return;
 
-        const questionHistory = recapData?.questionHistory || [];
-        if (questionHistory.length === 0) return;
-
-        // Set to last question index
-        setRecapQuestionIndex(questionHistory.length - 1);
-
-        // Reveal all players immediately
-        const allPlayers = {};
-        questionHistory.forEach(q => {
-            if (q.groupData && Array.isArray(q.groupData)) {
-                q.groupData.forEach(g => {
-                    const playerNames = g.playerNames || Object.keys(g.playerResults || {});
-                    playerNames.forEach(name => {
-                        const result = g.playerResults?.[name];
-                        allPlayers[name] = { revealed: true, correct: result?.isCorrect || false };
-                    });
-                });
-            } else if (q.playerResults) {
-                Object.entries(q.playerResults).forEach(([name, result]) => {
-                    allPlayers[name] = { revealed: true, correct: result?.isCorrect || false };
-                });
-            }
-        });
-        setRevealedPlayers(allPlayers);
-
-        // Update standings with all points
-        const updatedStandings = standings.map(player => {
-            let totalPoints = 0;
-            questionHistory.forEach(q => {
-                if (q.groupData && Array.isArray(q.groupData)) {
-                    q.groupData.forEach(g => {
-                        const result = g.playerResults?.[player.name];
-                        if (result?.isCorrect && result.pointsEarned) {
-                            totalPoints += result.pointsEarned;
-                        }
-                    });
-                } else if (q.playerResults?.[player.name]) {
-                    const result = q.playerResults[player.name];
-                    if (result?.isCorrect && result.pointsEarned) {
-                        totalPoints += result.pointsEarned;
-                    }
-                }
-            });
-            return { ...player, score: player.score + totalPoints };
-        });
-        setAnimatedStandings(updatedStandings.sort((a, b) => b.score - a.score));
-
-        // Mark animation as complete
-        setRecapAnimPhase(2);
-        setShowingQuestion(false);
-        setAllQuestionsRevealed(true);
-
-        // Save final scores for next round's frozen scoreboard
-        const finalScores = {};
-        updatedStandings.forEach(p => { finalScores[p.name] = p.score; });
-        setPreviousRoundScores(finalScores);
+        // Emit to server which will broadcast to all players
+        socket.emit('mathRevealAll', { roomId: currentRoom.id });
     };
 
     // End game early (master only)
@@ -1772,7 +1819,7 @@ const QuickMathGame = ({ theme, currentTheme, playerName, selectedAvatar, availa
                                         {/* Go to Next Round / View Final Results button - always visible for master */}
                                         <button
                                             onClick={handleNextRound}
-                                            className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg`}
+                                            className={`w-full ${theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-orange-700 hover:bg-orange-600 text-white'} font-bold py-3 rounded-xl transition-all text-lg ${nextRoundButtonFlashing ? 'animate-pulse ring-4 ring-yellow-400' : ''}`}
                                         >
                                             {recapData?.isLastRound
                                                 ? (theme === 'tron' ? '[ VIEW_RESULTS ]' : 'View Final Results')

@@ -829,36 +829,67 @@ const onlineUsers = new Map();
 // Pictionary game constants
 const PICTIONARY_DEFAULT_DRAWER_TIME = 60; // Default 60 seconds per drawer (can be customized via game config)
 
-// Pictionary word banks by difficulty
+// Pictionary word banks - ALL EASY words that are simple to draw
+// Objects, actions, and obvious things like crying, running, lightning
+const EASY_PICTIONARY_WORDS = [
+  // Simple Objects
+  'SUN', 'MOON', 'STAR', 'BALL', 'HEART', 'CIRCLE', 'SQUARE', 'TRIANGLE',
+  'HAT', 'SHOE', 'SHIRT', 'PANTS', 'DRESS', 'CROWN', 'GLASSES', 'WATCH',
+  'APPLE', 'BANANA', 'PIZZA', 'CAKE', 'ICE CREAM', 'COOKIE', 'BREAD', 'EGG',
+  'HOUSE', 'CAR', 'BUS', 'BOAT', 'TRAIN', 'PLANE', 'ROCKET', 'HELICOPTER',
+  'TREE', 'FLOWER', 'CLOUD', 'RAIN', 'RAINBOW', 'LIGHTNING', 'SNOWFLAKE', 'FIRE',
+  'BOOK', 'PEN', 'PENCIL', 'SCISSORS', 'CLOCK', 'PHONE', 'KEY', 'LAMP',
+  'CUP', 'SPOON', 'FORK', 'KNIFE', 'PLATE', 'BOWL', 'POT', 'PAN',
+  'BED', 'CHAIR', 'TABLE', 'DOOR', 'WINDOW', 'STAIRS', 'LADDER', 'FENCE',
+  'UMBRELLA', 'BALLOON', 'GIFT', 'CANDLE', 'BELL', 'FLAG', 'KITE', 'TENT',
+  'GUITAR', 'DRUM', 'PIANO', 'TRUMPET', 'MICROPHONE',
+
+  // Animals (easy to draw)
+  'CAT', 'DOG', 'FISH', 'BIRD', 'COW', 'PIG', 'DUCK', 'FROG', 'HORSE', 'SHEEP',
+  'MOUSE', 'SNAKE', 'SPIDER', 'BEE', 'BUTTERFLY', 'SNAIL', 'TURTLE', 'CRAB',
+  'ELEPHANT', 'LION', 'BEAR', 'MONKEY', 'PENGUIN', 'OCTOPUS', 'SHARK', 'WHALE',
+  'CHICKEN', 'RABBIT', 'DEER', 'OWL',
+
+  // Body Parts
+  'HAND', 'FOOT', 'EYE', 'NOSE', 'MOUTH', 'EAR', 'TEETH', 'TONGUE', 'HAIR', 'HEART',
+
+  // Actions (easy to depict)
+  'CRYING', 'LAUGHING', 'SLEEPING', 'EATING', 'DRINKING', 'RUNNING', 'JUMPING', 'DANCING',
+  'SWIMMING', 'FLYING', 'CLIMBING', 'FALLING', 'SITTING', 'WALKING', 'WAVING',
+  'SINGING', 'READING', 'WRITING', 'PAINTING', 'COOKING', 'FISHING', 'CAMPING',
+  'DRIVING', 'SKIING', 'SURFING', 'SKATING',
+
+  // Weather & Nature
+  'SUNNY', 'RAINY', 'SNOWY', 'WINDY', 'STORMY', 'VOLCANO', 'MOUNTAIN', 'ISLAND', 'BEACH', 'OCEAN',
+  'RIVER', 'WATERFALL', 'CAVE', 'DESERT', 'FOREST', 'GARDEN',
+
+  // Sports & Activities
+  'SOCCER', 'BASKETBALL', 'TENNIS', 'BOWLING', 'GOLF', 'BASEBALL', 'BOXING', 'YOGA',
+  'BIKE', 'SKATEBOARD',
+
+  // Places
+  'SCHOOL', 'HOSPITAL', 'CASTLE', 'CHURCH', 'LIBRARY', 'MUSEUM', 'CIRCUS', 'ZOO', 'FARM',
+  'RESTAURANT', 'PLAYGROUND', 'POOL',
+
+  // Food & Drinks
+  'HAMBURGER', 'HOT DOG', 'POPCORN', 'CANDY', 'LOLLIPOP', 'DONUT', 'CUPCAKE',
+  'SODA', 'JUICE', 'COFFEE', 'MILK', 'WATER',
+  'CHEESE', 'CARROT', 'CORN', 'TOMATO', 'BROCCOLI', 'MUSHROOM', 'PUMPKIN',
+
+  // Simple Concepts
+  'HAPPY', 'SAD', 'ANGRY', 'SCARED', 'TIRED', 'SICK', 'COLD', 'HOT',
+  'DAY', 'NIGHT', 'MORNING', 'BIRTHDAY', 'CHRISTMAS', 'HALLOWEEN',
+
+  // Everyday Items
+  'CAMERA', 'TELEVISION', 'COMPUTER', 'ROBOT', 'TREASURE', 'PIRATE', 'NINJA', 'COWBOY',
+  'WIZARD', 'PRINCESS', 'KING', 'QUEEN', 'KNIGHT', 'DRAGON', 'GHOST', 'MONSTER',
+  'ALIEN', 'ASTRONAUT', 'SUPERHERO', 'MERMAID', 'UNICORN', 'ANGEL', 'DEVIL'
+];
+
+// Pictionary word banks by difficulty (legacy - keeping structure for backwards compatibility)
 const PICTIONARY_WORDS_BY_DIFFICULTY = {
-  'super-easy': [
-    // Very simple shapes and objects for toddlers (ages 2-4) - UNIQUE to this level
-    // Basic shapes they can draw
-    'SUN', 'MOON', 'STAR', 'BALL', 'HEART', 'CIRCLE',
-    // Simple familiar objects
-    'HAT', 'SHOE', 'BABY', 'MOM', 'DAD', 'BOY', 'GIRL',
-    // Easy animals (one word, simple shapes)
-    'CAT', 'DOG', 'BUG', 'ANT', 'BEE',
-    // Food
-    'APPLE', 'EGG', 'PIE',
-    // Very basic items
-    'BED', 'BOX', 'KEY', 'CUP'
-  ],
-  'very-easy': [
-    // Simple words for young children (ages 5-7) - UNIQUE to this level
-    // Animals (different from super-easy)
-    'FISH', 'BIRD', 'COW', 'PIG', 'DUCK', 'FROG', 'HORSE', 'SHEEP', 'MOUSE', 'SNAKE',
-    // Nature (different from super-easy)
-    'TREE', 'FLOWER', 'RAIN', 'CLOUD', 'SNOW', 'RAINBOW', 'LEAF', 'GRASS',
-    // Objects
-    'HOUSE', 'CAR', 'BUS', 'BOAT', 'TRAIN', 'PLANE',
-    // Food (different from super-easy)
-    'BANANA', 'PIZZA', 'ICE CREAM', 'COOKIE', 'CAKE', 'BREAD',
-    // Body parts
-    'HAND', 'FOOT', 'EYE', 'NOSE', 'MOUTH', 'EAR', 'TEETH',
-    // Simple items (different from super-easy)
-    'CHAIR', 'TABLE', 'DOOR', 'WINDOW', 'BOOK', 'PEN', 'SPOON', 'FORK'
-  ],
+  'super-easy': EASY_PICTIONARY_WORDS,
+  'very-easy': EASY_PICTIONARY_WORDS,
   'easy': [
     // Animals (ages 8-11) - UNIQUE to this level (no duplicates from very-easy)
     'ELEPHANT', 'GIRAFFE', 'LION', 'MONKEY', 'TURTLE', 'RABBIT', 'BUTTERFLY', 'SPIDER', 'DOLPHIN',
@@ -996,8 +1027,30 @@ function getDifficultyRange(room) {
   };
 }
 
-// Generate word options for drawer spanning difficulty range
+// Generate word options for drawer - always uses easy words
 function getWordOptions(room, usedWords = [], count = 3) {
+  const options = [];
+  const usedInOptions = [...usedWords];
+  const availableWords = EASY_PICTIONARY_WORDS.filter(w => !usedInOptions.includes(w));
+
+  // Shuffle available words for randomness
+  const shuffled = [...availableWords].sort(() => Math.random() - 0.5);
+
+  // Pick 'count' random words
+  for (let i = 0; i < count && i < shuffled.length; i++) {
+    options.push({
+      word: shuffled[i],
+      difficulty: 'easy',
+      difficultyLabel: 'Easy'
+    });
+    usedInOptions.push(shuffled[i]);
+  }
+
+  return options;
+}
+
+// Legacy function - kept for backwards compatibility but not used
+function getWordOptionsLegacy(room, usedWords = [], count = 3) {
   const { lowest, highest } = getDifficultyRange(room);
   const lowestIdx = DIFFICULTY_LEVELS.indexOf(lowest);
   const highestIdx = DIFFICULTY_LEVELS.indexOf(highest);
@@ -3856,6 +3909,45 @@ function setupSockets(io) {
           .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
           .sort((a, b) => b.score - a.score);
 
+        // Include speed round question if applicable (for reconnecting during speed round)
+        if (game.isSpeedRound && game.phase === 'speedRound' && game.playerProgress) {
+          let progress = game.playerProgress[player.name];
+
+          // If player doesn't have progress (rejoined after speed round started), initialize it
+          if (!progress) {
+            const playerDifficulty = getPlayerDifficulty(player.name, room);
+            progress = {
+              currentQuestionIndex: 0,
+              correctAnswers: [],
+              wrongAnswers: [],
+              totalPoints: 0,
+              difficulty: playerDifficulty
+            };
+            game.playerProgress[player.name] = progress;
+            console.log(`[TRIVIA SYNC] Initialized speed round progress for rejoining player ${player.name} (${playerDifficulty})`);
+          }
+
+          const playerDifficulty = progress.difficulty || 'medium';
+          const playerQuestions = game.speedRoundQuestionsByDifficulty?.[playerDifficulty] || game.shuffledQuestions || [];
+
+          if (progress.currentQuestionIndex < playerQuestions.length) {
+            const question = playerQuestions[progress.currentQuestionIndex];
+            triviaSync.speedQuestion = question.question;
+            triviaSync.speedAnswers = question.shuffledAnswers;
+            triviaSync.speedCategory = question.category;
+            triviaSync.speedQuestionsAnswered = (progress.correctAnswers?.length || 0) + (progress.wrongAnswers?.length || 0);
+            triviaSync.speedCorrectAnswers = progress.correctAnswers?.length || 0;
+            triviaSync.speedDifficulty = playerDifficulty;
+            triviaSync.speedDifficultyLabel = getDifficultyLabel(playerDifficulty);
+          } else {
+            // Player finished all questions
+            triviaSync.speedRoundWaiting = true;
+            triviaSync.speedQuestionsAnswered = (progress.correctAnswers?.length || 0) + (progress.wrongAnswers?.length || 0);
+            triviaSync.speedCorrectAnswers = progress.correctAnswers?.length || 0;
+            triviaSync.speedTotalPoints = progress.totalPoints || 0;
+          }
+        }
+
         socket.emit('triviaSync', triviaSync);
       } else if (game.gameType === 'quickmath') {
         // Quick Math game sync
@@ -3883,15 +3975,50 @@ function setupSockets(io) {
           mathSync.category = game.currentQuestion.category;
         }
 
-        // Include speed round question if applicable
-        if (game.isSpeedRound && game.playerProgress && game.playerProgress[player.name]) {
-          const playerProg = game.playerProgress[player.name];
-          if (playerProg.currentQuestion) {
-            mathSync.speedQuestion = playerProg.currentQuestion.question;
-            mathSync.speedAnswers = playerProg.options;
-            mathSync.speedCategory = playerProg.currentQuestion.category;
-            mathSync.speedQuestionsAnswered = playerProg.questionsAnswered || 0;
-            mathSync.speedCorrectAnswers = playerProg.correctAnswers || 0;
+        // Include speed round question if applicable (for reconnecting during speed round)
+        if (game.isSpeedRound && game.phase === 'speedRound' && game.playerProgress) {
+          let playerProg = game.playerProgress[player.name];
+
+          // If player doesn't have progress (rejoined after speed round started), initialize it
+          if (!playerProg) {
+            const playerDifficulty = getPlayerDifficulty(player.name, room);
+            const usedIds = game.usedQuestionIdsByDifficulty?.[playerDifficulty] || [];
+            const questions = getRandomMathQuestions(playerDifficulty, 30, usedIds);
+            const playerQuestions = questions.map(q => {
+              const options = generateSpeedRoundOptions(q.answer);
+              const correctIndex = options.indexOf(q.answer);
+              return { ...q, options, correctIndex };
+            });
+
+            playerProg = {
+              currentQuestionIndex: 0,
+              correctAnswers: [],
+              wrongAnswers: [],
+              totalPoints: 0,
+              isWaiting: false,
+              difficulty: playerDifficulty,
+              questions: playerQuestions
+            };
+            game.playerProgress[player.name] = playerProg;
+            console.log(`[MATH SYNC] Initialized speed round progress for rejoining player ${player.name} (${playerDifficulty})`);
+          }
+
+          // Send current question to player
+          if (playerProg.questions && playerProg.currentQuestionIndex < playerProg.questions.length) {
+            const question = playerProg.questions[playerProg.currentQuestionIndex];
+            mathSync.speedQuestion = question.question;
+            mathSync.speedAnswers = question.options;
+            mathSync.speedCategory = question.category;
+            mathSync.speedQuestionsAnswered = (playerProg.correctAnswers?.length || 0) + (playerProg.wrongAnswers?.length || 0);
+            mathSync.speedCorrectAnswers = playerProg.correctAnswers?.length || 0;
+            mathSync.speedDifficulty = playerProg.difficulty;
+            mathSync.speedDifficultyLabel = getDifficultyLabel(playerProg.difficulty);
+          } else {
+            // Player finished all questions
+            mathSync.speedRoundWaiting = true;
+            mathSync.speedQuestionsAnswered = (playerProg.correctAnswers?.length || 0) + (playerProg.wrongAnswers?.length || 0);
+            mathSync.speedCorrectAnswers = playerProg.correctAnswers?.length || 0;
+            mathSync.speedTotalPoints = playerProg.totalPoints || 0;
           }
         }
 
@@ -4314,6 +4441,47 @@ function setupSockets(io) {
       io.to(data.roomId).emit('gameTimerStart', { endTime });
 
       console.log(`Drawer ${sender.name} selected word: ${data.word} (${selectedOption.difficultyLabel}) - locked to ${selectedOption.difficulty} difficulty`);
+    });
+
+    // --- Skip Word (Pictionary - drawer skips current word and gets a new one) ---
+    socket.on('skipWord', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'pictionary') return;
+
+      // Validate sender is the drawer
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || sender.name !== room.game.drawerName) return;
+
+      // Can only skip if word is already selected (game is in progress)
+      if (!room.game.wordSelected || !room.game.currentWord) return;
+
+      // Add current word to used words so it doesn't appear again
+      if (!room.game.usedWords.includes(room.game.currentWord)) {
+        room.game.usedWords.push(room.game.currentWord);
+      }
+
+      // Get a new word (just pick one random word from available)
+      const availableWords = EASY_PICTIONARY_WORDS.filter(w => !room.game.usedWords.includes(w));
+      if (availableWords.length === 0) {
+        // No more words available
+        io.to(sender.socketId).emit('skipWordFailed', { message: 'No more words available!' });
+        return;
+      }
+
+      const newWord = availableWords[Math.floor(Math.random() * availableWords.length)];
+      room.game.currentWord = newWord;
+      room.game.usedWords.push(newWord);
+
+      // Clear the canvas for everyone
+      io.to(data.roomId).emit('clearCanvas');
+
+      // Send the new word to the drawer
+      io.to(sender.socketId).emit('yourWord', { word: newWord });
+
+      // Notify all players that word was skipped (without revealing what it was)
+      io.to(data.roomId).emit('wordSkipped', { drawerName: sender.name });
+
+      console.log(`Drawer ${sender.name} skipped word, new word: ${newWord}`);
     });
 
     // --- Draw Line (Pictionary) ---
@@ -4856,6 +5024,54 @@ function setupSockets(io) {
       startNextTriviaRound(io, room, data.roomId);
     });
 
+    // --- Trivia: Master reveals all questions at once (sync to all players) ---
+    socket.on('triviaRevealAll', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'trivia') return;
+
+      // Only master can reveal all
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || room.master !== sender.name) return;
+
+      // Only allow during recap phase
+      if (room.game.phase !== 'recap') return;
+
+      const game = room.game;
+      const questionHistory = game.questionHistory || [];
+
+      // Calculate updated standings with all round points
+      const updatedStandings = room.players.map(player => {
+        let totalPoints = player.score || 0;
+        // Add points from current round's questionHistory
+        questionHistory.forEach(qh => {
+          if (qh.playerResults && qh.playerResults[player.name]) {
+            const result = qh.playerResults[player.name];
+            if (result?.isCorrect && result.pointsEarned) {
+              totalPoints += result.pointsEarned;
+            }
+          }
+          // Handle grouped questions
+          if (qh.groupData && Array.isArray(qh.groupData)) {
+            qh.groupData.forEach(g => {
+              const result = g.playerResults?.[player.name];
+              if (result?.isCorrect && result.pointsEarned) {
+                totalPoints += result.pointsEarned;
+              }
+            });
+          }
+        });
+        return { name: player.name, avatar: player.avatar, score: totalPoints, connected: player.connected !== false };
+      }).sort((a, b) => b.score - a.score);
+
+      // Broadcast reveal all to all players in room
+      io.to(data.roomId).emit('triviaRevealAll', {
+        questionHistory: questionHistory,
+        standings: updatedStandings
+      });
+
+      console.log(`[TRIVIA] Master ${sender.name} revealed all questions in room ${data.roomId}`);
+    });
+
     // --- Trivia: End game after speed round recap (skip finalRecap, go to room) ---
     socket.on('triviaEndAfterSpeed', (data) => {
       const room = rooms.get(data.roomId);
@@ -5158,6 +5374,54 @@ function setupSockets(io) {
       if (room.game.phase !== 'recap' && room.game.phase !== 'speedRecap') return;
 
       startNextMathRound(io, room, data.roomId);
+    });
+
+    // --- Quick Math: Master reveals all questions at once (sync to all players) ---
+    socket.on('mathRevealAll', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'quickmath') return;
+
+      // Only master can reveal all
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || room.master !== sender.name) return;
+
+      // Only allow during recap phase
+      if (room.game.phase !== 'recap') return;
+
+      const game = room.game;
+      const questionHistory = game.questionHistory || [];
+
+      // Calculate updated standings with all round points
+      const updatedStandings = room.players.map(player => {
+        let totalPoints = player.score || 0;
+        // Add points from current round's questionHistory
+        questionHistory.forEach(qh => {
+          if (qh.playerResults && qh.playerResults[player.name]) {
+            const result = qh.playerResults[player.name];
+            if (result?.isCorrect && result.pointsEarned) {
+              totalPoints += result.pointsEarned;
+            }
+          }
+          // Handle grouped questions
+          if (qh.groupData && Array.isArray(qh.groupData)) {
+            qh.groupData.forEach(g => {
+              const result = g.playerResults?.[player.name];
+              if (result?.isCorrect && result.pointsEarned) {
+                totalPoints += result.pointsEarned;
+              }
+            });
+          }
+        });
+        return { name: player.name, avatar: player.avatar, score: totalPoints, connected: player.connected !== false };
+      }).sort((a, b) => b.score - a.score);
+
+      // Broadcast reveal all to all players in room
+      io.to(data.roomId).emit('mathRevealAll', {
+        questionHistory: questionHistory,
+        standings: updatedStandings
+      });
+
+      console.log(`[MATH] Master ${sender.name} revealed all questions in room ${data.roomId}`);
     });
 
     // --- Quick Math: End game after speed round recap ---

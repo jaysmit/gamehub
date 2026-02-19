@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CharacterSVG } from '../icons/CharacterSVGs';
 import { Check } from '../icons/UIIcons';
 import { socket, getServerTime } from '../socket';
+import WinnerCelebration from '../components/WinnerCelebration';
 
 const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds }) => {
     const canvasRef = useRef(null);
@@ -397,6 +398,17 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
         socket.on('gameResumed', onGameResumed);
         socket.on('gameEnded', onGameEnded);
 
+        // Word skipped handler - show notification to all players
+        const onWordSkipped = ({ drawerName }) => {
+            // Add a system message to chat
+            setChatMessages(prev => [...prev, {
+                type: 'system',
+                message: `${drawerName} skipped the word!`,
+                timestamp: Date.now()
+            }]);
+        };
+        socket.on('wordSkipped', onWordSkipped);
+
         return () => {
             clearInterval(pauseCountdownRef.current);
             socket.off('gameTimerStart', onGameTimerStart);
@@ -414,6 +426,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
             socket.off('gamePaused', onGamePaused);
             socket.off('gameResumed', onGameResumed);
             socket.off('gameEnded', onGameEnded);
+            socket.off('wordSkipped', onWordSkipped);
         };
     }, [playerName]);
 
@@ -786,12 +799,29 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                         </div>
                                     </div>
                                 )}
-                                {/* Word display for drawer on canvas */}
+                                {/* Word display for drawer on canvas with skip button */}
                                 {isDrawer && currentWord && countdown <= 0 && (
-                                    <div className="absolute top-2 left-2 pointer-events-none">
+                                    <div className="absolute top-2 left-2 flex items-center gap-2">
                                         <div className={`${theme === 'tron' ? 'bg-cyan-500/90' : theme === 'kids' ? 'bg-purple-500/90' : 'bg-orange-600/90'} text-white px-3 py-1.5 rounded-lg shadow-lg`}>
                                             <span className="text-lg font-black">{currentWord}</span>
                                         </div>
+                                        <button
+                                            onClick={() => {
+                                                if (currentRoom?.id) {
+                                                    socket.emit('skipWord', { roomId: currentRoom.id });
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 rounded-lg font-bold text-sm shadow-lg transition-all hover:scale-105 ${
+                                                theme === 'tron'
+                                                    ? 'bg-yellow-500/90 hover:bg-yellow-400 text-black'
+                                                    : theme === 'kids'
+                                                        ? 'bg-yellow-400 hover:bg-yellow-300 text-yellow-900'
+                                                        : 'bg-yellow-600/90 hover:bg-yellow-500 text-white'
+                                            }`}
+                                            title="Skip this word and get a new one"
+                                        >
+                                            Skip
+                                        </button>
                                     </div>
                                 )}
                                 {/* Timer overlay on canvas */}
@@ -1119,27 +1149,21 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                                         {theme === 'tron' ? '> SELECT_YOUR_WORD' : 'Pick your word:'}
                                     </p>
                                     <div className="space-y-2">
-                                        {wordOptions.map((option, idx) => {
-                                            const colors = getDifficultyColors(option.difficulty);
-                                            return (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => handleSelectWord(option.word)}
-                                                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold transition-all transform hover:scale-[1.02] ${
-                                                        theme === 'tron'
-                                                            ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
-                                                            : theme === 'kids'
-                                                                ? 'bg-white hover:bg-purple-50 text-purple-900 border-2 border-purple-300'
-                                                                : 'bg-gray-800 hover:bg-gray-700 text-orange-400 border border-orange-700/50'
-                                                    }`}
-                                                >
-                                                    <span className="text-left flex-1">{option.word}</span>
-                                                    <span className={`text-xs px-2 py-1 rounded-lg ${colors.bg} ${colors.text}`}>
-                                                        {option.difficultyLabel}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
+                                        {wordOptions.map((option, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => handleSelectWord(option.word)}
+                                                className={`w-full px-4 py-3 rounded-xl font-bold text-lg transition-all transform hover:scale-[1.02] ${
+                                                    theme === 'tron'
+                                                        ? 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/50'
+                                                        : theme === 'kids'
+                                                            ? 'bg-white hover:bg-purple-50 text-purple-900 border-2 border-purple-300'
+                                                            : 'bg-gray-800 hover:bg-gray-700 text-orange-400 border border-orange-700/50'
+                                                }`}
+                                            >
+                                                {option.word}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             )}
@@ -1420,194 +1444,25 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                 )}
             </div>
 
-            {/* Winner Celebration Modal - Podium Style */}
-            {showWinnerCelebration && finalScores.length > 0 && (() => {
-                const winner = finalScores[0];
-                const second = finalScores[1];
-                const third = finalScores[2];
-                const isWinner = winner?.name === playerName;
-                const winnerChar = availableCharacters?.find(c => c.id === winner?.avatar) || availableCharacters?.[0];
-                const secondChar = second ? availableCharacters?.find(c => c.id === second?.avatar) || availableCharacters?.[0] : null;
-                const thirdChar = third ? availableCharacters?.find(c => c.id === third?.avatar) || availableCharacters?.[0] : null;
-
-                // Generate confetti items
-                const confettiItems = [...Array(30)].map((_, i) => ({
-                    id: i,
-                    emoji: ['🎉', '🎊', '⭐', '✨', '🏆', '🎨', '✏️'][Math.floor(Math.random() * 7)],
-                    left: `${Math.random() * 100}%`,
-                    delay: `${Math.random() * 2}s`,
-                    duration: `${2 + Math.random() * 2}s`
-                }));
-
-                // Generate gold coins
-                const goldCoins = [...Array(15)].map((_, i) => ({
-                    id: i,
-                    left: `${Math.random() * 100}%`,
-                    delay: `${Math.random() * 2.5}s`,
-                    duration: `${2.5 + Math.random() * 1.5}s`
-                }));
-
-                return (
-                    <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 animate-fadeIn">
-                        {/* Confetti effect */}
-                        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                            {confettiItems.map((item) => (
-                                <div
-                                    key={`confetti-${item.id}`}
-                                    className="absolute text-2xl animate-confetti"
-                                    style={{
-                                        left: item.left,
-                                        animationDelay: item.delay,
-                                        animationDuration: item.duration
-                                    }}
-                                >
-                                    {item.emoji}
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Gold coins effect */}
-                        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                            {goldCoins.map((coin) => (
-                                <div
-                                    key={`coin-${coin.id}`}
-                                    className="absolute text-3xl animate-goldCoin"
-                                    style={{
-                                        left: coin.left,
-                                        animationDelay: coin.delay,
-                                        animationDuration: coin.duration
-                                    }}
-                                >
-                                    🪙
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="text-center p-4 md:p-6 animate-scaleIn max-w-2xl w-full">
-                            {/* Header */}
-                            <div className="text-5xl md:text-7xl mb-2 animate-bounce">🏆</div>
-                            <h1
-                                className={`text-2xl md:text-4xl font-black mb-1 ${
-                                    theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
-                                } ${currentTheme.font}`}
-                                style={{ textShadow: '0 0 30px currentColor' }}
-                            >
-                                {theme === 'tron' ? '> GAME_OVER' : 'Game Over!'}
-                            </h1>
-                            <p className={`text-lg md:text-xl font-bold mb-6 ${currentTheme.text}`}>
-                                {isWinner ? 'Congratulations, you won!' : `${winner?.name} wins!`}
-                            </p>
-
-                            {/* Podium */}
-                            <div className="flex items-end justify-center gap-2 md:gap-4 mb-6">
-                                {/* 2nd Place - Left */}
-                                {second && (
-                                    <div className="flex flex-col items-center animate-slideUp" style={{ animationDelay: '0.3s' }}>
-                                        <div className="text-2xl md:text-3xl mb-1">🥈</div>
-                                        <div className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center ring-3 ${
-                                            theme === 'tron' ? 'ring-gray-400 bg-gray-500/20' : theme === 'kids' ? 'ring-gray-400 bg-gray-200' : 'ring-gray-500 bg-gray-800/50'
-                                        } mb-2`}>
-                                            <CharacterSVG characterId={second.avatar} size={theme === 'tron' ? 56 : 50} color={secondChar?.color || '#9ca3af'} />
-                                        </div>
-                                        <div className={`font-bold text-sm md:text-base ${currentTheme.text} truncate max-w-20 md:max-w-24`}>
-                                            {second.name}
-                                        </div>
-                                        <div className="text-gray-400 font-bold text-xs md:text-sm">{second.score} pts</div>
-                                        {/* Podium block */}
-                                        <div className={`w-20 md:w-24 h-16 md:h-20 mt-2 rounded-t-lg ${
-                                            theme === 'tron' ? 'bg-gray-600/50 border-t-2 border-x-2 border-gray-500' : theme === 'kids' ? 'bg-gray-300' : 'bg-gray-700'
-                                        } flex items-center justify-center`}>
-                                            <span className="text-2xl md:text-3xl font-black text-gray-400">2</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* 1st Place - Center */}
-                                <div className="flex flex-col items-center animate-slideUp" style={{ animationDelay: '0.1s' }}>
-                                    <div className="text-3xl md:text-4xl mb-1 animate-pulse">🥇</div>
-                                    <div className={`w-24 h-24 md:w-32 md:h-32 rounded-full flex items-center justify-center ring-4 ${
-                                        theme === 'tron' ? 'ring-yellow-400 bg-yellow-500/20' : theme === 'kids' ? 'ring-yellow-400 bg-yellow-200' : 'ring-yellow-500 bg-yellow-900/30'
-                                    } mb-2 relative`}>
-                                        <CharacterSVG characterId={winner.avatar} size={theme === 'tron' ? 88 : 80} color={winnerChar?.color || '#fbbf24'} />
-                                        {/* Crown */}
-                                        <div className="absolute -top-3 text-2xl md:text-3xl animate-bounce">👑</div>
-                                    </div>
-                                    <div className={`font-black text-lg md:text-xl ${
-                                        theme === 'tron' ? 'text-yellow-400' : theme === 'kids' ? 'text-yellow-600' : 'text-yellow-400'
-                                    } truncate max-w-28 md:max-w-32`}>
-                                        {winner.name}
-                                    </div>
-                                    <div className={`font-black text-xl md:text-2xl ${
-                                        theme === 'tron' ? 'text-yellow-300' : theme === 'kids' ? 'text-yellow-500' : 'text-yellow-300'
-                                    }`}>
-                                        {winner.score} pts
-                                    </div>
-                                    {/* Podium block */}
-                                    <div className={`w-24 md:w-32 h-24 md:h-28 mt-2 rounded-t-lg ${
-                                        theme === 'tron' ? 'bg-yellow-600/30 border-t-2 border-x-2 border-yellow-500' : theme === 'kids' ? 'bg-yellow-300' : 'bg-yellow-800/50'
-                                    } flex items-center justify-center`}>
-                                        <span className={`text-3xl md:text-4xl font-black ${
-                                            theme === 'tron' ? 'text-yellow-400' : theme === 'kids' ? 'text-yellow-700' : 'text-yellow-400'
-                                        }`}>1</span>
-                                    </div>
-                                </div>
-
-                                {/* 3rd Place - Right */}
-                                {third && (
-                                    <div className="flex flex-col items-center animate-slideUp" style={{ animationDelay: '0.5s' }}>
-                                        <div className="text-xl md:text-2xl mb-1">🥉</div>
-                                        <div className={`w-14 h-14 md:w-16 md:h-16 rounded-full flex items-center justify-center ring-2 ${
-                                            theme === 'tron' ? 'ring-orange-600 bg-orange-600/20' : theme === 'kids' ? 'ring-orange-400 bg-orange-200' : 'ring-orange-700 bg-orange-900/30'
-                                        } mb-2`}>
-                                            <CharacterSVG characterId={third.avatar} size={theme === 'tron' ? 44 : 40} color={thirdChar?.color || '#ea580c'} />
-                                        </div>
-                                        <div className={`font-bold text-xs md:text-sm ${currentTheme.text} truncate max-w-16 md:max-w-20`}>
-                                            {third.name}
-                                        </div>
-                                        <div className="text-orange-400 font-bold text-xs">{third.score} pts</div>
-                                        {/* Podium block */}
-                                        <div className={`w-16 md:w-20 h-12 md:h-14 mt-2 rounded-t-lg ${
-                                            theme === 'tron' ? 'bg-orange-700/30 border-t-2 border-x-2 border-orange-600' : theme === 'kids' ? 'bg-orange-300' : 'bg-orange-900/50'
-                                        } flex items-center justify-center`}>
-                                            <span className="text-xl md:text-2xl font-black text-orange-500">3</span>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Other players (4th onwards) */}
-                            {finalScores.length > 3 && (
-                                <div className={`${currentTheme.cardBg} rounded-xl p-3 mb-4 max-w-md mx-auto`}>
-                                    <div className="flex flex-wrap justify-center gap-2">
-                                        {finalScores.slice(3).map((player, idx) => (
-                                            <div key={player.name} className={`${
-                                                theme === 'tron' ? 'bg-gray-800/50 border border-gray-700' : theme === 'kids' ? 'bg-purple-100 border border-purple-200' : 'bg-gray-800 border border-gray-700'
-                                            } rounded-lg px-3 py-1.5 flex items-center gap-2`}>
-                                                <span className={`text-xs font-bold ${currentTheme.textSecondary}`}>#{idx + 4}</span>
-                                                <span className={`text-sm font-bold ${currentTheme.text}`}>{player.name}</span>
-                                                <span className="text-xs text-yellow-400">{player.score}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Countdown and button */}
-                            <div className={`text-sm mb-3 ${currentTheme.textSecondary}`}>
-                                Returning to room in {celebrationCountdown}...
-                            </div>
-                            <button
-                                onClick={() => setShowWinnerCelebration(false)}
-                                className={`px-8 py-3 rounded-xl font-bold text-lg transition-all ${
-                                    theme === 'tron' ? 'bg-cyan-500 hover:bg-cyan-400 text-black' : theme === 'kids' ? 'bg-purple-500 hover:bg-purple-400 text-white' : 'bg-orange-600 hover:bg-orange-500 text-white'
-                                }`}
-                            >
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-                );
-            })()}
+            {/* Winner Celebration - uses reusable WinnerCelebration component */}
+            {showWinnerCelebration && finalScores.length > 0 && (
+                <WinnerCelebration
+                    winner={finalScores[0]}
+                    playerName={playerName}
+                    gameName="Drawing Game"
+                    theme={theme}
+                    currentTheme={currentTheme}
+                    availableCharacters={availableCharacters}
+                    autoDismissSeconds={8}
+                    onDismiss={() => {
+                        setShowWinnerCelebration(false);
+                        // Notify server that celebration is complete
+                        if (currentRoom?.id) {
+                            socket.emit('pictionaryCelebrationComplete', { roomId: currentRoom.id });
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 };

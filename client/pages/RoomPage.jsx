@@ -306,14 +306,14 @@ function RoomPage({
                                                 </div>
                                             )}
 
-                                            {/* AFK badge */}
+                                            {/* AFK badge - centered over avatar with slight fade */}
                                             {player.isAfk && !isMeta && !isOwnAvatar && (
                                                 <button
-                                                    className={`absolute -top-2 -right-2 z-20 px-1.5 py-0.5 rounded-full font-bold text-[0.55rem] shadow-lg ${
-                                                        theme === 'tron' ? 'bg-cyan-500/80 text-black border border-cyan-400' :
-                                                        theme === 'kids' ? 'bg-yellow-400 text-yellow-900' :
-                                                        'bg-orange-500/80 text-black border border-orange-400'
-                                                    } hover:scale-110 transition-transform`}
+                                                    className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 px-2 py-1 rounded-full font-bold text-xs shadow-lg opacity-80 ${
+                                                        theme === 'tron' ? 'bg-cyan-500/90 text-black border border-cyan-400' :
+                                                        theme === 'kids' ? 'bg-yellow-400/90 text-yellow-900' :
+                                                        'bg-orange-500/90 text-black border border-orange-400'
+                                                    } hover:opacity-100 hover:scale-110 transition-all`}
                                                     style={theme === 'tron' ? { boxShadow: '0 0 10px rgba(6, 182, 212, 0.5)' } : undefined}
                                                     onClick={(e) => {
                                                         e.stopPropagation();

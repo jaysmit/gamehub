@@ -204,8 +204,15 @@ function AchievementModal({
                                 {item.rarity || 'Common'}
                             </span>
 
+                            {/* Unlock criteria - what the player did */}
+                            {item.unlock && (
+                                <p className={`mt-3 ${currentTheme?.text || 'text-white'} text-sm font-semibold`}>
+                                    {theme === 'tron' ? '> ' : ''}Unlocked by: {item.unlock}
+                                </p>
+                            )}
+
                             {/* Description or custom message */}
-                            <p className={`mt-4 ${currentTheme?.textSecondary || 'text-gray-400'} text-sm`}>
+                            <p className={`mt-2 ${currentTheme?.textSecondary || 'text-gray-400'} text-sm italic`}>
                                 {customMessage || item.description || 'You just unlocked a new avatar!'}
                             </p>
                         </div>
