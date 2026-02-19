@@ -1438,6 +1438,7 @@ const PictionaryGame = ({ theme, currentTheme, playerName, selectedAvatar, avail
                     theme={theme}
                     currentTheme={currentTheme}
                     availableCharacters={availableCharacters}
+                    allPlayers={finalScores}
                     autoDismissSeconds={8}
                     onDismiss={() => {
                         setShowWinnerCelebration(false);

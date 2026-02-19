@@ -13,6 +13,7 @@ import { CharacterSVG } from '../icons/CharacterSVGs.jsx';
  * - availableCharacters: array - Character data for avatar lookup
  * - onDismiss: function - Callback when celebration ends (auto or manual)
  * - autoDismissSeconds: number - Seconds before auto-dismiss (default: 5)
+ * - allPlayers: array - Optional full leaderboard [{ name, avatar, score }] sorted by score desc
  */
 const WinnerCelebration = ({
     winner,
@@ -22,7 +23,8 @@ const WinnerCelebration = ({
     currentTheme,
     availableCharacters,
     onDismiss,
-    autoDismissSeconds = 5
+    autoDismissSeconds = 5,
+    allPlayers = null
 }) => {
     const [countdown, setCountdown] = useState(autoDismissSeconds);
 
@@ -139,7 +141,7 @@ const WinnerCelebration = ({
                 </div>
 
                 {/* Score */}
-                <div className={`text-4xl font-black mb-6 ${
+                <div className={`text-4xl font-black mb-4 ${
                     theme === 'tron'
                         ? 'text-yellow-400'
                         : theme === 'kids'
@@ -148,6 +150,72 @@ const WinnerCelebration = ({
                 }`}>
                     {winner?.score} points
                 </div>
+
+                {/* Leaderboard - shows all player placements */}
+                {allPlayers && allPlayers.length > 1 && (
+                    <div className={`mb-4 p-3 rounded-xl max-w-xs mx-auto ${
+                        theme === 'tron'
+                            ? 'bg-gray-900/80 border border-cyan-500/30'
+                            : theme === 'kids'
+                                ? 'bg-white/90 border-2 border-purple-300'
+                                : 'bg-gray-900/80 border border-orange-700/50'
+                    }`}>
+                        <div className={`text-sm font-bold mb-2 ${currentTheme?.textSecondary || 'text-gray-400'}`}>
+                            Final Standings
+                        </div>
+                        <div className="space-y-1">
+                            {allPlayers.map((player, index) => {
+                                const isMe = player.name === playerName;
+                                const character = availableCharacters?.find(c => c.id === player.avatar) || { color: '#666' };
+                                const placementEmoji = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+
+                                return (
+                                    <div
+                                        key={player.name}
+                                        className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-all ${
+                                            isMe
+                                                ? theme === 'tron'
+                                                    ? 'bg-cyan-500/20 ring-1 ring-cyan-400'
+                                                    : theme === 'kids'
+                                                        ? 'bg-purple-200 ring-1 ring-purple-400'
+                                                        : 'bg-orange-500/20 ring-1 ring-orange-400'
+                                                : ''
+                                        }`}
+                                    >
+                                        <span className="text-lg w-6">{placementEmoji}</span>
+                                        <div className="w-6 h-6 flex-shrink-0">
+                                            <CharacterSVG
+                                                characterId={player.avatar}
+                                                size={24}
+                                                color={character.color}
+                                            />
+                                        </div>
+                                        <span className={`flex-1 text-left text-sm font-semibold truncate ${
+                                            isMe
+                                                ? theme === 'tron'
+                                                    ? 'text-cyan-300'
+                                                    : theme === 'kids'
+                                                        ? 'text-purple-700'
+                                                        : 'text-orange-300'
+                                                : currentTheme?.text || 'text-white'
+                                        }`}>
+                                            {isMe ? 'You' : player.name}
+                                        </span>
+                                        <span className={`text-sm font-bold ${
+                                            theme === 'tron'
+                                                ? 'text-yellow-400'
+                                                : theme === 'kids'
+                                                    ? 'text-yellow-600'
+                                                    : 'text-yellow-400'
+                                        }`}>
+                                            {player.score}
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
 
                 {/* Countdown indicator */}
                 <div className={`text-sm mb-4 ${currentTheme?.textSecondary || 'text-gray-400'}`}>
