@@ -3669,12 +3669,15 @@ function advanceMemoryChallenge(io, room, roomId) {
 
   const game = room.game;
   const challengeIndex = game.currentChallengeIndex;
+  console.log(`[MEMORY] advanceMemoryChallenge called, challengeIndex: ${challengeIndex}, challengesPerRound: ${game.challengesPerRound}`);
 
   // Check if round is complete
   if (challengeIndex >= game.challengesPerRound) {
+    console.log(`[MEMORY] Round complete, showing recap`);
     showMemoryRecap(io, room, roomId);
     return;
   }
+  console.log(`[MEMORY] Starting challenge ${challengeIndex + 1} of ${game.challengesPerRound}`);
 
   // Prepare challenge for all groups at this index
   game.currentChallengesByGroup = {};
@@ -3882,6 +3885,7 @@ function advanceToNextMemoryGroup(io, room, roomId) {
   if (!room.game || room.game.gameType !== 'memory') return;
 
   const game = room.game;
+  console.log(`[MEMORY] advanceToNextMemoryGroup called, currentGroupIndex: ${game.currentGroupIndex}, totalGroups: ${game.difficultyGroups?.length}`);
 
   // Clear timers
   if (game.questionTimer) {
@@ -6569,8 +6573,13 @@ function setupSockets(io) {
 
       // Handle match game results (Round 1)
       if (data.answer === 'match_complete' && data.matchResults) {
+        console.log(`[MEMORY] Match complete from ${player.name}, challenge ${game.currentChallengeIndex + 1}/${game.challengesPerRound}`);
+
         // Check if already submitted
-        if (game.answers && game.answers[player.name]) return;
+        if (game.answers && game.answers[player.name]) {
+          console.log(`[MEMORY] ${player.name} already submitted, ignoring`);
+          return;
+        }
 
         // Initialize answers object if needed
         if (!game.answers) game.answers = {};
@@ -6587,6 +6596,7 @@ function setupSockets(io) {
 
         // Award points
         player.score = (player.score || 0) + points;
+        console.log(`[MEMORY] ${player.name} earned ${points} pts, total: ${player.score}`);
 
         // Broadcast that player completed
         io.to(data.roomId).emit('memoryAnswerReceived', {
@@ -6596,17 +6606,23 @@ function setupSockets(io) {
 
         // Check if all players in group have completed
         const currentGroup = game.difficultyGroups?.[game.currentGroupIndex];
+        console.log(`[MEMORY] Current group index: ${game.currentGroupIndex}, group exists: ${!!currentGroup}`);
+
         if (currentGroup) {
           const connectedInGroup = currentGroup.playerNames.filter(name => {
             const p = room.players.find(pl => pl.name === name);
             return p && p.connected !== false;
           });
           const answeredInGroup = connectedInGroup.filter(name => game.answers[name]);
+          console.log(`[MEMORY] Connected: ${connectedInGroup.length}, Answered: ${answeredInGroup.length}`);
 
           if (answeredInGroup.length >= connectedInGroup.length) {
             // All completed - reveal and advance
+            console.log(`[MEMORY] All players completed, advancing...`);
             advanceToNextMemoryGroup(io, room, data.roomId);
           }
+        } else {
+          console.log(`[MEMORY] ERROR: No current group found!`);
         }
         return;
       }
