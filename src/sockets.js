@@ -3526,6 +3526,16 @@ function startMemoryRound(io, room, roomId) {
   game.phase = 'rules';
   game.challengeType = MEMORY_ROUND_CHALLENGE_TYPES[game.currentRound - 1];
 
+  // Set challenges per round based on challenge type
+  // Round 1 (match): 1 challenge (it's a full pairs game)
+  // Round 2 (missing) and Round 3 (difference): 5 challenges each
+  // Round 4 (sequence): speed round handled separately
+  if (game.challengeType === 'match') {
+    game.challengesPerRound = 1;
+  } else if (game.challengeType === 'missing' || game.challengeType === 'difference') {
+    game.challengesPerRound = 5;
+  }
+
   // Set up difficulty groups for non-speed rounds
   if (!isSpeedRound) {
     game.difficultyGroups = getPlayersGroupedByDifficulty(room);
