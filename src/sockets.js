@@ -4183,14 +4183,38 @@ function handleMemorySpeedAnswer(io, room, roomId, player, answer) {
 
   if (!challenge) return;
 
-  // Check if answer is correct
-  const isCorrect = answer === challenge.correctAnswer;
+  // Split answers into arrays for position-by-position comparison
+  const playerSequence = answer.split(',');
+  const correctSequence = challenge.sequence;
 
-  if (isCorrect) {
-    const points = MEMORY_SPEED_FIXED_POINTS;
+  // Count correct positions (50 points each)
+  let correctCount = 0;
+  const sequenceLength = correctSequence.length;
+  for (let i = 0; i < sequenceLength; i++) {
+    if (playerSequence[i] === correctSequence[i]) {
+      correctCount++;
+    }
+  }
+
+  const pointsPerTile = 50;
+  let points = correctCount * pointsPerTile;
+  const allCorrect = correctCount === sequenceLength;
+
+  // Completion bonus: 100 points if ALL tiles correct
+  const completionBonus = 100;
+  if (allCorrect) {
+    points += completionBonus;
+  }
+
+  if (points > 0) {
     progress.totalPoints += points;
-    progress.correctAnswers.push({ challengeIndex: progress.currentChallengeIndex, points });
-    progress.currentChallengeIndex++;
+    progress.correctAnswers.push({
+      challengeIndex: progress.currentChallengeIndex,
+      points,
+      correctTiles: correctCount,
+      totalTiles: sequenceLength,
+      allCorrect
+    });
 
     // Update player score
     const p = room.players.find(pl => pl.name === player.name);
@@ -4199,36 +4223,33 @@ function handleMemorySpeedAnswer(io, room, roomId, player, answer) {
     io.to(player.socketId).emit('memorySpeedCorrect', {
       points,
       totalPoints: progress.totalPoints,
-      correctCount: progress.correctAnswers.length
+      correctCount: correctCount,
+      totalTiles: sequenceLength,
+      allCorrect,
+      bonus: allCorrect ? completionBonus : 0
     });
-
-    // Short delay then next challenge
-    progress.isWaiting = true;
-    setTimeout(() => {
-      progress.isWaiting = false;
-      if (room.game && room.game.gameType === 'memory' && room.game.isSpeedRound) {
-        sendMemorySpeedChallenge(io, room, roomId, player);
-      }
-    }, MEMORY_SPEED_CORRECT_DELAY);
-
   } else {
     progress.wrongAnswers.push({ challengeIndex: progress.currentChallengeIndex });
-    progress.currentChallengeIndex++;
 
     io.to(player.socketId).emit('memorySpeedWrong', {
       correctAnswer: challenge.sequence,
-      totalPoints: progress.totalPoints
+      totalPoints: progress.totalPoints,
+      correctCount: 0,
+      totalTiles: sequenceLength
     });
-
-    // Longer delay after wrong
-    progress.isWaiting = true;
-    setTimeout(() => {
-      progress.isWaiting = false;
-      if (room.game && room.game.gameType === 'memory' && room.game.isSpeedRound) {
-        sendMemorySpeedChallenge(io, room, roomId, player);
-      }
-    }, MEMORY_SPEED_WRONG_DELAY);
   }
+
+  progress.currentChallengeIndex++;
+
+  // Delay then next challenge (shorter for correct, longer for wrong)
+  const delay = points > 0 ? MEMORY_SPEED_CORRECT_DELAY : MEMORY_SPEED_WRONG_DELAY;
+  progress.isWaiting = true;
+  setTimeout(() => {
+    progress.isWaiting = false;
+    if (room.game && room.game.gameType === 'memory' && room.game.isSpeedRound) {
+      sendMemorySpeedChallenge(io, room, roomId, player);
+    }
+  }, delay);
 
   // Broadcast progress update to all
   const progressUpdate = {};

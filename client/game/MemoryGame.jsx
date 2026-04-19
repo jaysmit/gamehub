@@ -77,6 +77,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     const [showingSequence, setShowingSequence] = useState(false);
     const [currentSequenceIndex, setCurrentSequenceIndex] = useState(0);
     const [speedFeedback, setSpeedFeedback] = useState(null);
+    const [speedFeedbackDetails, setSpeedFeedbackDetails] = useState(null);
     const [speedStats, setSpeedStats] = useState({ correct: 0, total: 0, points: 0 });
     const [speedProgress, setSpeedProgress] = useState({});
 
@@ -473,17 +474,33 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
         const onMemorySpeedCorrect = (data) => {
             setSpeedFeedback('correct');
+            setSpeedFeedbackDetails({
+                correctCount: data.correctCount,
+                totalTiles: data.totalTiles,
+                points: data.points,
+                allCorrect: data.allCorrect,
+                bonus: data.bonus || 0
+            });
             setSpeedStats(prev => ({
                 correct: prev.correct + 1,
                 total: prev.total + 1,
                 points: data.totalPoints
             }));
 
-            setTimeout(() => setSpeedFeedback(null), 500);
+            setTimeout(() => {
+                setSpeedFeedback(null);
+                setSpeedFeedbackDetails(null);
+            }, 800);
         };
 
         const onMemorySpeedWrong = (data) => {
             setSpeedFeedback('wrong');
+            setSpeedFeedbackDetails({
+                correctCount: data.correctCount || 0,
+                totalTiles: data.totalTiles,
+                points: 0,
+                allCorrect: false
+            });
             setSpeedStats(prev => ({
                 ...prev,
                 total: prev.total + 1,
@@ -496,6 +513,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
             setTimeout(() => {
                 setSpeedFeedback(null);
+                setSpeedFeedbackDetails(null);
                 setShowingSequence(false);
             }, 1500);
         };
@@ -708,19 +726,26 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     const handleSequenceInput = (item) => {
         if (showingSequence || speedFeedback) return;
+        if (sequenceInput.length >= sequenceItems.length) return; // Already full
 
         const newInput = [...sequenceInput, item];
         setSequenceInput(newInput);
 
-        // Check if sequence is complete
+        // Check if sequence is complete - auto submit
         if (newInput.length === sequenceItems.length) {
             const answer = newInput.join(',');
             socket.emit('memoryAnswer', {
                 roomId: roomIdRef.current,
-                answer
+                answer,
+                sequenceLength: sequenceItems.length
             });
-            setSequenceInput([]);
         }
+    };
+
+    const handleSequenceBackspace = () => {
+        if (showingSequence || speedFeedback) return;
+        if (sequenceInput.length === 0) return;
+        setSequenceInput(prev => prev.slice(0, -1));
     };
 
     const handleReady = () => {
@@ -1309,31 +1334,67 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                     )}
 
                     {/* Feedback */}
-                    {speedFeedback && (
-                        <div className={`text-center text-2xl font-bold ${
-                            speedFeedback === 'correct' ? 'text-green-400' : 'text-red-400'
-                        } animate-bounce`}>
-                            {speedFeedback === 'correct' ? '✓ Correct!' : '✗ Wrong!'}
+                    {speedFeedback && speedFeedbackDetails && (
+                        <div className={`text-center ${
+                            speedFeedbackDetails.allCorrect ? 'text-green-400' :
+                            speedFeedbackDetails.correctCount > 0 ? 'text-yellow-400' : 'text-red-400'
+                        }`}>
+                            <div className="text-2xl font-bold animate-bounce">
+                                {speedFeedbackDetails.allCorrect ? '✓ Perfect!' :
+                                 speedFeedbackDetails.correctCount > 0 ? `${speedFeedbackDetails.correctCount}/${speedFeedbackDetails.totalTiles} Correct` :
+                                 '✗ Wrong!'}
+                            </div>
+                            {speedFeedbackDetails.points > 0 && (
+                                <div className="text-lg mt-1">
+                                    +{speedFeedbackDetails.points} pts
+                                    {speedFeedbackDetails.bonus > 0 && (
+                                        <span className="text-green-400 ml-1">(+{speedFeedbackDetails.bonus} bonus!)</span>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
 
                 {/* Input buttons */}
                 {!showingSequence && !speedFeedback && (
-                    <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                        {sequenceItems.map((item, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleSequenceInput(item)}
-                                className={`p-4 text-2xl rounded-xl transition-all ${
-                                    theme === 'tron' ? 'bg-gray-800 border-2 border-cyan-500/50 hover:border-cyan-400 hover:bg-cyan-500/20' :
-                                    theme === 'kids' ? 'bg-purple-50 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-100' :
-                                    'bg-gray-800 border-2 border-orange-600/50 hover:border-orange-500 hover:bg-orange-700/20'
-                                }`}
-                            >
-                                {item}
-                            </button>
-                        ))}
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                            {sequenceItems.map((item, idx) => (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleSequenceInput(item)}
+                                    disabled={sequenceInput.length >= sequenceItems.length}
+                                    className={`p-4 text-2xl rounded-xl transition-all ${
+                                        sequenceInput.length >= sequenceItems.length
+                                            ? 'opacity-50 cursor-not-allowed'
+                                            : theme === 'tron' ? 'bg-gray-800 border-2 border-cyan-500/50 hover:border-cyan-400 hover:bg-cyan-500/20' :
+                                              theme === 'kids' ? 'bg-purple-50 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-100' :
+                                              'bg-gray-800 border-2 border-orange-600/50 hover:border-orange-500 hover:bg-orange-700/20'
+                                    } ${sequenceInput.length >= sequenceItems.length ? '' :
+                                        theme === 'tron' ? 'bg-gray-800 border-2 border-cyan-500/50' :
+                                        theme === 'kids' ? 'bg-purple-50 border-2 border-purple-300' :
+                                        'bg-gray-800 border-2 border-orange-600/50'
+                                    }`}
+                                >
+                                    {item}
+                                </button>
+                            ))}
+                        </div>
+                        {/* Backspace button */}
+                        <button
+                            onClick={handleSequenceBackspace}
+                            disabled={sequenceInput.length === 0 || sequenceInput.length >= sequenceItems.length}
+                            className={`w-full py-3 px-6 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                                sequenceInput.length === 0 || sequenceInput.length >= sequenceItems.length
+                                    ? 'opacity-50 cursor-not-allowed bg-gray-700 text-gray-400'
+                                    : theme === 'tron' ? 'bg-red-500/20 border-2 border-red-500 text-red-400 hover:bg-red-500/30' :
+                                      theme === 'kids' ? 'bg-red-100 border-2 border-red-400 text-red-600 hover:bg-red-200' :
+                                      'bg-red-900/30 border-2 border-red-600 text-red-400 hover:bg-red-900/50'
+                            }`}
+                        >
+                            <span>⌫</span> Backspace
+                        </button>
                     </div>
                 )}
             </div>
