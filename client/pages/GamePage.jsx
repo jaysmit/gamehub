@@ -2,6 +2,7 @@ import React from 'react';
 import PictionaryGame from '../game/PictionaryGame';
 import TriviaGame from '../game/TriviaGame';
 import QuickMathGame from '../game/QuickMathGame';
+import MemoryGame from '../game/MemoryGame';
 
 const GamePage = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds, gameType, onCelebrationComplete }) => {
     // Route to the appropriate game component based on gameType
@@ -23,6 +24,21 @@ const GamePage = ({ theme, currentTheme, playerName, selectedAvatar, availableCh
     if (gameType === 'trivia') {
         return (
             <TriviaGame
+                theme={theme}
+                currentTheme={currentTheme}
+                playerName={playerName}
+                selectedAvatar={selectedAvatar}
+                availableCharacters={availableCharacters}
+                currentRoom={currentRoom}
+                isMuted={isMuted}
+                isMaster={isMaster}
+            />
+        );
+    }
+
+    if (gameType === 'memory') {
+        return (
+            <MemoryGame
                 theme={theme}
                 currentTheme={currentTheme}
                 playerName={playerName}

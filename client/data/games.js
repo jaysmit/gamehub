@@ -17,11 +17,22 @@ export const GAME_DEFAULTS = {
         speedRoundDuration: 60,
         questionTime: 15
     },
+    memory: {
+        challengesPerRound: 3,       // 1-7 challenges per round (except speed round)
+        displayTimeMultiplier: 1.0,  // 0.5-2.0x display time multiplier
+        speedRoundDuration: 60       // 30-120 seconds for speed round
+    },
     // Shared settings ranges for UI sliders
     sharedQuizSettings: {
         questionsPerRound: { min: 3, max: 15, default: 5 },
         speedRoundDuration: { min: 30, max: 120, default: 60 },
         questionTime: { min: 10, max: 30, default: 15 }
+    },
+    // Memory game settings ranges
+    memorySettings: {
+        challengesPerRound: { min: 1, max: 7, default: 3 },
+        displayTimeMultiplier: { min: 0.5, max: 2.0, default: 1.0, step: 0.1 },
+        speedRoundDuration: { min: 30, max: 120, default: 60 }
     }
 };
 
@@ -63,14 +74,15 @@ export const MOCK_GAMES = [
     },
     {
         id: 4,
-        name: 'Memory Match',
-        icon: '🃏',
+        name: 'Memory Master',
+        icon: '🧠',
         color: '#95E1D3',
         rating: 4.5,
-        description: 'Classic memory card matching with a multiplayer twist. Train your brain!',
+        description: 'Test your memory with grids, sequences, and spot-the-difference challenges!',
         youtubeLink: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        players: '1-4',
-        ageMin: 5
+        players: '2-8',
+        ageMin: 3,
+        gameType: 'memory'
     },
     {
         id: 5,

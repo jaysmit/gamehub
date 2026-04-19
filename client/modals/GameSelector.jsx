@@ -69,17 +69,17 @@ function GameSelector({
                         {/* Age min-max slider */}
                         <div>
                             <label className={`block ${currentTheme.textSecondary} text-[0.6rem] md:text-sm font-semibold mb-1`}>
-                                Age: {selectorMinAge === 5 && selectorMaxAge === 18 ? 'All Ages' : `${selectorMinAge}-${selectorMaxAge}`}
+                                Age: {selectorMinAge === 3 && selectorMaxAge === 18 ? 'All Ages' : `${selectorMinAge}+`}
                             </label>
                             <div className="dual-range-wrapper relative h-2 mt-2 mb-3">
                                 <div className={`absolute inset-0 rounded-lg ${theme === 'tron' ? 'bg-gray-800' : theme === 'scary' ? 'bg-stone-900' : 'bg-purple-100'}`}></div>
                                 <div className="absolute top-0 h-full rounded-lg" style={{
-                                    left: `${((selectorMinAge - 5) / 13) * 100}%`,
-                                    right: `${100 - ((selectorMaxAge - 5) / 13) * 100}%`,
+                                    left: `${((selectorMinAge - 3) / 15) * 100}%`,
+                                    right: `${100 - ((selectorMaxAge - 3) / 15) * 100}%`,
                                     background: theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7'
                                 }}></div>
                                 <input
-                                    type="range" min="5" max="18"
+                                    type="range" min="3" max="18"
                                     value={selectorMinAge}
                                     onChange={(e) => {
                                         const v = parseInt(e.target.value);
@@ -89,7 +89,7 @@ function GameSelector({
                                     style={{ '--tw-thumb-bg': theme === 'tron' ? '#06b6d4' : theme === 'scary' ? '#ea580c' : '#a855f7' }}
                                 />
                                 <input
-                                    type="range" min="5" max="18"
+                                    type="range" min="3" max="18"
                                     value={selectorMaxAge}
                                     onChange={(e) => {
                                         const v = parseInt(e.target.value);

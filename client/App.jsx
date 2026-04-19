@@ -63,12 +63,12 @@ function App() {
     const [isMuted, setIsMuted] = useState(false);
     const [numPlayers, setNumPlayers] = useState('');
     const [ageRange, setAgeRange] = useState('');
-    const [minAge, setMinAge] = useState(5);
+    const [minAge, setMinAge] = useState(3);
     const [maxAge, setMaxAge] = useState(18);
     const [minPlayers, setMinPlayers] = useState(1);
     const [maxPlayers, setMaxPlayers] = useState(16);
     const [sortBy, setSortBy] = useState('popular');
-    const [selectorMinAge, setSelectorMinAge] = useState(5);
+    const [selectorMinAge, setSelectorMinAge] = useState(3);
     const [selectorMaxAge, setSelectorMaxAge] = useState(18);
     const [selectorMinPlayers, setSelectorMinPlayers] = useState(1);
     const [selectorMaxPlayers, setSelectorMaxPlayers] = useState(16);

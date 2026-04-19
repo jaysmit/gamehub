@@ -280,6 +280,119 @@ function GameSettingsModal({
         return renderSharedQuizSettings();
     };
 
+    // Memory Game Settings
+    const renderMemorySettings = () => {
+        const settings = GAME_DEFAULTS.memorySettings;
+
+        return (
+            <div className="space-y-6">
+                {/* Challenges per Round */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={`${currentTheme.textSecondary} text-sm font-semibold`}>
+                            Challenges per Round
+                        </label>
+                        <span className={`font-bold text-lg ${
+                            theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                        }`}>
+                            {config.challengesPerRound || settings.challengesPerRound.default}
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min={settings.challengesPerRound.min}
+                        max={settings.challengesPerRound.max}
+                        value={config.challengesPerRound || settings.challengesPerRound.default}
+                        onChange={(e) => setConfig({ ...config, challengesPerRound: parseInt(e.target.value) })}
+                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                            theme === 'tron'
+                                ? 'bg-gray-700 accent-cyan-500'
+                                : theme === 'kids'
+                                    ? 'bg-purple-200 accent-purple-500'
+                                    : 'bg-gray-700 accent-orange-500'
+                        }`}
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                        <span className={currentTheme.textSecondary}>{settings.challengesPerRound.min}</span>
+                        <span className={currentTheme.textSecondary}>{settings.challengesPerRound.max}</span>
+                    </div>
+                    <p className={`mt-1 text-xs ${currentTheme.textSecondary}`}>
+                        Number of memory challenges in rounds 1-3 (Speed round is time-based)
+                    </p>
+                </div>
+
+                {/* Display Time Multiplier */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={`${currentTheme.textSecondary} text-sm font-semibold`}>
+                            Display Time
+                        </label>
+                        <span className={`font-bold text-lg ${
+                            theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                        }`}>
+                            {(config.displayTimeMultiplier || settings.displayTimeMultiplier.default).toFixed(1)}x
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min={settings.displayTimeMultiplier.min}
+                        max={settings.displayTimeMultiplier.max}
+                        step={settings.displayTimeMultiplier.step}
+                        value={config.displayTimeMultiplier || settings.displayTimeMultiplier.default}
+                        onChange={(e) => setConfig({ ...config, displayTimeMultiplier: parseFloat(e.target.value) })}
+                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                            theme === 'tron'
+                                ? 'bg-gray-700 accent-cyan-500'
+                                : theme === 'kids'
+                                    ? 'bg-purple-200 accent-purple-500'
+                                    : 'bg-gray-700 accent-orange-500'
+                        }`}
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                        <span className={currentTheme.textSecondary}>{settings.displayTimeMultiplier.min}x (faster)</span>
+                        <span className={currentTheme.textSecondary}>{settings.displayTimeMultiplier.max}x (slower)</span>
+                    </div>
+                    <p className={`mt-1 text-xs ${currentTheme.textSecondary}`}>
+                        Adjust how long items are shown before hiding
+                    </p>
+                </div>
+
+                {/* Speed Round Duration */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <label className={`${currentTheme.textSecondary} text-sm font-semibold`}>
+                            Speed Round Duration
+                        </label>
+                        <span className={`font-bold text-lg ${
+                            theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'
+                        }`}>
+                            {config.speedRoundDuration || settings.speedRoundDuration.default}s
+                        </span>
+                    </div>
+                    <input
+                        type="range"
+                        min={settings.speedRoundDuration.min}
+                        max={settings.speedRoundDuration.max}
+                        step={10}
+                        value={config.speedRoundDuration || settings.speedRoundDuration.default}
+                        onChange={(e) => setConfig({ ...config, speedRoundDuration: parseInt(e.target.value) })}
+                        className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                            theme === 'tron'
+                                ? 'bg-gray-700 accent-cyan-500'
+                                : theme === 'kids'
+                                    ? 'bg-purple-200 accent-purple-500'
+                                    : 'bg-gray-700 accent-orange-500'
+                        }`}
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                        <span className={currentTheme.textSecondary}>{settings.speedRoundDuration.min}s</span>
+                        <span className={currentTheme.textSecondary}>{settings.speedRoundDuration.max}s</span>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className={`${currentTheme.cardBg} backdrop-blur-xl rounded-3xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-4 border-orange-700'}`}>
@@ -311,6 +424,7 @@ function GameSettingsModal({
                     {game.gameType === 'pictionary' && renderPictionarySettings()}
                     {game.gameType === 'trivia' && renderTriviaSettings()}
                     {game.gameType === 'quickmath' && renderQuickMathSettings()}
+                    {game.gameType === 'memory' && renderMemorySettings()}
                 </div>
 
                 {/* Footer */}

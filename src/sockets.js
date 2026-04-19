@@ -3216,6 +3216,1026 @@ function endMathSpeedRound(io, room, roomId) {
   // Note: endMathGame will be called when client emits 'mathCelebrationComplete'
 }
 
+// ============================================================================
+// MEMORY GAME CONSTANTS AND FUNCTIONS
+// ============================================================================
+
+// Memory game timing constants
+const MEMORY_RULES_DURATION_ROUND1 = 10000;  // 10 seconds for first round (full rules)
+const MEMORY_RULES_DURATION_NORMAL = 3000;   // 3 seconds for rounds 2-3
+const MEMORY_RULES_DURATION_SPEED = 5000;    // 5 seconds for speed round announcement
+const MEMORY_REVEAL_DURATION = 3000;         // 3 seconds to show correct answer
+const MEMORY_SPEED_ROUND_DURATION = 60000;   // 60 seconds total for speed round (default)
+const MEMORY_SPEED_CORRECT_DELAY = 1000;     // 1 second delay after correct answer
+const MEMORY_SPEED_WRONG_DELAY = 2000;       // 2 seconds delay after wrong answer
+const MEMORY_BASE_POINTS = 100;
+const MEMORY_TIME_BONUS_MAX = 50;
+const MEMORY_GRACE_PERIOD = 2000;            // 2 seconds of max points before depletion
+const MEMORY_SPEED_FIXED_POINTS = 200;       // Fixed points per correct answer in speed round
+
+// Memory item pools (emojis for challenges)
+const MEMORY_EMOJIS = [
+  // Animals
+  '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵',
+  '🐔', '🐧', '🐦', '🦆', '🦉', '🦋', '🐝', '🐞', '🐢', '🐍', '🐙', '🦀', '🐟', '🐬', '🐳',
+  // Food
+  '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🥕', '🌽', '🍔', '🍟', '🍕',
+  '🍰', '🍩', '🍪', '🍫', '🍬', '🍭', '🧁',
+  // Objects
+  '⚽', '🏀', '🎾', '🎱', '🎮', '🎸', '🎨', '📚', '📱', '💻', '⌚', '🔑', '💎', '🎁', '🎈',
+  '🚗', '🚌', '🚀', '✈️', '🏠', '🏰', '🌈', '☀️', '🌙', '⭐', '❄️', '🔥', '💧', '🌸', '🌺'
+];
+
+// Memory difficulty configurations (easier settings)
+const MEMORY_DIFFICULTY_CONFIG = {
+  'super-easy': { gridSize: [2, 2], displayTime: 8000, sequenceLength: 2, itemCount: 3, questionTime: 20000, seqItemTime: 1500 },
+  'very-easy': { gridSize: [2, 2], displayTime: 7000, sequenceLength: 3, itemCount: 4, questionTime: 18000, seqItemTime: 1300 },
+  'easy': { gridSize: [2, 3], displayTime: 6000, sequenceLength: 4, itemCount: 5, questionTime: 15000, seqItemTime: 1100 },
+  'medium': { gridSize: [3, 3], displayTime: 5000, sequenceLength: 5, itemCount: 6, questionTime: 12000, seqItemTime: 900 },
+  'hard': { gridSize: [3, 4], displayTime: 4000, sequenceLength: 6, itemCount: 8, questionTime: 12000, seqItemTime: 800 },
+  'very-hard': { gridSize: [4, 4], displayTime: 3500, sequenceLength: 7, itemCount: 10, questionTime: 10000, seqItemTime: 700 },
+  'genius': { gridSize: [4, 5], displayTime: 3000, sequenceLength: 8, itemCount: 12, questionTime: 10000, seqItemTime: 600 }
+};
+
+// Challenge types for Memory game
+const MEMORY_CHALLENGE_TYPES = {
+  GRID: 'grid',
+  MISSING: 'missing',
+  DIFFERENCE: 'difference',
+  SEQUENCE: 'sequence'
+};
+
+// Round to challenge type mapping
+const MEMORY_ROUND_CHALLENGE_TYPES = ['grid', 'missing', 'difference', 'sequence'];
+
+// Get random items from emoji pool
+function getRandomMemoryItems(count, exclude = []) {
+  const available = MEMORY_EMOJIS.filter(item => !exclude.includes(item));
+  const shuffled = [...available].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+// Get memory difficulty config
+function getMemoryDifficultyConfig(difficulty) {
+  return MEMORY_DIFFICULTY_CONFIG[difficulty] || MEMORY_DIFFICULTY_CONFIG['medium'];
+}
+
+// Generate a Grid Memory challenge
+function generateGridChallenge(difficulty, usedItems = []) {
+  const config = getMemoryDifficultyConfig(difficulty);
+  const [rows, cols] = config.gridSize;
+  const gridSize = rows * cols;
+
+  // Get unique items for the grid
+  const items = getRandomMemoryItems(gridSize, usedItems);
+
+  // Create grid with items
+  const grid = items.slice(0, gridSize);
+
+  // Randomly choose question type: position or item
+  const questionType = Math.random() < 0.5 ? 'position' : 'item';
+
+  // Select a random position/item to ask about
+  const targetIndex = Math.floor(Math.random() * grid.length);
+  const targetItem = grid[targetIndex];
+  const targetPosition = targetIndex + 1;  // 1-indexed for display
+
+  let question, correctAnswer, options;
+
+  if (questionType === 'position') {
+    // "Where was the 🍎?"
+    question = `Where was the ${targetItem}?`;
+    correctAnswer = `Position ${targetPosition}`;
+
+    // Generate position options (always include correct, add 5 random others)
+    const positionOptions = [targetPosition];
+    while (positionOptions.length < Math.min(6, gridSize)) {
+      const randPos = Math.floor(Math.random() * gridSize) + 1;
+      if (!positionOptions.includes(randPos)) {
+        positionOptions.push(randPos);
+      }
+    }
+    options = shuffleArray(positionOptions.map(p => `Position ${p}`));
+  } else {
+    // "What was in position 5?"
+    question = `What was in position ${targetPosition}?`;
+    correctAnswer = targetItem;
+
+    // Generate item options (include correct, add 5 random others from grid or pool)
+    const itemOptions = [targetItem];
+    // Add some items from the grid
+    grid.forEach(item => {
+      if (itemOptions.length < 6 && !itemOptions.includes(item)) {
+        itemOptions.push(item);
+      }
+    });
+    // If still need more, add from pool
+    while (itemOptions.length < 6) {
+      const randItem = MEMORY_EMOJIS[Math.floor(Math.random() * MEMORY_EMOJIS.length)];
+      if (!itemOptions.includes(randItem)) {
+        itemOptions.push(randItem);
+      }
+    }
+    options = shuffleArray(itemOptions);
+  }
+
+  return {
+    type: 'grid',
+    grid,
+    gridRows: rows,
+    gridCols: cols,
+    displayTime: config.displayTime,
+    questionTime: config.questionTime,
+    question,
+    correctAnswer,
+    options,
+    targetItem,
+    targetPosition,
+    questionType
+  };
+}
+
+// Generate a Missing Item challenge
+function generateMissingChallenge(difficulty, usedItems = []) {
+  const config = getMemoryDifficultyConfig(difficulty);
+  const itemCount = config.itemCount;
+
+  // Get unique items
+  const items = getRandomMemoryItems(itemCount, usedItems);
+
+  // Choose one to remove
+  const missingIndex = Math.floor(Math.random() * items.length);
+  const missingItem = items[missingIndex];
+
+  // Create the "after" array without the missing item
+  const itemsAfter = items.filter((_, idx) => idx !== missingIndex);
+
+  // Generate options (include correct, add 5 random others)
+  const optionItems = [missingItem];
+  while (optionItems.length < 6) {
+    const randItem = MEMORY_EMOJIS[Math.floor(Math.random() * MEMORY_EMOJIS.length)];
+    if (!optionItems.includes(randItem) && !items.includes(randItem)) {
+      optionItems.push(randItem);
+    }
+  }
+
+  return {
+    type: 'missing',
+    itemsBefore: items,
+    itemsAfter,
+    missingItem,
+    displayTime: config.displayTime,
+    questionTime: config.questionTime,
+    question: "What's missing?",
+    correctAnswer: missingItem,
+    options: shuffleArray(optionItems)
+  };
+}
+
+// Generate a Spot the Difference challenge
+function generateDifferenceChallenge(difficulty, usedItems = []) {
+  const config = getMemoryDifficultyConfig(difficulty);
+  const itemCount = config.itemCount;
+
+  // Get unique items
+  const items = getRandomMemoryItems(itemCount + 1, usedItems);  // +1 for replacement
+
+  const originalItems = items.slice(0, itemCount);
+
+  // Choose change type: swap, replace, or move
+  const changeType = ['swap', 'replace', 'move'][Math.floor(Math.random() * 3)];
+
+  let changedItems, question, correctAnswer, options;
+
+  if (changeType === 'replace') {
+    // Replace one item with a new one
+    const replaceIndex = Math.floor(Math.random() * originalItems.length);
+    const oldItem = originalItems[replaceIndex];
+    const newItem = items[itemCount];  // The extra item
+
+    changedItems = [...originalItems];
+    changedItems[replaceIndex] = newItem;
+
+    question = "What changed?";
+    correctAnswer = `${oldItem} became ${newItem}`;
+    options = [
+      correctAnswer,
+      `${newItem} became ${oldItem}`,
+      `${originalItems[0]} moved`,
+      `${originalItems[1] || originalItems[0]} disappeared`,
+      `${newItem} was added`,
+      `Nothing changed`
+    ];
+  } else if (changeType === 'swap') {
+    // Swap two items
+    const idx1 = Math.floor(Math.random() * originalItems.length);
+    let idx2 = Math.floor(Math.random() * originalItems.length);
+    while (idx2 === idx1) {
+      idx2 = Math.floor(Math.random() * originalItems.length);
+    }
+
+    changedItems = [...originalItems];
+    [changedItems[idx1], changedItems[idx2]] = [changedItems[idx2], changedItems[idx1]];
+
+    question = "What changed?";
+    correctAnswer = `${originalItems[idx1]} and ${originalItems[idx2]} swapped`;
+    options = [
+      correctAnswer,
+      `${originalItems[0]} moved`,
+      `${originalItems[1] || originalItems[0]} disappeared`,
+      `A new item appeared`,
+      `${originalItems[idx1]} was removed`,
+      `Nothing changed`
+    ];
+  } else {
+    // Move one item to different position
+    const fromIdx = Math.floor(Math.random() * originalItems.length);
+    const movedItem = originalItems[fromIdx];
+
+    changedItems = originalItems.filter((_, i) => i !== fromIdx);
+    const toIdx = Math.floor(Math.random() * (changedItems.length + 1));
+    changedItems.splice(toIdx, 0, movedItem);
+
+    question = "What changed?";
+    correctAnswer = `${movedItem} moved`;
+    options = [
+      correctAnswer,
+      `${originalItems[0]} disappeared`,
+      `Items were swapped`,
+      `A new item appeared`,
+      `${originalItems[1] || originalItems[0]} changed`,
+      `Nothing changed`
+    ];
+  }
+
+  return {
+    type: 'difference',
+    itemsBefore: originalItems,
+    itemsAfter: changedItems,
+    changeType,
+    displayTime: config.displayTime,
+    questionTime: config.questionTime,
+    question,
+    correctAnswer,
+    options: shuffleArray(options)
+  };
+}
+
+// Generate a Sequence Memory challenge (for speed round)
+function generateSequenceChallenge(difficulty, usedItems = []) {
+  const config = getMemoryDifficultyConfig(difficulty);
+  const sequenceLength = config.sequenceLength;
+
+  // Get unique items for the sequence
+  const items = getRandomMemoryItems(sequenceLength, usedItems);
+
+  return {
+    type: 'sequence',
+    sequence: items,
+    sequenceLength,
+    sequenceItemTime: config.seqItemTime,
+    displayTime: config.seqItemTime * sequenceLength + 500,  // Total display time
+    correctAnswer: items.join(','),  // Comma-separated for comparison
+    options: items  // The items they need to tap in order
+  };
+}
+
+// Calculate Memory points (similar to Trivia)
+function calculateMemoryPoints(answerTimestamp, questionStartTime, questionDuration) {
+  const timeTaken = answerTimestamp - questionStartTime;
+  const maxTime = questionDuration;
+
+  let timeBonus;
+  if (timeTaken <= MEMORY_GRACE_PERIOD) {
+    timeBonus = MEMORY_TIME_BONUS_MAX;
+  } else {
+    const depletionTime = maxTime - MEMORY_GRACE_PERIOD;
+    const timeIntoDepletion = timeTaken - MEMORY_GRACE_PERIOD;
+    const timeRatio = Math.max(0, 1 - (timeIntoDepletion / depletionTime));
+    timeBonus = Math.floor(timeRatio * MEMORY_TIME_BONUS_MAX);
+  }
+
+  return MEMORY_BASE_POINTS + timeBonus;
+}
+
+// Start a Memory game round
+function startMemoryRound(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+  const isSpeedRound = game.currentRound === 4;
+
+  game.isSpeedRound = isSpeedRound;
+  game.currentChallengeIndex = 0;
+  game.phase = 'rules';
+  game.challengeType = MEMORY_ROUND_CHALLENGE_TYPES[game.currentRound - 1];
+
+  // Set up difficulty groups for non-speed rounds
+  if (!isSpeedRound) {
+    game.difficultyGroups = getPlayersGroupedByDifficulty(room);
+    game.currentGroupIndex = 0;
+    game.groupAnswers = {};
+
+    console.log(`[MEMORY] Round ${game.currentRound} - Challenge type: ${game.challengeType}`);
+    console.log(`[MEMORY] Difficulty groups: ${game.difficultyGroups.map(g => `${g.difficulty}(${g.players.length})`).join(' | ')}`);
+
+    // Generate challenges for each difficulty group
+    game.challengesByGroup = {};
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const challenges = [];
+      const usedItems = [];
+
+      for (let i = 0; i < game.challengesPerRound; i++) {
+        let challenge;
+        switch (game.challengeType) {
+          case 'grid':
+            challenge = generateGridChallenge(group.difficulty, usedItems);
+            break;
+          case 'missing':
+            challenge = generateMissingChallenge(group.difficulty, usedItems);
+            break;
+          case 'difference':
+            challenge = generateDifferenceChallenge(group.difficulty, usedItems);
+            break;
+          default:
+            challenge = generateGridChallenge(group.difficulty, usedItems);
+        }
+
+        // Track used items to avoid repeats
+        if (challenge.grid) usedItems.push(...challenge.grid);
+        if (challenge.itemsBefore) usedItems.push(...challenge.itemsBefore);
+        if (challenge.sequence) usedItems.push(...challenge.sequence);
+
+        challenges.push({
+          ...challenge,
+          difficulty: group.difficulty,
+          difficultyLabel: getDifficultyLabel(group.difficulty)
+        });
+      }
+
+      game.challengesByGroup[groupIndex] = challenges;
+    });
+  } else {
+    // Speed round: prepare sequence challenges per difficulty
+    game.speedChallengesByDifficulty = {};
+    DIFFICULTY_LEVELS.forEach(difficulty => {
+      const challenges = [];
+      const usedItems = [];
+
+      for (let i = 0; i < 30; i++) {  // Generate 30 sequence challenges per difficulty
+        const challenge = generateSequenceChallenge(difficulty, usedItems);
+        usedItems.push(...challenge.sequence);
+        challenges.push(challenge);
+      }
+
+      game.speedChallengesByDifficulty[difficulty] = challenges;
+    });
+
+    // Initialize player progress for speed round
+    game.playerProgress = {};
+    room.players.forEach(p => {
+      const playerDifficulty = getPlayerDifficulty(p.name, room);
+      game.playerProgress[p.name] = {
+        currentChallengeIndex: 0,
+        correctAnswers: [],
+        wrongAnswers: [],
+        totalPoints: 0,
+        isWaiting: false,
+        difficulty: playerDifficulty
+      };
+    });
+  }
+
+  // Calculate rules duration
+  let rulesDuration;
+  if (game.currentRound === 1) {
+    rulesDuration = MEMORY_RULES_DURATION_ROUND1;
+  } else if (isSpeedRound) {
+    rulesDuration = MEMORY_RULES_DURATION_SPEED;
+  } else {
+    rulesDuration = MEMORY_RULES_DURATION_NORMAL;
+  }
+
+  const rulesEndTime = Date.now() + rulesDuration;
+  game.rulesEndTime = rulesEndTime;
+  game.readyPlayers = [];
+
+  // For speed round, set end time
+  const speedRoundDuration = game.speedRoundDurationMs || MEMORY_SPEED_ROUND_DURATION;
+  const speedRoundEndTime = isSpeedRound ? Date.now() + rulesDuration + speedRoundDuration : null;
+  game.speedRoundEndTime = speedRoundEndTime;
+
+  // Build difficulty groups info
+  const difficultyGroupsInfo = !isSpeedRound && game.difficultyGroups ?
+    game.difficultyGroups.map(g => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames
+    })) : null;
+
+  io.to(roomId).emit('memoryRulesStart', {
+    rulesEndTime,
+    round: game.currentRound,
+    totalRounds: game.totalRounds,
+    challengeType: game.challengeType,
+    challengesInRound: game.challengesPerRound,
+    isSpeedRound,
+    speedRoundEndTime,
+    readyPlayers: [],
+    difficultyGroups: difficultyGroupsInfo
+  });
+
+  // After rules, start challenges
+  game.rulesTimer = setTimeout(() => {
+    if (room.game && room.game.gameType === 'memory') {
+      if (isSpeedRound) {
+        startMemorySpeedRound(io, room, roomId);
+      } else {
+        advanceMemoryChallenge(io, room, roomId);
+      }
+    }
+  }, rulesDuration);
+}
+
+// Advance to next Memory challenge
+function advanceMemoryChallenge(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+  const challengeIndex = game.currentChallengeIndex;
+
+  // Check if round is complete
+  if (challengeIndex >= game.challengesPerRound) {
+    showMemoryRecap(io, room, roomId);
+    return;
+  }
+
+  // Prepare challenge for all groups at this index
+  game.currentChallengesByGroup = {};
+  game.difficultyGroups.forEach((group, groupIndex) => {
+    const challenges = game.challengesByGroup[groupIndex];
+    if (challenges && challenges[challengeIndex]) {
+      game.currentChallengesByGroup[groupIndex] = challenges[challengeIndex];
+    }
+  });
+
+  game.currentChallenge = game.currentChallengesByGroup[0];
+  game.answers = {};
+  game.phase = 'display';
+  game.currentGroupIndex = 0;
+
+  // Start showing challenge to first group
+  startMemoryGroupTurn(io, room, roomId);
+}
+
+// Start turn for current difficulty group
+function startMemoryGroupTurn(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+  const groups = game.difficultyGroups;
+  const currentGroupIdx = game.currentGroupIndex;
+
+  if (currentGroupIdx >= groups.length) {
+    // All groups done - reveal answer
+    revealMemoryAnswer(io, room, roomId);
+    return;
+  }
+
+  const currentGroup = groups[currentGroupIdx];
+  const challenge = game.currentChallengesByGroup[currentGroupIdx];
+
+  if (!challenge) {
+    console.error(`[MEMORY] No challenge found for group ${currentGroupIdx}`);
+    advanceToNextMemoryGroup(io, room, roomId);
+    return;
+  }
+
+  // Apply display time multiplier from config
+  const multiplier = game.displayTimeMultiplier || 1.0;
+  const displayTime = Math.round(challenge.displayTime * multiplier);
+  const displayEndTime = Date.now() + displayTime;
+  game.displayEndTime = displayEndTime;
+  game.phase = 'display';
+
+  console.log(`[MEMORY] Group ${currentGroupIdx} (${currentGroup.difficulty}): Showing ${challenge.type} challenge for ${displayTime}ms`);
+
+  // Build group info
+  const groupInfo = {
+    currentGroup: {
+      difficulty: currentGroup.difficulty,
+      label: getDifficultyLabel(currentGroup.difficulty),
+      playerNames: currentGroup.playerNames
+    },
+    currentGroupIndex: currentGroupIdx,
+    totalGroups: groups.length,
+    allGroups: groups.map((g, idx) => ({
+      difficulty: g.difficulty,
+      label: getDifficultyLabel(g.difficulty),
+      playerNames: g.playerNames,
+      isActive: idx === currentGroupIdx,
+      isCompleted: idx < currentGroupIdx
+    }))
+  };
+
+  // Send display phase to active group
+  currentGroup.players.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('memoryDisplay', {
+        challengeType: challenge.type,
+        challengeNumber: game.currentChallengeIndex + 1,
+        totalChallenges: game.challengesPerRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        displayEndTime,
+        isActiveGroup: true,
+        groupInfo,
+        difficulty: challenge.difficulty,
+        difficultyLabel: challenge.difficultyLabel,
+        // Challenge-specific data
+        grid: challenge.grid,
+        gridRows: challenge.gridRows,
+        gridCols: challenge.gridCols,
+        items: challenge.itemsBefore || challenge.items,
+        itemsBefore: challenge.itemsBefore,
+        itemsAfter: challenge.itemsAfter
+      });
+    }
+  });
+
+  // Send waiting state to other groups
+  const waitingPlayers = room.players.filter(p =>
+    p.connected !== false && !currentGroup.playerNames.includes(p.name)
+  );
+
+  waitingPlayers.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('memoryGroupWaiting', {
+        challengeNumber: game.currentChallengeIndex + 1,
+        totalChallenges: game.challengesPerRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        groupInfo,
+        waitingFor: {
+          difficulty: currentGroup.difficulty,
+          label: getDifficultyLabel(currentGroup.difficulty),
+          playerNames: currentGroup.playerNames
+        }
+      });
+    }
+  });
+
+  // After display time, show question
+  game.displayTimer = setTimeout(() => {
+    if (room.game && room.game.gameType === 'memory') {
+      showMemoryQuestion(io, room, roomId);
+    }
+  }, displayTime);
+}
+
+// Show the question phase after display
+function showMemoryQuestion(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+  const groups = game.difficultyGroups;
+  const currentGroupIdx = game.currentGroupIndex;
+  const currentGroup = groups[currentGroupIdx];
+  const challenge = game.currentChallengesByGroup[currentGroupIdx];
+
+  if (!challenge) return;
+
+  const questionTime = challenge.questionTime;
+  const questionEndTime = Date.now() + questionTime;
+  game.questionEndTime = questionEndTime;
+  game.questionStartTime = Date.now();
+  game.phase = 'question';
+
+  // Build group info
+  const groupInfo = {
+    currentGroup: {
+      difficulty: currentGroup.difficulty,
+      label: getDifficultyLabel(currentGroup.difficulty),
+      playerNames: currentGroup.playerNames
+    },
+    currentGroupIndex: currentGroupIdx,
+    totalGroups: groups.length
+  };
+
+  // Send question to active group
+  currentGroup.players.forEach(player => {
+    if (player.socketId) {
+      io.to(player.socketId).emit('memoryQuestion', {
+        challengeType: challenge.type,
+        challengeNumber: game.currentChallengeIndex + 1,
+        totalChallenges: game.challengesPerRound,
+        round: game.currentRound,
+        totalRounds: game.totalRounds,
+        questionEndTime,
+        isActiveGroup: true,
+        groupInfo,
+        difficulty: challenge.difficulty,
+        difficultyLabel: challenge.difficultyLabel,
+        question: challenge.question,
+        options: challenge.options,
+        // For difference challenges, show the after state
+        itemsAfter: challenge.itemsAfter
+      });
+    }
+  });
+
+  // Timer for question timeout
+  game.questionTimer = setTimeout(() => {
+    if (room.game && room.game.gameType === 'memory') {
+      advanceToNextMemoryGroup(io, room, roomId);
+    }
+  }, questionTime);
+}
+
+// Advance to next difficulty group
+function advanceToNextMemoryGroup(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+
+  // Clear timers
+  if (game.questionTimer) {
+    clearTimeout(game.questionTimer);
+    game.questionTimer = null;
+  }
+  if (game.displayTimer) {
+    clearTimeout(game.displayTimer);
+    game.displayTimer = null;
+  }
+
+  game.currentGroupIndex++;
+
+  if (game.currentGroupIndex >= game.difficultyGroups.length) {
+    // All groups done - reveal answer
+    revealMemoryAnswer(io, room, roomId);
+  } else {
+    // Start next group's turn
+    startMemoryGroupTurn(io, room, roomId);
+  }
+}
+
+// Reveal the correct answer
+function revealMemoryAnswer(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+
+  if (game.questionTimer) {
+    clearTimeout(game.questionTimer);
+    game.questionTimer = null;
+  }
+
+  game.phase = 'reveal';
+
+  // Build player to group index map
+  const playerToGroupIndex = {};
+  game.difficultyGroups.forEach((group, groupIndex) => {
+    group.playerNames.forEach(name => {
+      playerToGroupIndex[name] = groupIndex;
+    });
+  });
+
+  // Calculate points for each player
+  const playerResults = {};
+  const questionDuration = game.currentChallenge?.questionTime || 10000;
+
+  Object.entries(game.answers).forEach(([playerName, answerData]) => {
+    const groupIndex = playerToGroupIndex[playerName];
+    const challenge = game.currentChallengesByGroup[groupIndex] || game.currentChallenge;
+
+    const isCorrect = answerData.answer === challenge.correctAnswer;
+    let pointsEarned = 0;
+
+    if (isCorrect) {
+      pointsEarned = calculateMemoryPoints(answerData.timestamp, game.questionStartTime, questionDuration);
+
+      const player = room.players.find(p => p.name === playerName);
+      if (player) {
+        player.score = (player.score || 0) + pointsEarned;
+      }
+    }
+
+    playerResults[playerName] = {
+      answer: answerData.answer,
+      isCorrect,
+      pointsEarned,
+      totalScore: room.players.find(p => p.name === playerName)?.score || 0
+    };
+  });
+
+  // Add to challenge history
+  if (!game.challengeHistory) game.challengeHistory = [];
+  game.challengeHistory.push({
+    challengeIndex: game.currentChallengeIndex,
+    round: game.currentRound,
+    challengeType: game.challengeType,
+    groupData: game.difficultyGroups.map((group, idx) => ({
+      difficulty: group.difficulty,
+      challenge: game.currentChallengesByGroup[idx],
+      playerResults: Object.fromEntries(
+        Object.entries(playerResults).filter(([name]) => group.playerNames.includes(name))
+      )
+    }))
+  });
+
+  // Send reveal to all
+  io.to(roomId).emit('memoryReveal', {
+    challengeNumber: game.currentChallengeIndex + 1,
+    totalChallenges: game.challengesPerRound,
+    round: game.currentRound,
+    playerResults,
+    // Include correct answers for each group
+    groupAnswers: game.difficultyGroups.map((group, idx) => ({
+      difficulty: group.difficulty,
+      label: getDifficultyLabel(group.difficulty),
+      correctAnswer: game.currentChallengesByGroup[idx]?.correctAnswer,
+      challenge: game.currentChallengesByGroup[idx]
+    }))
+  });
+
+  // After reveal, advance to next challenge
+  setTimeout(() => {
+    if (room.game && room.game.gameType === 'memory') {
+      game.currentChallengeIndex++;
+      advanceMemoryChallenge(io, room, roomId);
+    }
+  }, MEMORY_REVEAL_DURATION);
+}
+
+// Show Memory round recap
+function showMemoryRecap(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+  game.phase = 'recap';
+
+  const standings = room.players
+    .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+    .sort((a, b) => b.score - a.score);
+
+  io.to(roomId).emit('memoryRecap', {
+    round: game.currentRound,
+    totalRounds: game.totalRounds,
+    standings,
+    challengeHistory: game.challengeHistory || [],
+    isLastRound: game.currentRound >= game.totalRounds
+  });
+}
+
+// Start next Memory round
+function startNextMemoryRound(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+
+  if (game.currentRound >= game.totalRounds) {
+    endMemoryGame(io, room, roomId);
+    return;
+  }
+
+  game.currentRound++;
+  game.challengeHistory = [];  // Clear for new round
+  startMemoryRound(io, room, roomId);
+}
+
+// End Memory game
+function endMemoryGame(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+  game.phase = 'finalRecap';
+
+  const finalStandings = room.players
+    .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+    .sort((a, b) => b.score - a.score);
+
+  const winner = finalStandings[0];
+
+  // Build round scores
+  const roundScores = {};
+  room.players.forEach(p => {
+    roundScores[p.name] = [];
+  });
+
+  // Compile game history entry
+  const gameHistoryEntry = {
+    game: 'Memory Master',
+    timestamp: Date.now(),
+    finalScores: finalStandings,
+    roundScores
+  };
+
+  if (!room.gameHistory) room.gameHistory = [];
+  room.gameHistory.push(gameHistoryEntry);
+
+  io.to(roomId).emit('memoryFinalResults', {
+    winner,
+    finalStandings,
+    gameHistory: room.gameHistory
+  });
+
+  // Clean up after delay
+  setTimeout(() => {
+    if (room.game && room.game.gameType === 'memory') {
+      if (room.selectedGames && room.selectedGames.length > 0) {
+        room.selectedGames.shift();
+      }
+      room.game = null;
+      io.to(roomId).emit('gameEnded', { finalScores: finalStandings, gameHistory: room.gameHistory });
+    }
+  }, 5500);
+}
+
+// Speed round functions for Memory
+function startMemorySpeedRound(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory' || !room.game.isSpeedRound) return;
+
+  const game = room.game;
+  game.phase = 'speedRound';
+
+  console.log(`[MEMORY SPEED] Starting speed round with ${room.players.length} players`);
+
+  // Send first sequence to each player
+  room.players.forEach(player => {
+    if (player.connected !== false) {
+      sendMemorySpeedChallenge(io, room, roomId, player);
+    }
+  });
+
+  // Timer to end speed round
+  const speedRoundDuration = game.speedRoundDurationMs || MEMORY_SPEED_ROUND_DURATION;
+  game.speedRoundTimer = setTimeout(() => {
+    endMemorySpeedRound(io, room, roomId);
+  }, speedRoundDuration);
+}
+
+function sendMemorySpeedChallenge(io, room, roomId, player) {
+  if (!room.game || !room.game.isSpeedRound) return;
+
+  const game = room.game;
+  const progress = game.playerProgress[player.name];
+  if (!progress || progress.isWaiting) return;
+
+  const playerDifficulty = progress.difficulty;
+  const challenges = game.speedChallengesByDifficulty[playerDifficulty];
+
+  if (!challenges || progress.currentChallengeIndex >= challenges.length) {
+    // No more challenges - player waits
+    return;
+  }
+
+  const challenge = challenges[progress.currentChallengeIndex];
+
+  io.to(player.socketId).emit('memorySpeedChallenge', {
+    sequence: challenge.sequence,
+    sequenceLength: challenge.sequenceLength,
+    sequenceItemTime: challenge.sequenceItemTime,
+    challengeNumber: progress.currentChallengeIndex + 1,
+    totalPoints: progress.totalPoints,
+    speedRoundEndTime: game.speedRoundEndTime,
+    difficulty: playerDifficulty,
+    difficultyLabel: getDifficultyLabel(playerDifficulty)
+  });
+}
+
+function handleMemorySpeedAnswer(io, room, roomId, player, answer) {
+  if (!room.game || !room.game.isSpeedRound) return;
+
+  const game = room.game;
+  const progress = game.playerProgress[player.name];
+  if (!progress || progress.isWaiting) return;
+
+  const playerDifficulty = progress.difficulty;
+  const challenges = game.speedChallengesByDifficulty[playerDifficulty];
+  const challenge = challenges[progress.currentChallengeIndex];
+
+  if (!challenge) return;
+
+  // Check if answer is correct
+  const isCorrect = answer === challenge.correctAnswer;
+
+  if (isCorrect) {
+    const points = MEMORY_SPEED_FIXED_POINTS;
+    progress.totalPoints += points;
+    progress.correctAnswers.push({ challengeIndex: progress.currentChallengeIndex, points });
+    progress.currentChallengeIndex++;
+
+    // Update player score
+    const p = room.players.find(pl => pl.name === player.name);
+    if (p) p.score = (p.score || 0) + points;
+
+    io.to(player.socketId).emit('memorySpeedCorrect', {
+      points,
+      totalPoints: progress.totalPoints,
+      correctCount: progress.correctAnswers.length
+    });
+
+    // Short delay then next challenge
+    progress.isWaiting = true;
+    setTimeout(() => {
+      progress.isWaiting = false;
+      if (room.game && room.game.gameType === 'memory' && room.game.isSpeedRound) {
+        sendMemorySpeedChallenge(io, room, roomId, player);
+      }
+    }, MEMORY_SPEED_CORRECT_DELAY);
+
+  } else {
+    progress.wrongAnswers.push({ challengeIndex: progress.currentChallengeIndex });
+    progress.currentChallengeIndex++;
+
+    io.to(player.socketId).emit('memorySpeedWrong', {
+      correctAnswer: challenge.sequence,
+      totalPoints: progress.totalPoints
+    });
+
+    // Longer delay after wrong
+    progress.isWaiting = true;
+    setTimeout(() => {
+      progress.isWaiting = false;
+      if (room.game && room.game.gameType === 'memory' && room.game.isSpeedRound) {
+        sendMemorySpeedChallenge(io, room, roomId, player);
+      }
+    }, MEMORY_SPEED_WRONG_DELAY);
+  }
+
+  // Broadcast progress update to all
+  const progressUpdate = {};
+  Object.entries(game.playerProgress).forEach(([name, prog]) => {
+    progressUpdate[name] = {
+      correctCount: prog.correctAnswers.length,
+      totalPoints: prog.totalPoints
+    };
+  });
+
+  io.to(roomId).emit('memorySpeedProgress', { progress: progressUpdate });
+}
+
+function endMemorySpeedRound(io, room, roomId) {
+  if (!room.game || room.game.gameType !== 'memory') return;
+
+  const game = room.game;
+
+  if (game.speedRoundTimer) {
+    clearTimeout(game.speedRoundTimer);
+    game.speedRoundTimer = null;
+  }
+
+  game.phase = 'speedRecap';
+
+  // Build race data
+  const raceData = [];
+  let maxCorrect = 0;
+
+  room.players.forEach(p => {
+    const progress = game.playerProgress[p.name];
+    if (progress) {
+      const correctCount = progress.correctAnswers.length;
+      maxCorrect = Math.max(maxCorrect, correctCount);
+
+      raceData.push({
+        name: p.name,
+        avatar: p.avatar,
+        correctAnswers: progress.correctAnswers,
+        wrongAnswers: progress.wrongAnswers,
+        totalPoints: progress.totalPoints,
+        correctCount,
+        difficulty: progress.difficulty
+      });
+    }
+  });
+
+  raceData.sort((a, b) => b.totalPoints - a.totalPoints);
+
+  const animationDuration = 10000;
+  const stepDuration = maxCorrect > 0 ? Math.floor(animationDuration / maxCorrect) : 1000;
+  const winner = raceData[0];
+
+  // Add to challenge history
+  if (!game.challengeHistory) game.challengeHistory = [];
+  game.challengeHistory.push({
+    type: 'speedRound',
+    raceData,
+    maxCorrect,
+    winner: winner?.name
+  });
+
+  io.to(roomId).emit('memorySpeedRecap', {
+    raceData,
+    maxCorrect,
+    stepDuration,
+    winner,
+    round: game.currentRound,
+    totalRounds: game.totalRounds
+  });
+
+  // Note: endMemoryGame will be called when client emits 'memoryCelebrationComplete'
+}
+
 function setupSockets(io) {
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id);
@@ -3778,6 +4798,100 @@ function setupSockets(io) {
             console.error(`[REJOIN] Error sending mathSync for ${playerName}:`, err);
           }
 
+        } else if (game.gameType === 'memory') {
+          try {
+            // Re-add player to their difficulty group if missing
+            if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+              const playerDifficulty = getPlayerDifficulty(playerName, room);
+              const playerGroup = game.difficultyGroups.find(g => g.difficulty === playerDifficulty);
+
+              if (playerGroup) {
+                if (!playerGroup.playerNames.includes(playerName)) {
+                  playerGroup.playerNames.push(playerName);
+                  const playerObj = room.players.find(p => p.name === playerName);
+                  if (playerObj) {
+                    playerGroup.players.push(playerObj);
+                  }
+                  console.log(`[REJOIN] Added ${playerName} back to memory difficulty group ${playerDifficulty}`);
+                }
+              }
+            }
+
+            // Memory game sync
+            const memorySync = {
+              gameType: 'memory',
+              phase: game.phase || 'unknown',
+              currentRound: game.currentRound || 1,
+              totalRounds: game.totalRounds || 4,
+              challengeType: game.challengeType,
+              challengeNumber: (game.currentChallengeIndex || 0) + 1,
+              totalChallenges: game.challengesPerRound,
+              isSpeedRound: game.isSpeedRound || false,
+              rulesEndTime: game.rulesEndTime,
+              displayEndTime: game.displayEndTime,
+              questionEndTime: game.questionEndTime,
+              speedRoundEndTime: game.speedRoundEndTime,
+              standings: room.players
+                .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+                .sort((a, b) => b.score - a.score)
+            };
+
+            // Include current challenge data
+            if (game.currentChallengesByGroup) {
+              const groupIdx = game.currentGroupIndex || 0;
+              const challenge = game.currentChallengesByGroup[groupIdx];
+              if (challenge) {
+                memorySync.challenge = {
+                  type: challenge.type,
+                  grid: challenge.grid,
+                  gridRows: challenge.gridRows,
+                  gridCols: challenge.gridCols,
+                  itemsBefore: challenge.itemsBefore,
+                  itemsAfter: challenge.itemsAfter,
+                  question: challenge.question,
+                  options: challenge.options,
+                  difficulty: challenge.difficulty,
+                  difficultyLabel: challenge.difficultyLabel
+                };
+              }
+            }
+
+            // Include group info
+            if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+              const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+              const isActiveGroup = currentGroup && currentGroup.playerNames.includes(playerName);
+
+              memorySync.groupInfo = {
+                currentGroupIndex: game.currentGroupIndex,
+                totalGroups: game.difficultyGroups.length,
+                allGroups: game.difficultyGroups.map((g, idx) => ({
+                  difficulty: g.difficulty,
+                  label: getDifficultyLabel(g.difficulty),
+                  playerNames: g.playerNames,
+                  isActive: idx === game.currentGroupIndex,
+                  isCompleted: idx < game.currentGroupIndex
+                }))
+              };
+              memorySync.isActiveGroup = isActiveGroup;
+            }
+
+            // Speed round progress
+            if (game.isSpeedRound && game.playerProgress && game.playerProgress[playerName]) {
+              const progress = game.playerProgress[playerName];
+              memorySync.speedProgress = {
+                currentChallengeIndex: progress.currentChallengeIndex,
+                correctCount: progress.correctAnswers?.length || 0,
+                totalPoints: progress.totalPoints,
+                difficulty: progress.difficulty
+              };
+            }
+
+            socket.emit('memorySync', memorySync);
+            console.log(`[REJOIN] Sent memorySync for ${playerName}, phase: ${game.phase}`);
+          } catch (err) {
+            console.error(`[REJOIN] Error sending memorySync for ${playerName}:`, err);
+          }
+
         } else {
           try {
             // Pictionary game sync - create clean serializable copy
@@ -4067,6 +5181,97 @@ function setupSockets(io) {
           .sort((a, b) => b.score - a.score);
 
         socket.emit('mathSync', mathSync);
+      } else if (game.gameType === 'memory') {
+        // Memory game sync
+        const memorySync = {
+          gameType: 'memory',
+          phase: game.phase,
+          currentRound: game.currentRound,
+          totalRounds: game.totalRounds,
+          challengeType: game.challengeType,
+          challengeNumber: game.currentChallengeIndex + 1,
+          totalChallenges: game.challengesPerRound,
+          isSpeedRound: game.isSpeedRound,
+          rulesEndTime: game.rulesEndTime,
+          displayEndTime: game.displayEndTime,
+          questionEndTime: game.questionEndTime,
+          speedRoundEndTime: game.speedRoundEndTime
+        };
+
+        // Include current challenge data if in display/question phase
+        if (game.phase === 'display' || game.phase === 'question') {
+          const currentGroupIdx = game.currentGroupIndex || 0;
+          const challenge = game.currentChallengesByGroup?.[currentGroupIdx] || game.currentChallenge;
+
+          if (challenge) {
+            memorySync.challenge = {
+              type: challenge.type,
+              grid: challenge.grid,
+              gridRows: challenge.gridRows,
+              gridCols: challenge.gridCols,
+              itemsBefore: challenge.itemsBefore,
+              itemsAfter: challenge.itemsAfter,
+              question: challenge.question,
+              options: challenge.options,
+              difficulty: challenge.difficulty,
+              difficultyLabel: challenge.difficultyLabel
+            };
+          }
+        }
+
+        // Include group info
+        if (game.difficultyGroups && game.difficultyGroups.length > 0) {
+          const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+          const isActiveGroup = currentGroup && currentGroup.playerNames.includes(player.name);
+
+          memorySync.groupInfo = {
+            currentGroup: currentGroup ? {
+              difficulty: currentGroup.difficulty,
+              label: getDifficultyLabel(currentGroup.difficulty),
+              playerNames: currentGroup.playerNames
+            } : null,
+            currentGroupIndex: game.currentGroupIndex,
+            totalGroups: game.difficultyGroups.length,
+            allGroups: game.difficultyGroups.map((g, idx) => ({
+              difficulty: g.difficulty,
+              label: getDifficultyLabel(g.difficulty),
+              playerNames: g.playerNames,
+              isActive: idx === game.currentGroupIndex,
+              isCompleted: idx < game.currentGroupIndex
+            }))
+          };
+          memorySync.isActiveGroup = isActiveGroup;
+
+          if (!isActiveGroup && game.phase === 'question') {
+            memorySync.phase = 'groupWaiting';
+            memorySync.waitingFor = {
+              difficulty: currentGroup?.difficulty,
+              label: currentGroup ? getDifficultyLabel(currentGroup.difficulty) : 'Unknown',
+              playerNames: currentGroup?.playerNames || []
+            };
+          }
+        }
+
+        // Speed round progress
+        if (game.isSpeedRound && game.playerProgress) {
+          const progress = game.playerProgress[player.name];
+          if (progress) {
+            memorySync.speedProgress = {
+              currentChallengeIndex: progress.currentChallengeIndex,
+              correctCount: progress.correctAnswers?.length || 0,
+              totalPoints: progress.totalPoints,
+              difficulty: progress.difficulty,
+              difficultyLabel: getDifficultyLabel(progress.difficulty)
+            };
+          }
+        }
+
+        // Include standings
+        memorySync.standings = room.players
+          .map(p => ({ name: p.name, avatar: p.avatar, score: p.score || 0, connected: p.connected !== false }))
+          .sort((a, b) => b.score - a.score);
+
+        socket.emit('memorySync', memorySync);
       } else {
         // Pictionary game sync (existing logic)
         const gameSync = {
@@ -4256,10 +5461,12 @@ function setupSockets(io) {
       console.log(`[START GAME] gameConfig:`, JSON.stringify(gameConfig));
 
       // Determine game type from the FIRST selected game
-      // Game ID 1 = Trivia Master, Game ID 2 = Drawing Battle (Pictionary), Game ID 5 = Quick Math
+      // Game ID 1 = Trivia Master, Game ID 2 = Drawing Battle (Pictionary), Game ID 4 = Memory Master, Game ID 5 = Quick Math
       let gameType = 'pictionary'; // default
       if (firstGameId === 1) {
         gameType = 'trivia';
+      } else if (firstGameId === 4) {
+        gameType = 'memory';
       } else if (firstGameId === 5) {
         gameType = 'quickmath';
       } else if (firstGameId === 2) {
@@ -4316,6 +5523,56 @@ function setupSockets(io) {
         setTimeout(() => {
           if (room.game && room.game.gameType === 'quickmath') {
             startMathRound(io, room, data.roomId);
+          }
+        }, 4000);
+
+      } else if (gameType === 'memory') {
+        // Get configurable settings with defaults
+        const challengesPerRoundConfig = gameConfig.challengesPerRound || 3;
+        const displayTimeMultiplierConfig = gameConfig.displayTimeMultiplier || 1.0;
+        const speedRoundDurationConfig = gameConfig.speedRoundDuration || 60;  // in seconds
+
+        // Initialize Memory game
+        room.game = {
+          gameType: 'memory',
+          config: gameConfig,
+          currentRound: 1,
+          totalRounds: 4,
+          challengesPerRound: challengesPerRoundConfig,
+          displayTimeMultiplier: displayTimeMultiplierConfig,
+          speedRoundDurationMs: speedRoundDurationConfig * 1000,
+          currentChallengeIndex: 0,
+          currentChallenge: null,
+          displayEndTime: null,
+          questionEndTime: null,
+          rulesEndTime: null,
+          phase: 'rules',
+          answers: {},
+          challengeHistory: [],
+          isSpeedRound: false,
+          challengeType: 'grid',
+          challengesByGroup: {},
+          currentChallengesByGroup: {},
+          speedChallengesByDifficulty: {},
+          displayTimer: null,
+          questionTimer: null
+        };
+
+        // Reset player scores
+        room.players.forEach(p => { p.score = 0; });
+
+        // Emit countdown to all
+        io.to(data.roomId).emit('gameStarting', {
+          roomId: data.roomId,
+          gameType: 'memory',
+          totalRounds: 4,
+          currentRound: 1
+        });
+
+        // After 4s countdown, start first round
+        setTimeout(() => {
+          if (room.game && room.game.gameType === 'memory') {
+            startMemoryRound(io, room, data.roomId);
           }
         }, 4000);
 
@@ -5214,6 +6471,172 @@ function setupSockets(io) {
       }
     });
 
+    // ============================================================================
+    // MEMORY GAME SOCKET HANDLERS
+    // ============================================================================
+
+    // --- Memory Answer ---
+    socket.on('memoryAnswer', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'memory') return;
+
+      const game = room.game;
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player) return;
+
+      // For regular rounds, validate player is in active group and hasn't answered
+      if (!game.isSpeedRound) {
+        if (game.phase !== 'question') return;
+
+        // Check if already answered
+        if (game.answers[player.name]) return;
+
+        // Check player is in active group
+        const currentGroup = game.difficultyGroups[game.currentGroupIndex];
+        if (!currentGroup || !currentGroup.playerNames.includes(player.name)) return;
+
+        // Record answer
+        game.answers[player.name] = {
+          answer: data.answer,
+          timestamp: Date.now()
+        };
+
+        // Broadcast that player answered
+        io.to(data.roomId).emit('memoryAnswerReceived', {
+          playerName: player.name,
+          totalAnswered: Object.keys(game.answers).filter(n => currentGroup.playerNames.includes(n)).length,
+          totalInGroup: currentGroup.playerNames.filter(n => {
+            const p = room.players.find(pl => pl.name === n);
+            return p && p.connected !== false;
+          }).length
+        });
+
+        // Check if all in group answered
+        const connectedInGroup = currentGroup.playerNames.filter(name => {
+          const p = room.players.find(pl => pl.name === name);
+          return p && p.connected !== false;
+        });
+        const answeredInGroup = connectedInGroup.filter(name => game.answers[name]);
+
+        if (answeredInGroup.length >= connectedInGroup.length) {
+          // All answered - advance to next group
+          advanceToNextMemoryGroup(io, room, data.roomId);
+        }
+      } else {
+        // Speed round - handle sequence answer
+        handleMemorySpeedAnswer(io, room, data.roomId, player, data.answer);
+      }
+    });
+
+    // --- Memory Next Round ---
+    socket.on('memoryNextRound', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'memory') return;
+
+      const game = room.game;
+
+      // Validate sender is master
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || sender.name !== room.master) return;
+
+      // Only allow during recap phase
+      if (game.phase !== 'recap' && game.phase !== 'speedRecap') return;
+
+      // Start next round or end game
+      startNextMemoryRound(io, room, data.roomId);
+    });
+
+    // --- Memory Reveal All (Master) ---
+    socket.on('memoryRevealAll', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'memory') return;
+
+      const game = room.game;
+
+      // Validate sender is master
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || sender.name !== room.master) return;
+
+      // Only during question or display phase
+      if (game.phase !== 'question' && game.phase !== 'display') return;
+
+      // Clear timers and reveal answer
+      if (game.questionTimer) {
+        clearTimeout(game.questionTimer);
+        game.questionTimer = null;
+      }
+      if (game.displayTimer) {
+        clearTimeout(game.displayTimer);
+        game.displayTimer = null;
+      }
+
+      // Skip to reveal for all remaining groups
+      game.currentGroupIndex = game.difficultyGroups.length;
+      revealMemoryAnswer(io, room, data.roomId);
+    });
+
+    // --- Memory Ready (Player ready during rules) ---
+    socket.on('memoryReady', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'memory') return;
+
+      const game = room.game;
+      const player = room.players.find(p => p.socketId === socket.id);
+      if (!player) return;
+
+      // Only during rules phase
+      if (game.phase !== 'rules') return;
+
+      // Add to ready list if not already
+      if (!game.readyPlayers) game.readyPlayers = [];
+      if (!game.readyPlayers.includes(player.name)) {
+        game.readyPlayers.push(player.name);
+      }
+
+      // Broadcast ready status
+      io.to(data.roomId).emit('memoryReadyUpdate', {
+        readyPlayers: game.readyPlayers,
+        totalPlayers: room.players.filter(p => p.connected !== false).length
+      });
+
+      // Check if all ready
+      const connectedPlayers = room.players.filter(p => p.connected !== false);
+      if (game.readyPlayers.length >= connectedPlayers.length) {
+        // All ready - skip to start
+        if (game.rulesTimer) {
+          clearTimeout(game.rulesTimer);
+          game.rulesTimer = null;
+        }
+
+        setTimeout(() => {
+          if (room.game && room.game.gameType === 'memory' && room.game.phase === 'rules') {
+            if (game.isSpeedRound) {
+              startMemorySpeedRound(io, room, data.roomId);
+            } else {
+              advanceMemoryChallenge(io, room, data.roomId);
+            }
+          }
+        }, 1000);
+      }
+    });
+
+    // --- Memory Celebration Complete ---
+    socket.on('memoryCelebrationComplete', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'memory') return;
+
+      const game = room.game;
+
+      // Only master can trigger this
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || sender.name !== room.master) return;
+
+      // End the game
+      if (game.phase === 'speedRecap' || game.currentRound >= game.totalRounds) {
+        endMemoryGame(io, room, data.roomId);
+      }
+    });
+
     // --- Dev: Skip to Speed Round ---
     socket.on('devSkipToSpeedRound', (data) => {
       const room = rooms.get(data.roomId);
@@ -5222,8 +6645,8 @@ function setupSockets(io) {
       const game = room.game;
       const gameType = game.gameType;
 
-      // Support both trivia and quickmath
-      if (gameType !== 'trivia' && gameType !== 'quickmath') return;
+      // Support trivia, quickmath, and memory
+      if (gameType !== 'trivia' && gameType !== 'quickmath' && gameType !== 'memory') return;
 
       console.log(`[DEV] Skipping to speed round in room ${data.roomId}, game: ${gameType}, current round: ${game.currentRound}`);
 
@@ -5290,6 +6713,9 @@ function setupSockets(io) {
         game.speedRoundEndTime = Date.now() + speedRoundDuration;
 
         startMathSpeedRound(io, room, data.roomId);
+      } else if (gameType === 'memory') {
+        console.log(`[DEV] Starting memory speed round`);
+        startMemoryRound(io, room, data.roomId);
       }
     });
 
