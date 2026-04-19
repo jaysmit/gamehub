@@ -3665,114 +3665,132 @@ function startMemoryRound(io, room, roomId) {
 
 // Advance to next Memory challenge
 function advanceMemoryChallenge(io, room, roomId) {
-  if (!room.game || room.game.gameType !== 'memory') return;
+  try {
+    if (!room.game || room.game.gameType !== 'memory') return;
 
-  const game = room.game;
-  const challengeIndex = game.currentChallengeIndex;
-  console.log(`[MEMORY] advanceMemoryChallenge called, challengeIndex: ${challengeIndex}, challengesPerRound: ${game.challengesPerRound}`);
+    const game = room.game;
+    const challengeIndex = game.currentChallengeIndex;
+    console.log(`[MEMORY] advanceMemoryChallenge called, challengeIndex: ${challengeIndex}, challengesPerRound: ${game.challengesPerRound}`);
 
-  // Check if round is complete
-  if (challengeIndex >= game.challengesPerRound) {
-    console.log(`[MEMORY] Round complete, showing recap`);
-    showMemoryRecap(io, room, roomId);
-    return;
-  }
-  console.log(`[MEMORY] Starting challenge ${challengeIndex + 1} of ${game.challengesPerRound}`);
-
-  // Prepare challenge for all groups at this index
-  game.currentChallengesByGroup = {};
-  game.difficultyGroups.forEach((group, groupIndex) => {
-    const challenges = game.challengesByGroup[groupIndex];
-    if (challenges && challenges[challengeIndex]) {
-      game.currentChallengesByGroup[groupIndex] = challenges[challengeIndex];
+    // Check if round is complete
+    if (challengeIndex >= game.challengesPerRound) {
+      console.log(`[MEMORY] Round complete, showing recap`);
+      showMemoryRecap(io, room, roomId);
+      return;
     }
-  });
+    console.log(`[MEMORY] Starting challenge ${challengeIndex + 1} of ${game.challengesPerRound}`);
 
-  game.currentChallenge = game.currentChallengesByGroup[0];
-  game.answers = {};
-  game.phase = 'display';
-  game.currentGroupIndex = 0;
+    // Prepare challenge for all groups at this index
+    game.currentChallengesByGroup = {};
+    game.difficultyGroups.forEach((group, groupIndex) => {
+      const challenges = game.challengesByGroup[groupIndex];
+      if (challenges && challenges[challengeIndex]) {
+        game.currentChallengesByGroup[groupIndex] = challenges[challengeIndex];
+      }
+    });
 
-  // Start showing challenge to first group
-  startMemoryGroupTurn(io, room, roomId);
+    game.currentChallenge = game.currentChallengesByGroup[0];
+    game.answers = {};
+    game.phase = 'display';
+    game.currentGroupIndex = 0;
+
+    console.log(`[MEMORY] Calling startMemoryGroupTurn for challenge ${challengeIndex + 1}`);
+    // Start showing challenge to first group
+    startMemoryGroupTurn(io, room, roomId);
+  } catch (error) {
+    console.error(`[MEMORY] ERROR in advanceMemoryChallenge:`, error);
+    console.error(`[MEMORY] Stack trace:`, error.stack);
+  }
 }
 
 // Start turn for current difficulty group
 function startMemoryGroupTurn(io, room, roomId) {
-  if (!room.game || room.game.gameType !== 'memory') return;
+  try {
+    if (!room.game || room.game.gameType !== 'memory') return;
 
-  const game = room.game;
-  const groups = game.difficultyGroups;
-  const currentGroupIdx = game.currentGroupIndex;
+    const game = room.game;
+    const groups = game.difficultyGroups;
+    const currentGroupIdx = game.currentGroupIndex;
 
-  if (currentGroupIdx >= groups.length) {
-    // All groups done - reveal answer
-    revealMemoryAnswer(io, room, roomId);
-    return;
-  }
+    console.log(`[MEMORY] startMemoryGroupTurn called, groupIndex: ${currentGroupIdx}, totalGroups: ${groups?.length}`);
 
-  const currentGroup = groups[currentGroupIdx];
-  const challenge = game.currentChallengesByGroup[currentGroupIdx];
-
-  if (!challenge) {
-    console.error(`[MEMORY] No challenge found for group ${currentGroupIdx}`);
-    advanceToNextMemoryGroup(io, room, roomId);
-    return;
-  }
-
-  // Apply display time multiplier from config
-  const multiplier = game.displayTimeMultiplier || 1.0;
-  // Add 3 seconds extra for missing and difference rounds to give players time to read instructions
-  const extraTime = (challenge.type === 'missing' || challenge.type === 'difference') ? 3000 : 0;
-  const displayTime = Math.round(challenge.displayTime * multiplier) + extraTime;
-  const displayEndTime = Date.now() + displayTime;
-  game.displayEndTime = displayEndTime;
-  game.phase = 'display';
-
-  console.log(`[MEMORY] Group ${currentGroupIdx} (${currentGroup.difficulty}): Showing ${challenge.type} challenge for ${displayTime}ms`);
-
-  // Build group info
-  const groupInfo = {
-    currentGroup: {
-      difficulty: currentGroup.difficulty,
-      label: getDifficultyLabel(currentGroup.difficulty),
-      playerNames: currentGroup.playerNames
-    },
-    currentGroupIndex: currentGroupIdx,
-    totalGroups: groups.length,
-    allGroups: groups.map((g, idx) => ({
-      difficulty: g.difficulty,
-      label: getDifficultyLabel(g.difficulty),
-      playerNames: g.playerNames,
-      isActive: idx === currentGroupIdx,
-      isCompleted: idx < currentGroupIdx
-    }))
-  };
-
-  // Send display phase to active group
-  currentGroup.players.forEach(player => {
-    if (player.socketId) {
-      io.to(player.socketId).emit('memoryDisplay', {
-        challengeType: challenge.type,
-        challengeNumber: game.currentChallengeIndex + 1,
-        totalChallenges: game.challengesPerRound,
-        round: game.currentRound,
-        totalRounds: game.totalRounds,
-        displayEndTime,
-        isActiveGroup: true,
-        groupInfo,
-        difficulty: challenge.difficulty,
-        difficultyLabel: challenge.difficultyLabel,
-        // Challenge-specific data
-        grid: challenge.grid,
-        gridRows: challenge.gridRows,
-        gridCols: challenge.gridCols,
-        items: challenge.itemsBefore || challenge.items,
-        itemsBefore: challenge.itemsBefore,
-        itemsAfter: challenge.itemsAfter
-      });
+    if (currentGroupIdx >= groups.length) {
+      // All groups done - reveal answer
+      console.log(`[MEMORY] All groups done, revealing answer`);
+      revealMemoryAnswer(io, room, roomId);
+      return;
     }
-  });
+
+    const currentGroup = groups[currentGroupIdx];
+    const challenge = game.currentChallengesByGroup[currentGroupIdx];
+
+    console.log(`[MEMORY] Current group: ${currentGroup?.difficulty}, players: ${currentGroup?.players?.length}, challenge type: ${challenge?.type}`);
+
+    if (!challenge) {
+      console.error(`[MEMORY] No challenge found for group ${currentGroupIdx}`);
+      advanceToNextMemoryGroup(io, room, roomId);
+      return;
+    }
+
+    // Apply display time multiplier from config
+    const multiplier = game.displayTimeMultiplier || 1.0;
+    // Add 3 seconds extra for missing and difference rounds to give players time to read instructions
+    const extraTime = (challenge.type === 'missing' || challenge.type === 'difference') ? 3000 : 0;
+    const displayTime = Math.round(challenge.displayTime * multiplier) + extraTime;
+    const displayEndTime = Date.now() + displayTime;
+    game.displayEndTime = displayEndTime;
+    game.phase = 'display';
+
+    console.log(`[MEMORY] Group ${currentGroupIdx} (${currentGroup.difficulty}): Showing ${challenge.type} challenge for ${displayTime}ms`);
+
+    // Build group info
+    const groupInfo = {
+      currentGroup: {
+        difficulty: currentGroup.difficulty,
+        label: getDifficultyLabel(currentGroup.difficulty),
+        playerNames: currentGroup.playerNames
+      },
+      currentGroupIndex: currentGroupIdx,
+      totalGroups: groups.length,
+      allGroups: groups.map((g, idx) => ({
+        difficulty: g.difficulty,
+        label: getDifficultyLabel(g.difficulty),
+        playerNames: g.playerNames,
+        isActive: idx === currentGroupIdx,
+        isCompleted: idx < currentGroupIdx
+      }))
+    };
+
+    // Send display phase to active group
+    console.log(`[MEMORY] Emitting memoryDisplay to ${currentGroup.players?.length} players`);
+    currentGroup.players.forEach(player => {
+      if (player.socketId) {
+        console.log(`[MEMORY] Sending memoryDisplay to ${player.name} (${player.socketId})`);
+        io.to(player.socketId).emit('memoryDisplay', {
+          challengeType: challenge.type,
+          challengeNumber: game.currentChallengeIndex + 1,
+          totalChallenges: game.challengesPerRound,
+          round: game.currentRound,
+          totalRounds: game.totalRounds,
+          displayEndTime,
+          isActiveGroup: true,
+          groupInfo,
+          difficulty: challenge.difficulty,
+          difficultyLabel: challenge.difficultyLabel,
+          // Challenge-specific data
+          grid: challenge.grid,
+          gridRows: challenge.gridRows,
+          gridCols: challenge.gridCols,
+          items: challenge.itemsBefore || challenge.items,
+          itemsBefore: challenge.itemsBefore,
+          itemsAfter: challenge.itemsAfter,
+          // Match game specific
+          numPairs: challenge.numPairs,
+          pointsPerPair: challenge.pointsPerPair,
+          matchTimeLimit: challenge.matchTimeLimit
+        });
+      }
+    });
 
   // Send waiting state to other groups
   const waitingPlayers = room.players.filter(p =>
@@ -3804,11 +3822,13 @@ function startMemoryGroupTurn(io, room, roomId) {
       if (game.challengeType === 'match') {
         // Set phase to indicate we're waiting for match results
         game.phase = 'match';
+        console.log(`[MEMORY] Display time ended, now in match phase - waiting for results`);
         // Set a match timeout (60 seconds)
         const matchTimeout = 60000;
         game.matchTimer = setTimeout(() => {
           if (room.game && room.game.gameType === 'memory' && room.game.phase === 'match') {
             // Time's up - advance to next group
+            console.log(`[MEMORY] Match timeout reached, advancing`);
             advanceToNextMemoryGroup(io, room, roomId);
           }
         }, matchTimeout);
@@ -3818,6 +3838,10 @@ function startMemoryGroupTurn(io, room, roomId) {
       }
     }
   }, displayTime);
+  } catch (error) {
+    console.error(`[MEMORY] ERROR in startMemoryGroupTurn:`, error);
+    console.error(`[MEMORY] Stack trace:`, error.stack);
+  }
 }
 
 // Show the question phase after display
@@ -3882,10 +3906,11 @@ function showMemoryQuestion(io, room, roomId) {
 
 // Advance to next difficulty group
 function advanceToNextMemoryGroup(io, room, roomId) {
-  if (!room.game || room.game.gameType !== 'memory') return;
+  try {
+    if (!room.game || room.game.gameType !== 'memory') return;
 
-  const game = room.game;
-  console.log(`[MEMORY] advanceToNextMemoryGroup called, currentGroupIndex: ${game.currentGroupIndex}, totalGroups: ${game.difficultyGroups?.length}`);
+    const game = room.game;
+    console.log(`[MEMORY] advanceToNextMemoryGroup called, currentGroupIndex: ${game.currentGroupIndex}, totalGroups: ${game.difficultyGroups?.length}`);
 
   // Clear timers
   if (game.questionTimer) {
@@ -3938,6 +3963,10 @@ function advanceToNextMemoryGroup(io, room, roomId) {
   } else {
     // Start next group's turn
     startMemoryGroupTurn(io, room, roomId);
+  }
+  } catch (error) {
+    console.error(`[MEMORY] ERROR in advanceToNextMemoryGroup:`, error);
+    console.error(`[MEMORY] Stack trace:`, error.stack);
   }
 }
 
@@ -6564,16 +6593,35 @@ function setupSockets(io) {
 
     // --- Memory Answer ---
     socket.on('memoryAnswer', (data) => {
-      const room = rooms.get(data.roomId);
-      if (!room || !room.game || room.game.gameType !== 'memory') return;
+      console.log(`[MEMORY] memoryAnswer received:`, JSON.stringify(data, null, 2));
 
-      const game = room.game;
-      const player = room.players.find(p => p.socketId === socket.id);
-      if (!player) return;
+      try {
+        const room = rooms.get(data.roomId);
+        if (!room) {
+          console.log(`[MEMORY] ERROR: Room not found: ${data.roomId}`);
+          return;
+        }
+        if (!room.game) {
+          console.log(`[MEMORY] ERROR: No game in room`);
+          return;
+        }
+        if (room.game.gameType !== 'memory') {
+          console.log(`[MEMORY] ERROR: Wrong game type: ${room.game.gameType}`);
+          return;
+        }
 
-      // Handle match game results (Round 1)
-      if (data.answer === 'match_complete' && data.matchResults) {
-        console.log(`[MEMORY] Match complete from ${player.name}, challenge ${game.currentChallengeIndex + 1}/${game.challengesPerRound}`);
+        const game = room.game;
+        const player = room.players.find(p => p.socketId === socket.id);
+        if (!player) {
+          console.log(`[MEMORY] ERROR: Player not found for socket ${socket.id}`);
+          return;
+        }
+
+        console.log(`[MEMORY] Player ${player.name} submitting answer, game phase: ${game.phase}`);
+
+        // Handle match game results (Round 1)
+        if (data.answer === 'match_complete' && data.matchResults) {
+          console.log(`[MEMORY] Match complete from ${player.name}, challenge ${game.currentChallengeIndex + 1}/${game.challengesPerRound}`);
 
         // Check if already submitted
         if (game.answers && game.answers[player.name]) {
@@ -6668,6 +6716,10 @@ function setupSockets(io) {
       } else {
         // Speed round - handle sequence answer
         handleMemorySpeedAnswer(io, room, data.roomId, player, data.answer);
+      }
+      } catch (error) {
+        console.error(`[MEMORY] ERROR in memoryAnswer handler:`, error);
+        console.error(`[MEMORY] Stack trace:`, error.stack);
       }
     });
 
