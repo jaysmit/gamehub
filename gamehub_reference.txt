@@ -2443,20 +2443,20 @@ MEMORY MASTER GAME ARCHITECTURE
 Memory Master follows the simultaneous-play architecture (like Trivia/Quick Math) with 4 rounds:
 
 FILES:
-  - client/game/MemoryGame.jsx (~1700 lines) - Full Memory game component
+  - client/game/MemoryGame.jsx (~1800 lines) - Full Memory game component
   - client/data/memoryContent.js (~305 lines) - Items, configs, challenge types
-  - src/sockets.js - Server-side game logic (memory* functions)
+  - src/sockets.js - Server-side game logic (memory* functions, ~500 lines)
 
 ROUND STRUCTURE (4 rounds, each with different challenge type):
-  Round 1: Memory Match (find pairs)
-  Round 2: Missing Item (identify removed item)
-  Round 3: Spot the Difference (identify changed item)
-  Round 4: Sequence Memory (speed round - recall sequence order)
+  Round 1: Memory Match - 3 games, find matching pairs
+  Round 2: Spot the New One - 5 games, one item replaced with new item
+  Round 3: Spot the One - 5 games, find original item among all new items
+  Round 4: Sequence Memory - speed round, recall sequence order
 
 CHALLENGE TYPES (CHALLENGE_TYPES constant):
   'match'      - Match pairs game (Round 1)
-  'missing'    - Missing item identification (Round 2)
-  'difference' - Spot the difference (Round 3)
+  'missing'    - Spot the New One - tap the NEW item (Round 2)
+  'difference' - Spot the One - tap the ORIGINAL item (Round 3)
   'sequence'   - Sequence recall - speed round (Round 4)
 
 MATCH GAME (Round 1):
@@ -2468,11 +2468,35 @@ MATCH GAME (Round 1):
     hard:       4x4 (8 pairs)
     very-hard:  6x6 (18 pairs)
     genius:     6x6 (18 pairs)
-  - 5 second memorization phase (cards shown face-up)
+  - 7 second memorization phase (cards shown face-up)
   - Cards flip face-down, 60 seconds to match all pairs
-  - 50 points per matched pair
-  - +50 bonus for perfect (no mistakes)
+  - 3 games per round (default)
+  - Scoring: 50 points per matched pair
+  - Time bonus: +4 points per second remaining (only if ALL pairs matched)
+  - Auto-advances when all players complete (skips reveal phase)
   - Client handles card flipping locally, submits results to server
+
+SPOT THE NEW ONE (Round 2 - 'missing' challenge type):
+  - Shows original items, then replaces ONE with a NEW item
+  - Player must TAP the new item directly on the grid
+  - 5 games per round (default)
+  - +3 seconds extra memorization time
+  - Instruction: "One of these icons will be replaced... Remember them all"
+
+SPOT THE ONE (Round 3 - 'difference' challenge type):
+  - Shows original items, then shows ALL NEW items except ONE original
+  - Player must TAP the original item among the new ones
+  - 5 games per round (default)
+  - +3 seconds extra memorization time
+  - Instruction: "These icons will all change except for one... Remember which one"
+
+SEQUENCE ROUND (Round 4 - Speed Round):
+  - Items shown one at a time with sequenceItemTime delay
+  - 2 second delay after last item before tiles disappear
+  - Players tap items in correct order
+  - Partial credit: 50 points per correct tile in sequence
+  - Bonus: +100 points if entire sequence correct
+  - Backspace button to undo last selection
 
 DIFFICULTY GROUPS (same as Trivia/Quick Math):
   - Players grouped by difficulty setting
@@ -2481,18 +2505,20 @@ DIFFICULTY GROUPS (same as Trivia/Quick Math):
 
 PHASE FLOW:
   rules -> display -> match/question -> reveal -> recap (repeats per round)
+  Match games skip reveal phase and auto-advance
   Final: finalRecap with winner celebration
 
 SOCKET EVENTS (Memory-specific):
   Client -> Server:
     memoryReady        { roomId }                    Player ready after rules
     memoryAnswer       { roomId, answer, ... }      Submit answer/match results
+    memorySkipRound    { roomId }                   Debug: skip to next round
     requestMemorySync  { roomId }                   Request game state sync
 
   Server -> Client:
-    memoryRulesStart   { round, challengeType, ... } Start rules phase
-    memoryDisplay      { grid, items, ... }          Show memorization content
-    memoryQuestion     { question, options, ... }    Show question (non-match)
+    memoryRulesStart   { round, challengeType, rulesEndTime, ... }
+    memoryDisplay      { grid, items, numPairs, displayEndTime, ... }
+    memoryQuestion     { question, options, itemsAfter, tapToAnswer, ... }
     memoryReveal       { correctAnswer, ... }        Reveal correct answer
     memoryRecap        { standings, history }        Round recap
     memoryFinalResults { winner, standings }         Game over
@@ -2507,38 +2533,42 @@ KEY STATE VARIABLES (MemoryGame.jsx):
   - flippedCards: Currently flipped card indices (max 2)
   - canFlip: Whether player can flip cards
   - matchPoints, matchMistakes, matchComplete: Match game state
+  - rulesTimerTrigger: Forces rules timer useEffect to restart
 
 TIMER SYNC (same pattern as Trivia/Quick Math):
   - Server sends absolute timestamps (rulesEndTime, displayEndTime, etc.)
   - Client calculates remaining time using getServerTime()
+  - rulesTimerTrigger state forces timer effect to restart on new rules
   - Fallback sync request if phase doesn't transition after timer expires
 
-EXIT BUTTON:
-  - Fixed position top-right, visible to game master only
-  - Allows returning to room during game
+DEBUG FEATURES:
+  - Press backtick (`) to toggle debug skip button
+  - Skip button visible to game master, skips current round
+  - Comprehensive server-side logging with [MEMORY] prefix
+  - Try-catch error handling in all key server functions
 
-SPEED ROUND (Round 4 - Sequence):
-  - Items shown one at a time with sequenceItemTime delay
-  - 2 second delay after last item before tiles disappear
-  - Players tap items in correct order
-  - Points based on correct sequence length + time bonus
+EXIT BUTTON:
+  - Fixed position below scoreboard (desktop) or bottom-right (mobile)
+  - Visible to game master only
+  - Emits 'endGameEarly' to return group to room
 
 SERVER FUNCTIONS (sockets.js):
   generateMatchChallenge()      Generate pairs grid for match game
-  generateMissingChallenge()    Generate missing item challenge
-  generateDifferenceChallenge() Generate spot the difference
+  generateMissingChallenge()    Generate "spot the new one" challenge (tap-to-answer)
+  generateDifferenceChallenge() Generate "spot the one" challenge (tap-to-answer)
   generateSequenceChallenge()   Generate sequence for speed round
   startMemoryRound()            Initialize round with rules phase
   startMemoryGroupTurn()        Start display phase for difficulty group
   showMemoryQuestion()          Transition to question phase
   revealMemoryAnswer()          Show correct answer, calculate points
   advanceToNextMemoryGroup()    Move to next difficulty group
+  advanceMemoryChallenge()      Move to next challenge in current round
   showMemoryRecap()             Display round recap
   startNextMemoryRound()        Advance to next round or end game
   endMemoryGame()               Final results with winner
 
-INSTRUCTIONS (CHALLENGE_INSTRUCTIONS):
-  Each challenge type has: title, description, steps[]
-  Displayed during rules phase before each round
+KNOWN ISSUES (IN PROGRESS):
+  - Match game may not auto-advance after completion (investigating)
+  - Debug logging added to trace match completion flow
 
 ================================================================================
