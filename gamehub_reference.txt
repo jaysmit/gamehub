@@ -1,0 +1,2544 @@
+================================================================================
+                        GAMEHUB - PROJECT REFERENCE DOCUMENT
+================================================================================
+
+INSTRUCTIONS FOR CLAUDE:
+When I provide this document at the start of a session, use it as context for
+the GameHub project. Follow the editing rules below and refer to the summary
+for project understanding.
+
+MAINTENANCE RULE -- UPDATING THIS FILE:
+When asked to update this file after a session, apply these principles:
+  - Merge new information into the EXISTING sections (architecture, game rules,
+    key files, features completed, etc.) rather than appending session logs.
+  - Do NOT add per-session change summaries. They become redundant once the
+    main sections are updated.
+  - Remove information that is no longer accurate or useful.
+  - Keep the file as concise as possible -- every line should help Claude
+    understand the current state of the project, not its history.
+  - Update line-number references if file contents have shifted significantly.
+  - Move any new architectural lessons into "Architecture Notes for Claude."
+
+================================================================================
+                         GAMEHUB PAGE & SECTION REFERENCE
+================================================================================
+
+EDITING RULES:
+- If I use a specific reference below, ONLY edit that page/modal/shared
+  component unless you absolutely have to touch something else.
+- This keeps edits targeted and reduces unnecessary changes.
+- TRON ONLY: Until told otherwise, only make changes to the Tron theme.
+  Do not modify Kids or Scary theme styling, characters, or music.
+  Focus on MVP with Tron; the other themes will be polished later.
+
+--------------------------------------------------------------------------------
+PAGES
+--------------------------------------------------------------------------------
+Rejoining     > Brief themed loading screen during reconnect after refresh
+Landing       > Home page - create/join room inputs, game library, dev buttons
+Room          > Game room lobby - ID, QR, players, games, chat, start
+Countdown     > 3-2-1 countdown after Start Game
+Game          > Active game screen (PictionaryGame)
+
+--------------------------------------------------------------------------------
+MODALS
+--------------------------------------------------------------------------------
+QR Modal          > Expanded QR code (parent: Room via App.jsx)
+Game Selector     > Pick games to play with filters (parent: Room via App.jsx)
+Game Description  > Shows game info/description (parent: Room via App.jsx)
+Avatar Picker     > Character select on join (parent: Room via App.jsx)
+Character Info    > Character card with description (parent: Avatar Picker)
+Player Profile    > Other player's avatar, name, score, game history (parent: Room via App.jsx)
+Master Tips       > Tips/tricks for room master (parent: Room via App.jsx)
+Rules Modal       > Role-specific rules at start of each round (parent: PictionaryGame)
+Pick Winner Modal > Select winner from player list, 5s timer (parent: PictionaryGame)
+Timer End Modal   > Time's-up winner selection at 50 pts, 10s timer (parent: PictionaryGame)
+End Game Confirm  > Master-only confirmation to end game early (parent: PictionaryGame)
+Drawer Picking Overlay > Non-drawer overlay during winner selection with countdown (parent: PictionaryGame)
+Kick Confirm Modal  > Master-only confirmation to kick player (parent: RoomPage + PictionaryGame)
+Skip Turn Modal     > Master-only confirmation to skip drawer's turn (parent: PictionaryGame)
+Achievement Modal   > Treasure chest animation for avatar unlocks, shows unlock criteria (parent: App.jsx)
+Difficulty Modal    > Set room/player difficulty levels for games (parent: Room via App.jsx)
+
+--------------------------------------------------------------------------------
+SHARED COMPONENTS
+--------------------------------------------------------------------------------
+Header            > Nav bar - logo, theme dropdown, music dropdown, menu (rendered in App.jsx)
+CharacterAvatar   > Shared avatar with rarity-based colors and glow effects (used everywhere)
+WinnerCelebration > Reusable winner modal with confetti/coins/leaderboard (used by QuickMath, Drawing)
+GameMasterControls > Reusable master controls (Kick, End Game, Customize) for all game types
+MusicButton       > Tooltip-style prompt (DEPRECATED - no longer used, kept for reference)
+
+================================================================================
+                       UI COMPONENT REFERENCE (by page)
+================================================================================
+
+Use these names to reference specific UI sections when requesting changes.
+Format: "Component Name" > description (file:line)
+
+--------------------------------------------------------------------------------
+HEADER (Header.jsx)
+--------------------------------------------------------------------------------
+Dev Toast             > Temporary notification banner, top-center       (:20)
+Header Bar            > Fixed top nav bar across all pages              (:24)
+  Header Logo         > Theme logo icon + "GameHub" text (links home)   (:27)
+  Theme Dropdown      > Select Tron/Kids/Scary theme                    (:47)
+  Mute Button         > Speaker icon, toggles mute/unmute (pulses when muted)
+  Music Button        > Music note icon, opens track selection dropdown
+  Music Dropdown      > Track selection list with checkmark on current track
+  Menu Button         > Hamburger icon, opens dropdown                  (:168)
+  Menu Dropdown       > Home, Profile, Settings, Help, Log Out          (:177)
+
+--------------------------------------------------------------------------------
+LANDING PAGE (LandingPage.jsx)
+--------------------------------------------------------------------------------
+Hero Section          > Theme logo + "GameHub" title + subtitle         (:43)
+Dev Buttons           > DEV: Pictionary / Master Room / Join as Player (hidden by default, press ` to show)
+Rejoin Button         > Red "REJOIN_ROOM" button with X dismiss (only when pendingSession)
+Dismiss Confirm Modal > Warning modal when dismissing rejoin (will be kicked from game)
+Error Banner          > Red error message below hero                    (:168)
+Create Room Button    > Big button to show create form                  (:156)
+Join Room Button      > Big button to show join form                    (:166)
+Create Room Form      > Room name + player name + Create/Cancel         (:178)
+Join Room Form        > Room code + player name + Join/Cancel           (:213)
+How It Works          > 4-step guide: Create, Join, Select, Play        (:249)
+Explore Games         > Game library section with filters + grid        (:306)
+  Game Filters        > Players slider, Age slider, Sort dropdown       (:313)
+  Game Library Grid   > Game cards with icon, name, rating, Info/Video  (:381)
+Avatar Showcase       > Browse-only character grid by rarity + detail modal (:503)
+  Rarity Sections     > Common/Uncommon/Rare/Legendary with count       (:514)
+  Character Cards     > SVG + name + lock icon + rarity dot (clickable) (:526)
+  Character Detail    > Modal: full SVG + name + rarity badge + lore + unlock req (:568)
+
+--------------------------------------------------------------------------------
+ROOM PAGE (RoomPage.jsx)
+--------------------------------------------------------------------------------
+Room Background       > No local audio - uses global audio from App.jsx
+Room Card             > Main card container for all room content        (:138)
+  Room Title          > Crown (if master) + room name heading           (:143)
+  Room ID             > Room code display (e.g. "AB12CD")               (:149)
+  Room QR             > Small QR code, tap to expand                    (:157)
+  QR Modal            > Fullscreen expanded QR with room ID + close     (:172)
+  Players Row         > Character avatar cards sorted by score desc     (:212)
+    Player Card       > Avatar SVG + name badge + score per player      (:223)
+    Master Crown      > Bouncing crown badge on master's card           (:238)
+    Edit Button       > Pencil button on your own avatar (opens picker) (:245)
+    Kick Button       > X button on other players (master only)         (:258)
+    AFK Badge         > Cyan badge on avatar when player not in room (clickable for info)
+    Placement Badge   > #1 gold / #2 silver / #3 bronze (after 1+ games played)
+  Kick Confirm Modal  > Confirmation modal before kicking player        (:339)
+  AFK Info Modal      > Info modal explaining player may be reconnecting (:380)
+  Leave Room Button   > Red button below players row (exits room voluntarily)
+  Leave Confirm Modal > Confirmation modal before leaving room          (:420)
+  Games + Chat Split  > Side-by-side layout (md+/landscape)             (:302)
+    Selected Games    > List of selected games with rating + desc link  (:304)
+    Lobby Chat        > Desktop chat panel with messages + input        (:355)
+      Chat Messages   > Message bubbles with avatar + name + text       (:370)
+      Scroll Button   > ChevronDown button when scrolled up             (:390)
+      Chat Input      > Text input + Send button                        (:399)
+Bottom Action Bar     > Fixed bottom bar for master only                (:423)
+  Add Games Button    > Opens Game Selector modal                       (:426)
+  Start Game Button   > Starts game (disabled if no games selected)     (:435)
+Floating Chat Icon    > Fixed bottom-right chat bubble + unread badge   (:450)
+Mobile Chat Modal     > Fullscreen chat for mobile portrait             (:473)
+  Modal Chat Header   > Title + close X button                          (:477)
+  Modal Chat Messages > Same messages as desktop chat                   (:486)
+  Modal Scroll Button > ChevronDown when scrolled up                    (:522)
+  Modal Chat Input    > Text input + Send button                        (:536)
+Game Selector Modal   > Fullscreen modal for picking games              (:560)
+  Selector Header     > Title "SELECT_GAMES"                            (:565)
+  Selector Filters    > Players slider, Age slider, Sort dropdown       (:570)
+  Selector Game Grid  > Toggleable game cards with check/desc/video     (:658)
+  Selector Close      > Close button at bottom                          (:732)
+Game Info Modal       > Game name + rating + description + close        (:746)
+Game Description Modal> Icon + name + rating + description + stats      (:769)
+Player Profile Modal  > Player profile with game history (PlayerProfile.jsx)
+  Profile Header      > Avatar SVG + name + crown + character + rarity + member date
+  Game History        > Per-player round-by-round score breakdown, placement (moved up)
+  Level / XP Bar      > Level number + XP progress bar with gradient fill
+  Stats Grid          > 3x2 grid: Games Played, Wins, Win Rate, Best Streak, Total Pts, Fav Game
+  Medals Grid         > 3x3 grid: 9 medals with emoji icons, earned/locked states (max-h-48 scrollable)
+  Close Button        > Dismisses modal
+
+--------------------------------------------------------------------------------
+COUNTDOWN PAGE (CountdownPage.jsx)
+--------------------------------------------------------------------------------
+Countdown Display     > "INITIALIZING..." title + large number          (:6)
+
+--------------------------------------------------------------------------------
+GAME PAGE (GamePage.jsx -> PictionaryGame.jsx)
+--------------------------------------------------------------------------------
+Game Background       > No local audio - uses global audio from App.jsx
+Word Display Banner   > Prominent gradient banner above header showing drawer's word
+Game Header Bar       > Single row with badges (round, score, timer, end button)
+  Round Indicator     > "Round X/Y" badge (shown when totalRounds > 0)
+  Score Display       > Shows "300 PTS" badge (flat scoring per correct guess)
+  Game Timer          > 60s countdown timer, pulses red at <=10s
+  End Game Button     > Master-only red "End Game" button, opens confirmation modal
+Drawing Canvas Area   > Canvas card with drawing tools
+  Color Picker        > Color input + preset color buttons + eraser
+  Brush Size          > Range slider for brush width
+  Clear Button        > Clears the canvas
+  Canvas              > HTML5 canvas element (800x600)
+Chat/Guessing Area    > Fixed to bottom on mobile (max 30vh), normal flow on md+
+  Guess Messages      > Chat bubbles with avatar + player + message
+  Winner Announcement > Green pulsing "[name] WINS! +{pts} pts each" + "New word incoming..."
+  No Winner Display   > Yellow pulsing "Round Finished!" + "Next drawer starting in 3s..."
+  Guess Input         > Text input + Send (guessers only), disabled when chatFrozen or cooldown
+  Guess Cooldown      > 3-second cooldown after sending a guess (prevents spam)
+  Pick Winner Button  > Drawer-only green pulsing button, emits pauseGame to server, opens modal
+Pick Winner Modal     > Select winner + 5s pick timer badge
+  Pick Timer Badge    > Red countdown badge (-top-4, auto-closes modal)
+  Player List         > Selectable player buttons with avatars
+  Cancel Button       > Emits resumeGame, clears pick timer
+  Confirm Button      > Calls selectWinner with selected player
+Timer End Modal       > Time's up - select winner at 50 pts or no winner
+  Pick Timer Badge    > Red countdown badge (10s to pick or auto-close)
+  Timer End Header    > "TIME_EXPIRED" + word reveal + "50 pts (time penalty)"
+  Player Guesses List > Players with their guesses listed
+  No Winner Button    > Emits noWinner to server, clears pick timer
+  Confirm Winner      > Calls selectWinner with timerExpired=true
+End Game Confirm Modal> Master-only: warning about lost points, Cancel/End buttons
+Drawer Picking Overlay> Non-drawer overlay: "Drawer is picking a winner!" + countdown
+  Pencil Icon         > Themed SVG icon in circle
+  Message Text        > "New drawing inbound!"
+  Countdown Circle    > Animated pulse showing seconds until timer resumes
+Rules Modal           > Role-specific rules shown at start of each round
+  Rules Countdown     > Red flashing badge on modal (-top-4 center)
+  Drawer Rules        > Draw word, pick winners (300 pts each), new words until time out
+  Guesser Rules       > Watch drawing, type guesses, 300 pts for correct guess
+  Got It Button       > Dismiss modal (countdown keeps ticking)
+Canvas Countdown      > Red flashing circle on canvas while waiting
+Drawing Order         > Player list showing turn order + scores
+  Order Player Card   > Status badge + avatar + name + score + Done/Now/Next/Offline
+  Offline Indicator   > Grayscale avatar + "OFFLINE" badge for disconnected players
+  Kick Button         > Master-only red button to kick player from game
+  Skip Button         > Master-only yellow button to skip current drawer's turn
+  Skip My Turn Button > Master can skip their own turn when drawing
+Kick/Skip Confirm     > Confirmation modal before kick/skip action
+Correct Guesses       > Running list of winner picks across all rounds (no avatars)
+  Guess Card          > Order badge + name + points + "word:" label with guessed word
+
+--------------------------------------------------------------------------------
+REJOINING PAGE (RejoiningPage.jsx)
+--------------------------------------------------------------------------------
+Rejoin Logo           > Theme logo icon                                 (:8)
+Rejoin Text           > "RECONNECTING..." + subtitle                    (:17)
+
+================================================================================
+                            PROJECT SUMMARY
+================================================================================
+
+WHAT IS GAMEHUB:
+A multiplayer game room platform for real-time gaming. Players create or join
+rooms, select games, and play together. Features three visual themes and
+real-time communication via Socket.io.
+
+TECH STACK:
+- Backend:  Express.js, Socket.io, MongoDB + Mongoose, UUID
+- Auth:     bcryptjs, jsonwebtoken, passport, passport-google-oauth20, passport-discord
+- Frontend: React 19, Vite (build tool), Tailwind CSS (CDN), QRCode.js (CDN)
+- Dev:      Nodemon, Concurrently, npm
+- DB:       MongoDB on Railway (shuttle.proxy.rlwy.net:17041)
+
+HOW TO RUN:
+  npm run dev          - Starts BOTH servers concurrently:
+                         Express on :3000 (API + Socket.io)
+                         Vite on :5173 (frontend with HMR)
+                         Open http://localhost:5173 in browser
+
+  npm run build        - Builds frontend to client/dist/
+  npm start            - Runs Express serving built frontend on :3000
+
+================================================================================
+                         FILE STRUCTURE
+================================================================================
+
+GameHub website/
+|-- server.js                    Express + Socket.io server
+|-- package.json                 Dependencies and scripts
+|-- .env                         MongoDB URI, port, JWT secrets, OAuth keys (not in git)
+|-- .env.example                 Template for env vars (includes auth vars)
+|-- src/
+|   |-- sockets.js               Socket.io event handlers (~1100 lines, includes trivia)
+|   |-- middleware/auth.js       JWT verification middleware
+|   |-- models/
+|   |   |-- User.js              Mongoose user schema (auth, stats, settings, medals)
+|   |   |-- Friend.js            Friend relationships (pending/accepted/blocked)
+|   |   |-- GameHistory.js       Game history records per user
+|   |   |-- RefreshToken.js      JWT refresh tokens with TTL
+|   |-- routes/
+|   |   |-- users.js             REST API for user CRUD
+|   |   |-- auth.js              Authentication endpoints (login, register, OAuth)
+|   |   |-- friends.js           Friends API endpoints
+|-- public/
+|   |-- index.html               OLD monolithic frontend (backup, not served)
+|   |-- assets/
+|   |   |-- music/               Background music mp3 files (5 tracks, served at /assets/music/)
+|-- client/                      *** ALL FRONTEND CODE ***
+|   |-- index.html               Minimal HTML shell (Tailwind CDN, QRCode CDN, recap animations)
+|   |-- vite.config.js           Vite config with React plugin, proxy for /socket.io + /api
+|   |-- main.jsx                 Entry point: ReactDOM.createRoot
+|   |-- App.jsx                  Main component: ALL state, effects, handlers, page routing
+|   |-- socket.js                Socket.io client + clock sync (getServerTime, clockOffset)
+|   |-- data/
+|   |   |-- games.js             MOCK_GAMES array (16 games, gameType field for routing)
+|   |   |-- themes.js            themes object, rarityConfig (5 tiers with colors/glow)
+|   |   |-- characters.js        characterAvatars object (tron:30, kids:20, scary:20)
+|   |   |-- music.js             MUSIC_TRACKS array (5 tracks), DEFAULT_TRACK
+|   |   |-- achievements.js      DEFAULT_STATS, UNLOCK_CONDITIONS, session storage helpers
+|   |   |-- difficulty.js        DIFFICULTY_LEVELS, DEFAULT_DIFFICULTY, difficulty helpers
+|   |   |-- triviaQuestions.js   CATEGORY_ICONS, TRIVIA_THEMES (UI constants only, questions on server)
+|   |   |-- mathQuestions.js     MATH_QUESTIONS (110 questions), MATH_CATEGORY_ICONS, getRandomMathQuestions(), generateSpeedRoundOptions()
+|   |   |-- pictionaryWords.js   PICTIONARY_WORDS by difficulty level
+|   |-- utils/
+|   |   |-- session.js           saveSession, loadSession, clearSession
+|   |   |-- api.js               Axios/fetch wrapper with auth headers
+|   |   |-- tokenStorage.js      JWT token management
+|   |-- hooks/
+|   |   |-- useAuth.js           Auth state hook
+|   |   |-- useFriendsStatus.js  Real-time friends status
+|   |   |-- usePlayerStats.js    Player stats tracking and avatar unlock management
+|   |-- icons/
+|   |   |-- UIIcons.jsx          20+ UI icon components + getGameIcon function
+|   |   |-- ThemeLogos.jsx       DaftPunkRobotHead, DaftPunkHelmet, WerewolfHowlingIcon
+|   |   |-- CharacterSVGs.jsx    50+ character avatar SVGs + Meta avatar + fallback
+|   |-- components/
+|   |   |-- Header.jsx           Nav bar (imports its own icons from UIIcons/ThemeLogos)
+|   |   |-- CharacterAvatar.jsx  Shared avatar component with rarity colors and glow effects
+|   |   |-- MusicButton.jsx      Shared music start/dismiss button with mute reactivity
+|   |   |-- GameMasterControls.jsx  Reusable master controls: Customize Game, Kick Player, End Game
+|   |-- pages/
+|   |   |-- RejoiningPage.jsx    Reconnect loading screen
+|   |   |-- LandingPage.jsx      Create/join room, dev buttons (backtick toggle), game library
+|   |   |-- RoomPage.jsx         Lobby: ID, QR, players, games, chat, start
+|   |   |-- CountdownPage.jsx    3-2-1 countdown display
+|   |   |-- GamePage.jsx         Game router (routes to PictionaryGame, TriviaGame, or QuickMathGame by gameType)
+|   |   |-- LoginPage.jsx        Email/password + OAuth login buttons
+|   |   |-- ProfilePage.jsx      User profile (mirrors PlayerProfile modal)
+|   |   |-- EditProfilePage.jsx  Edit name, avatar, theme
+|   |   |-- FriendsPage.jsx      Friends list with online status
+|   |   |-- SettingsPage.jsx     Theme, sound, notifications
+|   |   |-- HelpPage.jsx         FAQ, how to play
+|   |-- game/
+|   |   |-- PictionaryGame.jsx   Drawing canvas, chat, timer, winner modals (~1260 lines)
+|   |   |-- TriviaGame.jsx       Trivia game with questions, timer, animated recap, speed round race (~2700 lines)
+|   |   |-- QuickMathGame.jsx    Math game with NumberPad input, animated recap, speed round race (~1850 lines)
+|   |-- modals/
+|   |   |-- AvatarPicker.jsx     Character select (initial + change modes)
+|   |   |-- CharacterInfo.jsx    Character card with description
+|   |   |-- GameSelector.jsx     Pick games with filters, sort, "Coming Soon" for unimplemented games
+|   |   |-- GameDescription.jsx  Game info modal
+|   |   |-- MasterTips.jsx       Tips for room master
+|   |   |-- PlayerProfile.jsx    Player profile with real stats and game history
+|   |   |-- QRModal.jsx          Expanded QR code
+|   |   |-- AchievementModal.jsx Treasure chest unlock animation for avatars
+|   |   |-- DifficultyModal.jsx  Room/player difficulty settings
+|   |-- dist/                    Vite build output (generated, not in git)
+
+================================================================================
+                         ARCHITECTURE DECISIONS
+================================================================================
+
+APP.JSX IS THE ORCHESTRATOR:
+- ALL state declarations live in App.jsx (~80+ useState calls)
+- ALL useEffects live in App.jsx (socket handlers, rejoin, QR, etc.)
+- ALL handler functions live in App.jsx
+- Header renders in App.jsx (NOT inside page components)
+- Modals render in App.jsx alongside their parent pages
+- Pages are purely presentational - they receive props and render UI
+- This avoids needing Context/Redux (would be over-engineering)
+
+HEADER RENDERING:
+- Header is rendered once in App.jsx for all pages EXCEPT 'rejoining'
+- Pages do NOT import or render Header themselves
+
+PAGE RENDERING FLOW IN APP.JSX:
+  if (page === 'rejoining') -> RejoiningPage (no Header)
+  if (page === 'landing')   -> Header + LandingPage
+  if (page === 'countdown') -> Header + CountdownPage
+  if (page === 'game')      -> Header + GamePage
+  default (page === 'room') -> Header + RoomPage + Modals (GameSelector,
+                               GameDescription, AvatarPicker, PlayerProfile,
+                               CharacterInfo, MasterTips, QRModal)
+
+SOCKET.IO APPROACH:
+- Single socket.js module exports the socket instance
+- Imported by App.jsx and PictionaryGame.jsx
+- Vite dev server proxies /socket.io to Express on port 3000
+
+TAILWIND & QRCODE:
+- Tailwind CSS stays as CDN link in client/index.html
+- QRCode.js stays as CDN script tag, accessed via window.QRCode
+
+CHARACTER SVG EXPORTS:
+- CharacterSVGs.jsx exports as BOTH named and default
+- PictionaryGame imports: { CharacterSVG } (named)
+- AvatarPicker/RoomPage import: CharacterSVG (default)
+
+================================================================================
+                          KEY FILES - WHAT'S IN EACH
+================================================================================
+
+--- client/App.jsx (the big one) ---
+Contains all app state, socket event handlers, and page routing.
+  - State declarations (~85 useState calls)
+  - characterAvatars, availableCharacters, takenCharacters, themes/currentTheme
+  - gameHistory state (populated from gameEnded and rejoinSuccess events)
+  - useEffects: dev toast, rejoin on mount, auto-save session, socket events,
+    QR code generation, avatar timer, mobile portrait listener, track change,
+    AFK tracking (visibility change + page navigation detection)
+  - Handler functions: handleCreateRoom, handleJoinRoom, toggleGame, startGame,
+    sendLobbyChat, handleChatScroll, scrollChatToBottom, goToLanding,
+    handleRejoinFromLanding, handleLeaveRoom, onPlayerAfkChanged, playMusic, etc.
+  - AFK useEffect: captures roomId early, emits setAfkStatus on visibility change,
+    cleanup function emits AFK=true when navigating away from room/game pages
+  - StarRating sub-component
+  - onGameStarting: sets countdown=3 explicitly before interval (fixes stale state on repeat games)
+  - Global audio element: <audio> always rendered, uses selectedTrack.file
+  - renderPageContent() helper: returns page JSX based on current page state
+  - Single return with global audio + renderPageContent() for music persistence
+  - Passes isMaster and gameHistory as props to GamePage and PlayerProfile
+
+--- client/icons/UIIcons.jsx ---
+All small UI SVG icon components as named exports:
+  Crown, Users, Trophy, Star, MessageCircle, ChevronDown, X, Check, Info,
+  Youtube, Palette, Menu, Home, User, Settings, HelpCircle, LogOut, Gamepad2,
+  Play, BrainIcon, PaintBrushIcon, PencilIcon, CardIcon, CalculatorIcon,
+  SmileIcon, KeyboardIcon, PuzzleIcon, MusicIcon, MapPinIcon, SwordIcon,
+  FlaskIcon, CameraIcon, GlobeIcon, BookIcon, DiceIcon, SparklesIcon
+Also exports: getGameIcon(gameId, className) function
+
+--- client/icons/CharacterSVGs.jsx ---
+~1290 lines. Renders character avatars by characterId.
+70+ characters: Tron(10), Kids(10), Scary(10), New Tron(10), New Kids(10),
+New Scary(10), Rare(5), Legendary(5), Meta(1), Default fallback.
+Props: { characterId, size = 120, color = '#06b6d4' }
+
+--- client/modals/PlayerProfile.jsx ---
+~205 lines. Player profile modal with real stats from usePlayerStats hook.
+MEDAL_DEFINITIONS: 9 medals with check functions for earned status.
+ordinalSuffix() helper for "1st", "2nd", "3rd" etc.
+Computes per-player game history from gameHistory prop: groups roundScores
+by round, sums points, shows placement position.
+Stats displayed: Games Played, Wins, Win Rate, Best Streak, Total Points, Messages.
+Section order: header > game history > stats > medals (scrollable).
+Medals grid wrapped in max-h-48 overflow-y-auto for independent scrolling.
+Props: theme, currentTheme, playerProfileModal, setPlayerProfileModal, gameHistory,
+       playerStats, unlockedCharacters
+
+--- client/pages/RoomPage.jsx ---
+~850 lines. Largest page component. Room info, QR, player avatars (sorted by
+score desc with #1/#2/#3 placement badges after games played), selected games,
+lobby chat, bottom action bar, floating chat icon, mobile chat modal.
+No local audio - uses global audio element from App.jsx.
+  - Clicking any avatar opens player profile (not just others)
+  - Separate edit button overlay for changing own avatar
+  - Master sees X (kick) button on other players
+  - confirmKick state for kick confirmation modal
+  - Imports socket for kickPlayer emit
+
+--- client/pages/LandingPage.jsx ---
+~680 lines. Hero section, dev buttons (backtick toggle), rejoin button with dismiss,
+create/join forms, "How It Works" section, "Explore Games" with filters and game grid,
+"Avatar Showcase" section with browse-only character grid by rarity.
+  - showDevButtons state: toggled by pressing backtick (`) key
+  - showDismissConfirm state: warning modal when dismissing rejoin banner
+  - handleDismissSession prop: clears session and removes from room
+  - Imports CharacterSVG directly
+  - Has local showcaseChar state for detail modal (inline, not in App.jsx)
+  - Receives availableCharacters + rarityConfig as props from App.jsx
+  - Mobile-responsive header with reduced padding and sizes
+
+--- client/game/PictionaryGame.jsx ---
+~1250 lines. Full Pictionary game with multi-round, multi-winner-per-turn support:
+  - Drawing canvas with color picker and brush controls
+  - Non-passive touch event listeners prevent page scroll while drawing
+  - Chat/guessing area: fixed to bottom on mobile (max 30vh), normal on md+
+  - 60s game timer, 10s rules countdown
+  - Server-authoritative timer: timerEndTimeRef stores absolute endTime from server;
+    useEffect ticks every 250ms computing Math.ceil((endTime - Date.now()) / 1000)
+    so all clients converge on the same second regardless of network latency
+  - Flat scoring: 300 pts for both drawer and guesser per correct guess
+  - Multiple winners possible per turn (drawer earns 300 pts per pick too)
+  - Uses shared MusicButton component, registers startMusicRef for Header control
+  - Server-driven pause: pauseGame/resumeGame events sync all clients
+  - chatFrozen state disables guesser input during pause
+  - guessCooldown state: 3-second cooldown after sending guess (prevents spam)
+  - handleInputFocus: scrolls to top on mobile when keyboard appears
+  - Visibility change handler: requests gameSync when returning to tab/app
+  - Requests gameSync on mount for mid-game rejoin after page refresh
+  - gameSync event handler: syncs timer state, handles noActiveGame redirect
+  - playerDisconnected event handler: updates drawing order with offline status
+  - Drawer picking overlay: non-drawers see countdown + message during pause
+  - winnerPendingRef: race condition guard between pick and timer expiry
+  - roomIdRef: keeps currentRoom.id in a ref to avoid stale closures
+  - timerEndTimeRef: absolute ms timestamp from server, cleared on pause/round/game end
+  - pauseCountdown state + interval for non-drawer overlay countdown
+  - Rules modal, PickWinner modal, TimerEnd modal, EndGame confirm (all inline)
+  - Kick/Skip confirm modal (master only) for player management
+  - confirmAction state: { type: 'kick'|'skip'|'skipSelf', playerName }
+  - correctGuesses state: running list of winner picks (name, word, pts), persists across rounds
+  - Round transitions, winner/no-winner announcements, drawing order UI with scores
+  - Drawing order shows offline players with grayscale avatar + OFFLINE badge
+  - Drawing order shows Kick/Skip buttons for master
+  - advanceRound skips disconnected drawers automatically
+  - Correct Guesses section below Drawing Order (no avatars, shows name + pts + word)
+  - Prominent word display: gradient banner above header for drawer
+  - End Game button (master only) with confirmation modal
+  Props: theme, currentTheme, playerName, selectedAvatar, availableCharacters,
+         currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds
+
+--- client/game/TriviaGame.jsx ---
+~2700 lines. Full Trivia game with simultaneous-play mechanics:
+  - Phases: rules, question, reveal, recap, speedRound, speedRecap, finalRecap
+  - 4 rounds: Rounds 1-3 have 5 questions (10s each), Round 4 (Speed) is individual race format
+  - 6 multiple-choice answers per question (randomized order from server)
+  - Dynamic rules modal: Round 1 (10s full rules), Rounds 2-3 (3s "Same rules!"),
+    Round 4 (5s big red pulsating "SPEED ROUND!")
+  - Server-authoritative timer sync (same pattern as Pictionary)
+  - Frozen scoreboard during question/reveal phases (uses previousRoundScores state)
+  - Animated recap with simultaneous difficulty groups display:
+    • All difficulty groups' questions shown vertically at once
+    • Cascade player reveal animation (150ms stagger per player)
+    • Coin pop animation for correct answers, cross animation for wrong
+    • Dynamic viewing time: 3s base + 1s per additional group
+    • revealedPlayers state tracks revealed status and correctness
+  - Speed round race visualization with animated player positions
+  - Speed recap phases: race → winner (race winner) → leaderboard → animating → final (game winner)
+  - Master-controlled round advancement (no auto-advance except after recap animation)
+  - Visibility change handling for mid-game rejoin
+  Props: theme, currentTheme, playerName, selectedAvatar, availableCharacters,
+         currentRoom, isMuted, isMaster
+
+--- client/data/triviaQuestions.js ---
+~70 lines. UI constants only (questions stored server-side in sockets.js):
+  - CATEGORY_ICONS: emoji map for 30 categories (used in TriviaGame.jsx)
+  - TRIVIA_THEMES: Theme groups for game settings (used in GameSettingsModal.jsx)
+  - Note: All questions stored server-side only (50+ per difficulty, 7 levels = 350+ total)
+
+--- client/game/QuickMathGame.jsx ---
+~2700 lines. Full Quick Math game with simultaneous-play mechanics:
+  - Phases: rules, question, reveal, recap, speedRound, speedRecap, finalRecap
+  - 4 rounds: Rounds 1-3 have 5 questions (15s each), Round 4 (Speed) is individual race format
+  - NumberPad input for normal rounds (0-9, Clear, Backspace, Submit)
+  - Multiple choice (4 options) for speed round
+  - Dynamic rules modal: Round 1 (10s full rules), Rounds 2-3 (3s "Same rules!"),
+    Round 4 (5s big red pulsating "SPEED ROUND!")
+  - Server-authoritative timer sync (same pattern as Trivia/Pictionary)
+  - Frozen scoreboard during question/reveal phases (uses previousRoundScores state)
+  - Animated recap with simultaneous difficulty groups display (same as TriviaGame):
+    • All groups shown vertically, cascade player reveal (150ms stagger)
+    • Coin pop for correct, cross for wrong answers
+    • Dynamic timing: 3s base + 1s per additional group
+  - Speed round race visualization with animated player positions
+  - Winner celebration overlay with confetti after final standings
+  - Compact 2-column layout for answered players + standings on mobile
+  Props: theme, currentTheme, playerName, selectedAvatar, availableCharacters,
+         currentRoom, isMuted, isMaster
+
+--- client/data/mathQuestions.js ---
+~175 lines. Math question bank:
+  - MATH_QUESTIONS: 110 kid-friendly math problems
+  - 4 categories: Addition, Subtraction, Multiplication, Division
+  - Structure: { id, category, question: string, answer: number }
+  - MATH_CATEGORY_ICONS: symbol map for categories (+, -, x, /)
+  - getRandomMathQuestions(count, usedIds): helper for random selection
+  - generateSpeedRoundOptions(correctAnswer): generates 4 options (1 correct + 3 wrong)
+  - Note: Server has embedded copy of questions (CommonJS vs ES Module compatibility)
+
+--- client/components/Header.jsx ---
+~300 lines. Theme logo, theme dropdown, separate mute + music buttons, hamburger menu.
+Mute button: speaker icon, toggles mute/unmute, pulses animation when muted.
+Music button: music note icon, opens track selection dropdown with checkmark on current.
+Auto-unmute: selecting a track calls onStartMusic() and setIsMuted(false) automatically.
+Click-outside handler closes music dropdown. Imports MUSIC_TRACKS from data/music.js.
+Props: selectedTrack, onSelectTrack, musicStarted, onStartMusic, isMuted for music control.
+
+--- client/components/MusicButton.jsx ---
+~90 lines. Tooltip-style music prompt. Props: audioRef, theme, isMuted, onMusicStart.
+Internal state: musicStarted, dismissed, isPlayingRef (prevents double-play).
+Auto-dismisses after 5 seconds. Styled as tooltip with arrow pointing to header.
+Async play with AbortError handling. Notifies App.jsx via onMusicStart callback.
+Returns null when dismissed, musicStarted, or isMuted.
+
+--- client/data/music.js ---
+~11 lines. Music track definitions for background music selection.
+MUSIC_TRACKS array: 5 tracks with id, name, shortName, artist, file path.
+DEFAULT_TRACK: first track (Waves by Audiopanther).
+Tracks: Waves, Try It, Imperfections, Géminis, A Thousand Suns.
+Files stored in public/assets/music/ (served at /assets/music/ paths).
+
+================================================================================
+                           SERVER REFERENCE
+================================================================================
+
+--- server.js ---
+- Express + Socket.io setup
+- Serves static files from client/dist/ (production build)
+- API routes: /api/users, /api/auth, /api/friends
+- MongoDB connection via process.env.MONGODB_URI
+- JWT authentication middleware available
+- Port: process.env.PORT || 3000
+
+--- src/sockets.js (~5400 lines) ---
+  onlineUsers Map                  ~line 5   (userId -> { socketId, status, roomId })
+  TRIVIA_QUESTIONS_BY_DIFFICULTY   ~line 8   (50+ questions per difficulty level, server-side only)
+  TRIVIA constants                 ~line 96  (durations, points, multipliers)
+  PICTIONARY_WORDS array           ~line 110
+  disconnectedPlayers Map          ~line 130 (tracks disconnected players for rejoining)
+  expelledPlayers Map              ~line 134 (allows kicked players to rejoin within time window)
+  avatarSelectionTimers Map        ~line 138 (roomId:playerName -> { timer })
+  masterRooms Map                  ~line 142 (masterName -> roomId)
+  EXPELLED_REJOIN_WINDOW_MS (10min)  ~line 145 (window for kicked players to rejoin)
+  AVATAR_SELECTION_TIMEOUT_MS (30s)  ~line 146
+
+  NOTE: No auto-kick - players stay in room until master manually kicks them
+
+  --- Trivia Helper Functions ---
+  shuffleArray(array)              ~line 104 (Fisher-Yates shuffle for answer randomization)
+  getRandomTriviaQuestions()       ~line 270 (selects questions avoiding used IDs)
+  calculateTriviaPoints()          ~line 278 (base + time bonus * speed multiplier)
+  startTriviaRound()               ~line 290 (dynamic rules duration by round)
+  advanceTriviaQuestion()          ~line 340 (shuffles answers, tracks shuffledCorrectIndex)
+  revealTriviaAnswer()             ~line 400 (calculates points, updates scores, stores history)
+  showTriviaRecap()                ~line 470 (sends standings + question history for animation)
+  startNextTriviaRound()           ~line 495 (advances or ends game)
+  endTriviaGame()                  ~line 510 (final results with winner)
+
+  --- Pictionary Helper Functions ---
+  computeDrawingOrder(players)     ~line 150
+  pickWord(usedWords)              ~line 157
+  startRound(io, room, roomId)     ~line 163 (emits gameTimerStart { endTime } after 10s)
+  advanceRound(io, room, roomId)   ~line 189 (skips disconnected drawers, compiles gameHistoryEntry)
+
+  --- Socket Handlers ---
+  createRoom handler               ~line 560 (closes old room if master has one, starts avatar timer)
+  joinRoom handler                 ~line 628 (name uniqueness, closes old master room, avatar timer)
+  rejoinRoom handler               ~line 710 (includes gameHistory + gameSync for mid-game rejoin)
+  leaveRoom handler                ~line 740 (voluntary exit, removes player, closes room if master)
+  setAfkStatus handler             ~line 770 (sets player.isAfk, broadcasts playerAfkChanged)
+  requestGameSync handler          ~line 790 (returns noActiveGame or full game state, trivia-aware)
+  toggleGame handler               ~line 820
+  startGame handler                ~line 835 (detects gameType, routes to trivia or pictionary init)
+  triviaAnswer handler             ~line 870 (validates, stores answer, checks if all answered)
+  triviaNextRound handler          ~line 900 (master advances from recap)
+  drawLine handler                 ~line 920
+  clearCanvas handler              ~line 935
+  pauseGame handler                ~line 951
+  resumeGame handler               ~line 965
+  gameGuess handler                ~line 997
+  winnerPicked handler             ~line 1017
+  kickPlayer handler               ~line 1070 (master only)
+  skipPlayerTurn handler           ~line 1140 (master only)
+  endGameEarly handler             ~line 1190 (master only, supports trivia)
+  noWinner handler                 ~line 1220
+  chatMessage handler              ~line 1240
+  changeAvatar handler             ~line 1255 (cancels avatar selection timer on selection)
+  disconnect handler               ~line 1290 (cancels avatar timer, handles drawer disconnect)
+
+================================================================================
+                          SOCKET EVENTS
+================================================================================
+
+Client -> Server:
+  createRoom        { roomName, playerName, avatar }
+  joinRoom          { roomId, playerName, avatar }
+  rejoinRoom        { roomId, playerName, avatar }
+  leaveRoom         { roomId }           (voluntary room exit, removes player cleanly)
+  toggleGame        { roomId, gameId }
+  startGame         { roomId }
+  chatMessage       { roomId, message }
+  changeAvatar      { roomId, avatar }
+  setAfkStatus      { roomId, isAfk }    (player AFK status when navigating away)
+  requestGameSync   { roomId }           (request game state sync after visibility change)
+  kickPlayer        { roomId, playerName }  (master only, kicks player from room)
+  endGameEarly      { roomId }           (master only, works for all game types)
+  userOnline        { userId }           (user connected for online status)
+  getFriendsStatus  { friendIds }        (request friends' online status)
+
+  --- Pictionary-specific ---
+  drawLine          { roomId, x0, y0, x1, y1, color, size }
+  clearCanvas       { roomId }
+  gameGuess         { roomId, message }
+  winnerPicked      { roomId, winnerName, timerExpired }
+  noWinner          { roomId }
+  pauseGame         { roomId, pickDuration }
+  resumeGame        { roomId }
+  skipPlayerTurn    { roomId, playerName }  (master only, skips drawer's turn)
+  skipWord          { roomId }              (drawer skips current word, gets new one)
+
+  --- Trivia-specific ---
+  triviaAnswer      { roomId, answerIndex }  (player submits answer)
+  triviaNextRound   { roomId }               (master advances from recap screen)
+  triviaRevealAll   { roomId }               (master reveals all questions at once)
+  mathRevealAll     { roomId }               (same as above for Quick Math)
+
+Server -> Client:
+  roomCreated       (room object)
+  roomJoined        (room object)
+  rejoinSuccess     (room object + gameHistory)
+  rejoinFailed      { message }
+  playerJoined      { roomId, player, avatar }
+  playerLeft        { roomId, playerName }
+  playerAfkChanged  { roomId, playerName, isAfk }  (broadcast when player AFK status changes)
+  playerRejoined    { roomId, playerName, avatar }
+  gamesUpdated      { roomId, selectedGames }
+  gameStarting      { roomId, drawingOrder, totalRounds, currentRound, gameType }
+  gameEnded         { finalScores, gameHistory, cancelled? }
+  scoresUpdated     { players }
+  chatMessage       { player, avatar, message, timestamp }
+  avatarChanged     { roomId, playerName, avatar }
+  avatarTaken       { avatar }
+  error             { message }
+  playerDisconnected { playerName }      (player disconnected during game)
+  playerKicked      { roomId, playerName } (player was kicked by master)
+  youWereKicked     { roomId }           (sent to kicked player)
+  roomClosed        { roomId, reason }   (room closed, e.g. master left/created new room)
+  removedForNoAvatar { roomId }          (kicked for not selecting avatar in 30s)
+  friendOnline      { userId, status }   (friend came online)
+  friendOffline     { userId }           (friend went offline)
+  friendsStatus     { [userId]: status } (batch friends status response)
+
+  --- Pictionary-specific ---
+  gameStarted       { drawerName, currentRound, totalRounds, currentPickValue }
+  yourWord          { word }              (sent only to drawer)
+  nextRound         { drawerName, currentRound, totalRounds, currentPickValue }
+  drawLine          { x0, y0, x1, y1, color, size }
+  clearCanvas       ()
+  gameGuess         { player, avatar, message, timestamp }
+  roundResult       { winnerName, points, currentRound, totalRounds }
+  winnerPicked      { winnerName, drawerName, points, word }
+  gameTimerStart    { endTime }       (absolute ms timestamp when timer expires)
+  continueDrawing   { nextPickValue, endTime }
+  gamePaused        { pickDuration }
+  gameResumed       { endTime }
+  gameSync          { endTime, timerPaused, drawingOrder, noActiveGame, ... }
+  drawerSkipped     { playerName, reason } (drawer turn skipped: disconnect/master_skipped)
+  wordSkipped       { drawerName }         (drawer skipped word, canvas cleared)
+
+  --- Trivia-specific ---
+  triviaRulesStart  { rulesEndTime, round, totalRounds, isSpeedRound, questionsInRound }
+  triviaQuestion    { question, answers, category, questionEndTime, questionNumber, ... }
+  triviaAnswerReceived { playerName }    (player answered, for UI feedback)
+  triviaReveal      { correctIndex, correctAnswer, playerResults }
+  triviaRecap       { round, totalRounds, standings, questionHistory, isLastRound }
+  triviaRevealAll   { questionHistory, standings }  (broadcast reveal all to all players)
+  mathRevealAll     { questionHistory, standings }  (same for Quick Math)
+  triviaFinalResults { winner, finalStandings }
+  triviaSync        { phase, currentRound, questionEndTime, hasAnswered, playerProgress, ... }
+
+================================================================================
+                          KEY STATE VARIABLES (App.jsx)
+================================================================================
+
+- page                   - 'landing'|'rejoining'|'room'|'countdown'|'game'|'login'|'profile'|'friends'|'settings'|'help'
+- currentRoom            - full room object from server
+- isMaster               - boolean, room creator privileges
+- playerName             - string
+- selectedAvatar         - string (avatar id)
+- theme                  - 'tron'|'kids'|'scary'
+- selectedGames          - array of game IDs (server removes completed games from queue)
+- completedGames         - array of { gameId, timestamp, finalScores, roundScores }
+- drawingOrder           - array of { name, avatar, connected } sorted by score desc
+- currentRound           - number (1-indexed, 0 = not started)
+- totalRounds            - number (= number of players)
+- gameType               - 'pictionary'|'trivia' (captured from gameStarting event)
+- gameHistory            - array of game history entries (populated from gameEnded/rejoinSuccess)
+- showChatModal          - boolean, mobile chat modal
+- unreadCount            - number, unread messages
+- chatAutoScroll         - boolean
+- isMobilePortrait       - boolean, reactive media query
+- avatarPickerMode       - 'initial'|'change'|null
+- showMasterTips         - boolean
+- qrExpanded             - boolean
+- characterInfoModal     - object|null
+- playerProfileModal     - object|null
+- selectedGameDesc       - object|null
+- selectedGameInfo       - object|null
+- showGameSelector       - boolean
+- selectorMinAge, selectorMaxPlayers, selectorSortBy  - filter state
+- user                   - logged in user object or null (auth)
+- isLoggedIn             - boolean (auth state)
+- musicStarted           - boolean, whether music has been started this session
+- selectedTrack          - object, currently selected music track from MUSIC_TRACKS
+- audioRef               - ref to global audio element for background music
+
+KEY STATE VARIABLES (LandingPage.jsx - local):
+- showDevButtons         - boolean, toggled by backtick key
+- showDismissConfirm     - boolean, dismiss rejoin warning modal
+
+KEY STATE VARIABLES (RoomPage.jsx - local):
+- confirmKick            - object|null, { playerName } for kick confirmation modal
+- showLeaveConfirm       - boolean, leave room confirmation modal
+- afkInfoPlayer          - object|null, { name } for AFK info modal
+
+KEY STATE VARIABLES (PictionaryGame.jsx - local):
+- guessCooldown          - boolean, 3-second cooldown after sending guess
+- chatInputRef           - ref to chat input for mobile scroll handling
+- confirmAction          - object|null, { type: 'kick'|'skip'|'skipSelf', playerName }
+
+KEY STATE VARIABLES (TriviaGame.jsx - local):
+- phase                  - 'rules'|'question'|'reveal'|'recap'|'speedRound'|'speedRecap'|'finalRecap'
+- currentQuestion        - string, current question text
+- answers                - array, 6 shuffled answer options
+- selectedAnswer         - number|null, index of selected answer
+- hasAnswered            - boolean, whether player has submitted answer
+- timer                  - number, seconds remaining for question
+- rulesTimer             - number, seconds remaining for rules modal
+- isSpeedRound           - boolean, Round 4 indicator
+- recapQuestionIndex     - number, current question being revealed in recap animation (-1 = not started)
+- revealedPlayers        - object, { playerName: { revealed: true, correct: boolean } } for cascade reveal
+- animatedStandings      - array, standings updated as recap animates (starts from previousRoundScores)
+- previousRoundScores    - object, frozen scores from previous round's recap {playerName: score}
+- questionEndTimeRef     - ref to absolute timer end timestamp
+- speedRecapPhase        - 'race'|'winner'|'leaderboard'|'animating'|'final' (speed round recap flow)
+- raceData               - object, speed round race results (raceData, winner, maxCorrect)
+- preSpeedStandings      - array, standings before speed round for animation
+- animatedFinalScores    - object, {playerName: animatedScore} for speed recap animation
+
+================================================================================
+                         CONTENT REFERENCE
+================================================================================
+
+THEMES (3 total):
+  Tron   - Cyan/neon glow, grid backgrounds, futuristic (Orbitron font)
+  Kids   - Purple pastels, bubbles, kid-friendly colors
+  Scary  - Orange/red tones, dark backgrounds, spooky
+
+MUSIC TRACKS (5 total):
+  Waves          - Audiopanther (default)
+  Try It         - NM
+  Imperfections  - nuer self
+  Géminis        - Tomas Novoa
+  A Thousand Suns - Damon Power
+
+CHARACTERS (70+):
+  Tron Theme (30 characters):
+    Common: 10 (unlocked by default - no glow)
+    Uncommon: 5 (locked, easy achievements - no glow)
+    Rare: 5 (locked, medium achievements - subtle cyan glow)
+    Epic: 5 (locked, hard achievements - purple glow)
+    Legendary: 5 (locked, extremely hard achievements - orange glow)
+  Kids Theme (20 characters):
+    Common: 10, Uncommon: 3, Rare: 3, Epic: 2, Legendary: 2
+  Scary Theme (20 characters):
+    Common: 10, Uncommon: 3, Rare: 3, Epic: 2, Legendary: 2
+  Meta: 1 (placeholder during avatar selection)
+
+RARITY COLORS (rarityConfig in themes.js):
+  Common:    #6b7fa3 (greyish blue) - no glow
+  Uncommon:  #2dd4a0 (green/teal) - no glow
+  Rare:      #00d4ff (cyan) - subtle glow
+  Epic:      #a855f7 (purple) - medium glow
+  Legendary: #ff7b00 (orange) - intense glow
+
+GAMES:
+  16 games with metadata. Only Pictionary has full game logic.
+
+DEV BUTTONS (Landing page):
+  DEV: Pictionary     - game page, 4 players, master
+  DEV: Master Room    - room page, 8 players, 7 games, master
+  DEV: Join as Player - room page, 8 players, 3 games, not master
+
+================================================================================
+                          GAME RULES -- PICTIONARY
+================================================================================
+
+MULTI-ROUND GAME FLOW:
+  1. Master clicks "Start Game" -> server computes drawing order, emits gameStarting
+  2. 3-2-1 countdown (round 1 only)
+  3. Server calls startRound -> emits gameStarted + yourWord to drawer
+  4. Rules Modal appears with 10s countdown (every round)
+  5. At countdown = 0: modal closes, 60s game timer starts, drawing enabled
+  6. Drawer draws, guessers type guesses
+  7. Drawer clicks "Pick Winner" -> emits pauseGame -> ALL players' timers pause,
+     chat freezes for guessers, non-drawers see "Drawer is picking a winner!" overlay
+  8. Drawer selects winner -> escalating pts each -> 2s announcement -> canvas clears ->
+     new word assigned -> timer resumes -> continue drawing
+  9. Drawer can pick multiple winners per turn (new word each time)
+  10. If 60s timer expires with guesses: Timer End Modal with 10s pick timer at 50 pts
+  11. If 60s timer expires with no guesses: auto noWinner
+  12. After turn ends: 3s result display ("Round Finished! Next drawer starting in 3s...")
+  13. Server advances: more rounds -> nextRound; all done -> gameEnded -> room page
+
+ROLES:
+  Drawer: sees word, draws on canvas, picks winners, cannot guess
+  Guesser: watches drawing, types guesses, cannot draw
+
+POINTS SYSTEM (FLAT):
+  300 pts per correct guess for both drawer and guesser.
+  Multiple winners possible per turn (drawer earns 300 pts per pick too).
+  0 pts if no winner selected.
+
+SERVER-DRIVEN PAUSE:
+  Drawer clicks "Pick Winner" -> emits pauseGame { roomId, pickDuration: 5 }
+  Server: paused=true, captures timerRemainingMs, clears timerEndTime,
+    broadcasts gamePaused { pickDuration }
+  All clients: timerEndTimeRef=null, timerPaused=true, chatFrozen=true
+  Non-drawer clients: show overlay with countdown from pickDuration
+  Server blocks gameGuess while paused
+  Cancel pick: emits resumeGame -> server computes new endTime from timerRemainingMs,
+    broadcasts gameResumed { endTime } -> all clients restore timerEndTimeRef and resume
+  Pick timer expiry: auto-closes modal, emits resumeGame
+  continueDrawing: server computes new endTime from timerRemainingMs,
+    emits continueDrawing { nextPickValue, endTime }
+
+RACE CONDITION GUARD:
+  winnerPendingRef set to true when selectWinner is called.
+  Prevents timer-expiry logic from firing while server processes the pick.
+  Cleared on continueDrawing, roundResult, winnerPicked, nextRound events.
+
+COUNTDOWN TIMERS:
+  Rules Countdown (10s): drawing disabled, game timer paused until 0
+  Game Timer (60s): server-authoritative — server sends absolute endTime (Date.now()+60000),
+    client computes display via Math.ceil((endTime - Date.now()) / 1000) every 250ms.
+    All clients converge on the same second regardless of network latency.
+    Server stores timerEndTime on room.game; captures timerRemainingMs on pause,
+    recomputes new endTime on resume/continueDrawing. Pulses red at <=10s.
+  Pick Timer: 5s mid-game (Pick Winner), 10s at timer end, auto-expiry
+
+END GAME EARLY (Master only):
+  Master clicks "End" button in game header -> confirmation modal.
+  All points reset to 0. Game ends without recording history.
+  Server emits gameEnded with cancelled: true.
+
+GAME HISTORY:
+  Server compiles at game end: { game, timestamp, finalScores, roundScores }
+  Stored in room.gameHistory array (in-memory, per room).
+  Sent to clients via gameEnded and rejoinSuccess events.
+  PlayerProfile shows per-player history: total pts, placement, round breakdown.
+  roundScores groups by round and sums (player can earn multiple times per round).
+
+DRAWING ORDER:
+  Sorted by score desc, random tiebreakers. Each player draws once.
+  UI shows Done/Drawing Now/Up Next states + player scores.
+
+WORD LIST (30 words in src/sockets.js):
+  ELEPHANT, PIZZA, RAINBOW, ROCKET, CASTLE, GUITAR, ROBOT, TREASURE, UNICORN,
+  DRAGON, MOUNTAIN, AIRPLANE, BIRTHDAY, TELESCOPE, WATERFALL, DINOSAUR,
+  BUTTERFLY, SNOWMAN, PIRATE, VOLCANO, BANANA, LIGHTHOUSE, SKATEBOARD,
+  MERMAID, TORNADO, SUNFLOWER, SPACESHIP, CAMPFIRE, PENGUIN, JELLYFISH
+
+VALIDATION (server-side):
+  - Only drawer can drawLine, clearCanvas, winnerPicked, noWinner, pauseGame, resumeGame
+  - Only master can endGameEarly, kickPlayer, skipPlayerTurn
+  - Master cannot kick themselves
+  - skipPlayerTurn only works on the current drawer
+  - Player names unique per room (case-insensitive, checked on joinRoom)
+  - Drawer disconnect during game -> marks player.connected=false, skips their turn
+  - Disconnected players shown with offline indicator in drawing order
+  - Guesses blocked while game is paused
+  - 3-second guess cooldown enforced client-side (prevents spam)
+  - Avatar selection timeout: 30s to select non-meta avatar or get removed
+  - kickPlayer/skipPlayerTurn emit error messages on validation failure (not silent)
+
+VISIBILITY CHANGE HANDLING:
+  - When player locks phone or switches tabs, game may appear frozen on return
+  - Client listens for 'visibilitychange' event
+  - On return to visible: emits requestGameSync { roomId }
+  - Server responds with gameSync { endTime, timerPaused, currentRound, ... }
+  - Client restores timer state and game continues
+
+PLAYER DISCONNECT HANDLING:
+  - Server tracks player.connected status on each player object
+  - On disconnect: emits playerDisconnected { playerName }
+  - advanceRound skips disconnected drawers automatically
+  - UI shows offline players with grayscale avatar + "OFFLINE" badge
+  - Game continues with remaining connected players
+
+================================================================================
+                          GAME RULES -- TRIVIA
+================================================================================
+
+SIMULTANEOUS-PLAY GAME FLOW:
+  1. Master clicks "Start Game" with Trivia Master selected -> gameStarting with gameType='trivia'
+  2. 3-2-1 countdown -> TriviaGame mounts
+  3. Round 1 starts: Rules modal (10s) with full game explanation
+  4. For each question in round:
+     a. Server sends triviaQuestion with shuffled answers
+     b. All players answer simultaneously (10s timer, 5s for speed round)
+     c. triviaAnswerReceived updates UI showing who has answered
+     d. Timer expires OR all answered -> triviaReveal (3s showing correct answer + points)
+     e. Advance to next question
+  5. After all questions: triviaRecap with animated question review + live leaderboard
+  6. Master clicks "Next Round" -> startNextTriviaRound
+  7. Rounds 2-3: Rules modal (3s) "Same rules! Get ready!"
+  8. Round 4 (Speed): Rules modal (5s) big red pulsating "SPEED ROUND! EXTRA POINTS!"
+  9. After Round 4: triviaFinalResults -> winner celebration -> return to room
+
+GAME STRUCTURE:
+  - 4 rounds total
+  - Rounds 1-3: 5 questions each, 10 seconds per question, simultaneous play
+  - Round 4 (Speed Round): Individual race format, each player answers independently
+  - Answer choices: 6 per question (Easy through Genius), 4 for Super Easy/Very Easy, 2 for Yes/No
+  - Kid-friendly pop culture questions across 6 categories
+
+SCOREBOARD BEHAVIOR:
+  - Question phase: FROZEN at previous round's final scores (uses previousRoundScores state)
+  - Reveal phase: FROZEN (same as question phase, no updates or indicators)
+  - Recap phase: STARTS with previousRoundScores, UPDATES as questions are revealed,
+    ENDS with final scores that become next round's frozen scores
+
+POINTS SYSTEM:
+  BASE_POINTS = 100
+  TIME_BONUS_MAX = 50       (bonus for fast answers)
+  SPEED_MULTIPLIER = 2      (Round 4 only)
+
+  Points = (BASE_POINTS + time_bonus) * multiplier
+  Time bonus formula: TIME_BONUS_MAX * (1 - timeTaken / questionDuration)
+  Example: Answer in 2s of 10s = 100 + 40 = 140 pts
+  Example: Speed round fast answer = (100 + 50) * 2 = 300 pts
+
+DYNAMIC RULES MODAL:
+  - Round 1: 10 seconds, full rules explanation
+    • 6 answer choices per question
+    • 10 seconds to answer
+    • Faster answers = more points
+    • Round 4 is Speed Round with double points
+  - Rounds 2-3: 3 seconds, simple "Same rules! Get ready!"
+  - Round 4: 5 seconds, big red pulsating "SPEED ROUND! EXTRA POINTS! BE QUICK!!!"
+
+SPEED ROUND (ROUND 4) - INDIVIDUAL RACE FORMAT:
+  - Each player plays independently (not simultaneous)
+  - 60 seconds total, answer as many questions as possible
+  - Correct answer: 1s delay showing green confirmation, then next question
+  - Wrong answer: immediate next question (no delay)
+  - Race visualization: players move along track based on correct answers
+  - Race winner = player with most correct answers (points as tiebreaker)
+
+SPEED RECAP FLOW (after race ends):
+  1. Race phase (3s): Shows race result overlay on track
+     - "You won the race!" or "{name} wins the race!" + speed points earned
+  2. Winner phase (4s): "Speed Round Results"
+     - Shows race winner with crown, all players' speed points
+  3. Leaderboard phase (2.5s): "Final Standings"
+     - Shows scores BEFORE speed round was added
+  4. Animating phase (2s): "Adding speed round points..."
+     - Scores animate up as speed points are added
+  5. Final phase (5s): "Game Winner!"
+     - Shows overall game winner with celebration
+     - All players show "+X from speed round" indicator
+  6. Countdown (5s): "Returning to game room in X..."
+
+ANIMATED RECAP (Master-Controlled, Simultaneous Difficulty Groups Display):
+  - Master controls timing with two buttons:
+    • "Reveal All Questions" - instantly shows all Q&A with player results
+    • "Go to Next Round" - advances when master is ready (no auto-progression)
+  - ALL difficulty groups' questions shown vertically at once (not sequentially)
+  - Each group shows: [Difficulty] question text, correct answer, player results
+  - Cascade player reveal animation (150ms stagger per player)
+  - Coin pop animation (animate-coinPop) for correct answers with points
+  - Cross animation (animate-wrongCross) for wrong answers
+  - Player slide-in animation (animate-playerReveal) for cascade effect
+  - Dynamic viewing time: 3s base + 1s per additional group (if not using Reveal All)
+  - Leaderboard updates after player reveals complete (or instantly with Reveal All)
+  - Non-masters see "Waiting for game master to continue..." when ready
+
+ANSWER RANDOMIZATION:
+  - Server shuffles answers using Fisher-Yates algorithm
+  - shuffledCorrectIndex tracked for scoring validation
+  - Prevents "correct answer is always A" pattern
+
+SERVER GAME STATE (room.game for trivia):
+  {
+    gameType: 'trivia',
+    currentRound: 1,                  // 1-4
+    totalRounds: 4,
+    currentQuestionIndex: 0,          // 0-4 or 0-9 for speed round
+    questionsPerRound: [5, 5, 5, 10],
+    roundQuestions: [...],            // Questions for current round
+    currentQuestion: {                // Current question with shuffled data
+      ...question,
+      shuffledAnswers: [...],
+      shuffledCorrectIndex: 2
+    },
+    questionEndTime: Date.now() + 10000,  // Server-authoritative timer
+    questionStartTime: Date.now(),
+    rulesEndTime: Date.now() + 10000,
+    phase: 'rules' | 'question' | 'reveal' | 'recap' | 'finalRecap',
+    answers: { playerName: { answerIndex, timestamp } },
+    questionHistory: [...],           // For recap animation
+    isSpeedRound: false,
+    usedQuestionIds: []
+  }
+
+RECONNECTION HANDLING:
+  - On mount: socket.emit('requestGameSync', { roomId })
+  - On visibility change (tab return): same sync request
+  - Server responds with triviaSync including full phase/timer state
+  - Client restores phase, question, timer from sync data
+
+TIMER SYNC (same pattern as Pictionary):
+  - Server sends absolute timestamp (questionEndTime)
+  - Client stores in ref, ticks every 250ms computing remaining
+  - All clients converge on same second regardless of latency
+
+================================================================================
+                          GAME RULES -- QUICK MATH
+================================================================================
+
+SIMULTANEOUS-PLAY GAME FLOW:
+  1. Master clicks "Start Game" with Quick Math selected -> gameStarting with gameType='quickmath'
+  2. 3-2-1 countdown -> QuickMathGame mounts
+  3. Round 1 starts: Rules modal (10s) with full game explanation
+  4. For each question in round:
+     a. Server sends mathQuestion with category and question string
+     b. All players type answer using NumberPad (15s timer)
+     c. mathAnswerReceived updates UI showing who has answered
+     d. Timer expires OR all answered -> mathReveal (3s showing correct answer + points)
+     e. Advance to next question
+  5. After all questions: mathRecap with animated question review + live leaderboard
+  6. Rounds 2-3: Rules modal (3s) "Same rules! Get ready!"
+  7. Round 4 (Speed): Rules modal (5s) big red pulsating "SPEED ROUND!"
+     - Speed round uses multiple choice (4 options) not NumberPad
+  8. After Round 4: mathFinalResults -> winner celebration -> return to room
+
+GAME STRUCTURE:
+  - 4 rounds total
+  - Rounds 1-3: 5 questions each, 15 seconds per question, simultaneous play
+  - Round 4 (Speed Round): Individual race format, 60s total, multiple choice (4 options)
+  - Kid-friendly math questions across 4 categories (Addition, Subtraction, Multiplication, Division)
+
+INPUT METHODS:
+  - Normal rounds (1-3): NumberPad with 0-9, Clear, Backspace, Submit
+    • Max 6 digits, exact numeric match required (42 = 42)
+    • Compact mobile-optimized layout
+  - Speed round (4): Multiple choice with 4 options
+    • 1 correct + 3 nearby wrong answers (±1, ±2, ±5, ±10 offsets)
+
+SCOREBOARD BEHAVIOR (same as Trivia):
+  - Question phase: FROZEN at previous round's final scores (uses previousRoundScores state)
+  - Reveal phase: FROZEN (same as question phase, no updates)
+  - Recap phase: STARTS with previousRoundScores, UPDATES as questions are revealed
+
+POINTS SYSTEM:
+  MATH_BASE_POINTS = 100
+  MATH_TIME_BONUS_MAX = 50       (bonus for fast answers)
+  MATH_SPEED_FIXED_POINTS = 200  (fixed per correct in speed round)
+
+  Normal: Points = BASE_POINTS + time_bonus (max 150 per question)
+  Speed: Points = 200 per correct answer (no time bonus, fixed)
+
+WINNER CELEBRATION:
+  - After final standings update, 1.5s delay triggers winner celebration overlay
+  - Full-screen overlay with confetti animation, trophy, winner's avatar
+  - Text: "You won the Quick Math Game!" or "{name} won the Quick Math Game!"
+  - "View Standings" button dismisses overlay
+
+SERVER GAME STATE (room.game for quickmath):
+  {
+    gameType: 'quickmath',
+    currentRound: 1,                  // 1-4
+    totalRounds: 4,
+    currentQuestionIndex: 0,
+    questionsPerRound: [5, 5, 5, 30],
+    currentQuestion: { id, category, question, answer },
+    questionEndTime: Date.now() + 15000,  // 15s for typing
+    rulesEndTime: Date.now() + 10000,
+    phase: 'rules' | 'question' | 'reveal' | 'recap' | 'finalRecap',
+    answers: { playerName: { answer: number, timestamp } },
+    questionHistory: [...],
+    isSpeedRound: false,
+    usedQuestionIds: [],
+    playerProgress: {}                // Speed round per-player state
+  }
+
+KEY FILES:
+  - client/game/QuickMathGame.jsx (~1850 lines): Main game component with NumberPad
+  - client/data/mathQuestions.js (~175 lines): 110 questions + helper functions
+  - src/sockets.js: Math game handlers (startMathRound, advanceMathQuestion, etc.)
+
+================================================================================
+                          ACHIEVEMENT & STATS SYSTEM
+================================================================================
+
+OVERVIEW:
+  Player stats are tracked for avatar unlocks and profile display.
+  Works for both logged-in users (MongoDB) and guests (sessionStorage).
+  Stats sync to database with 2-second debounce after changes.
+
+KEY FILES:
+  - client/hooks/usePlayerStats.js: Main hook for stats and unlock management
+  - client/data/achievements.js: DEFAULT_STATS, UNLOCK_CONDITIONS, helpers
+  - client/modals/AchievementModal.jsx: Treasure chest unlock animation
+  - client/components/CharacterAvatar.jsx: Rarity-based avatar colors and glow
+
+STATS TRACKED (DEFAULT_STATS):
+  gamesPlayed, wins, roomsCreated, chatMessagesSent, roomsJoined,
+  gamesWithFourPlusPlayers, gameTypesPlayed[], fastWins,
+  highestSingleGameScore, highestGameTotalPoints,
+  consecutiveRoundWins, maxConsecutiveRoundWins,
+  currentWinStreak, bestWinStreak, winsInLargeRooms,
+  comebackWins, dominationWins, consecutiveDaysWithWin, lastWinDate,
+  uniqueRoomWins{}, uniqueRoomWinCount, charactersWonWith[], totalPoints
+
+WHEN STATS ARE RECORDED:
+  - roomsCreated: onRoomCreated socket handler
+  - roomsJoined: onRoomJoined socket handler
+  - chatMessagesSent: sendLobbyChat function
+  - Game stats: onGameEnded via playerStatsRef.current.recordGameComplete()
+
+UNLOCK CONDITIONS (examples):
+  Uncommon: 1 game played, 1 win, 3 rooms created, 25 messages, 5 rooms joined
+  Rare: 25 wins + 500 score, 10 consecutive round wins, 10 win streak
+  Epic: Similar to rare with higher thresholds
+  Legendary: 3 comeback wins, 3 domination wins, 30-day streak, 20 unique rooms
+
+ACHIEVEMENT MODAL FLOW:
+  1. Stat update triggers checkUnlocks() in usePlayerStats
+  2. New unlocks added to pendingUnlocks queue
+  3. Auto-shows AchievementModal with treasure chest animation
+  4. Chest shakes → opens → reveals avatar with rarity glow
+  5. User dismisses → next unlock shown (if any)
+
+CHARACTER AVATAR COMPONENT:
+  Props: characterId, size, rarity, isLocked, showGlow, className
+  Glow settings scale with size:
+    - Rare: blur=6%, opacity=0.1, size=85%
+    - Epic: blur=10%, opacity=0.22, size=95%
+    - Legendary: blur=14%, opacity=0.38, size=100%
+  Uses z-index layering (glow z-0, avatar z-1) for proper rendering
+
+================================================================================
+                         IMPORTANT TECHNICAL NOTES
+================================================================================
+
+VITE CONFIG (client/vite.config.js):
+- Dev server on port 5173
+- Proxy: /socket.io + /api + /assets -> localhost:3000
+- Build output: client/dist/
+- Static assets (music, images) in public/ folder served via Express static middleware
+- server.js serves public/ folder at root (express.static)
+
+RESPONSIVE DESIGN:
+- isMobilePortrait: reactive matchMedia ('(max-width: 767px) and (orientation: portrait)')
+- Mobile portrait: floating chat icon + modal; Desktop: inline chat
+- Fixed bottom bar: stacked (portrait) vs side-by-side (landscape/desktop)
+- Game page mobile: title row centered (md:hidden), chat fixed to bottom (max 30vh)
+- Game page: outer div has pb-[32vh] md:pb-4 to account for fixed chat on mobile
+- Header: responsive sizing with w-9 h-9 sm:w-10 sm:h-10 buttons, reduced padding on mobile
+- public/index.html: html/body have overflow-x: hidden, max-width: 100vw to prevent horizontal scroll
+- Chat input: onFocus scrolls to top on mobile to keep canvas visible when keyboard appears
+
+VISIBILITY API HANDLING:
+- PictionaryGame listens for 'visibilitychange' event
+- When document.visibilityState becomes 'visible': emits requestGameSync { roomId }
+- Server responds with current game state to resync timer
+- Prevents game appearing frozen after locking phone or switching tabs
+
+SESSION PERSISTENCE:
+- localStorage key: 'gamehub_session' (survives browser close/refresh)
+- Saves: roomId, playerName, avatar, isMaster, theme, page, selectedGames, rejoinToken
+- On refresh: loadSession -> restore -> page='rejoining' -> rejoinRoom
+- Server grace period: 3 minutes before removing player from room
+- Expelled players cache: 10-minute window to rejoin after being removed
+- Rejoin tokens: UUID generated per player, stored in session, validated on rejoin
+- Multi-layer reconnection: grace period → expelled cache → localStorage persistence
+- goToLanding() does NOT clear session (preserves for rejoin button)
+- Landing page shows red rejoin button when pendingSession has roomId
+- handleRejoinFromLanding uses socket.once() to avoid dangling listeners
+- isMaster verified from room.master on rejoinSuccess (not just session data)
+
+================================================================================
+                         FEATURES COMPLETED
+================================================================================
+
+CORE FEATURES:
+  - Room creation/joining with 6-char UUID codes
+  - Real-time player tracking via Socket.io
+  - QR code generation for room sharing
+  - Game selection system (master toggles games on/off)
+  - Game settings modal: configure game-specific options (drawer time, trivia themes)
+  - Three-theme system with full styling per theme
+  - Character/avatar selection (70+ characters, 4 rarity tiers, server-side taken validation)
+  - Player name uniqueness per room (case-insensitive)
+  - Session persistence across page refresh (3-min grace period + 10-min expelled cache)
+  - Header rejoin button: appears when player has active session but navigates away
+  - Vite build system with HMR and component modules
+
+PICTIONARY GAME:
+  - Drawing canvas with color picker and brush controls
+  - Chat/guessing area with avatar bubbles
+  - 60s game timer, 6s rules countdown per round (reduced from 10s)
+  - Flat scoring: 300 pts for both drawer and guesser per correct guess
+  - Multiple winners per drawer turn (new word each pick)
+  - Server-driven timer pause: all clients sync when drawer picks winner
+  - Chat freeze for guessers during pause
+  - Drawer picking overlay with countdown for non-drawers
+  - Race condition guard (winnerPendingRef) for timer expiry vs pick
+  - Pick timer: 5s mid-game, 10s timer-end, auto-expiry
+  - Word selection: easy words only (150+ simple objects/actions), auto-select random if no pick
+  - Skip Word button: drawer can skip current word and get a new one (clears canvas for all)
+  - Word display on canvas: shown during countdown (so drawer can prepare) and during drawing (top-left)
+  - Rules modal with countdown each round
+  - Drawing order with Done/Drawing Now/Up Next/Offline states + scores
+  - End Game button (master only) with confirmation modal
+  - Game history tracking: compiled at game end, stored per room
+  - Correct Guesses list: running tally across rounds
+  - Server-authoritative timer sync: absolute endTime + client clock offset eliminates cross-client drift
+  - 3-second guess cooldown (prevents spam)
+  - Visibility change handling (game sync on tab/app return)
+  - Player disconnect handling: offline indicator, drawer disconnect PAUSES game (not skips)
+  - Drawer reconnection: game resumes with remaining time when drawer returns
+  - Drawer grace period expiry: skip turn and advance to next round if drawer doesn't return
+  - Mobile keyboard scroll fix: scrolls to top when input focused
+  - Touch drawing fix: non-passive event listeners prevent page scroll while drawing
+  - Prominent word display: gradient banner above header for drawer
+  - Master kick player: remove player from game mid-round with confirmation
+  - Master skip turn: skip current drawer's turn (or own turn) with confirmation
+  - Winner celebration: WinnerCelebration component with confetti/coins, full leaderboard (8s auto-dismiss)
+
+TRIVIA GAME:
+  - Simultaneous-play mechanics for rounds 1-3 (all players answer at once)
+  - 4 rounds: Rounds 1-3 (configurable questions), Round 4 (Speed Round individual race)
+  - Configurable settings (shared with Quick Math):
+    • Questions per round: 3-15 (default 5)
+    • Time per question: 10-30 seconds (default 15)
+    • Speed round duration: 30-120 seconds (default 60)
+  - 6 multiple-choice answers per question
+  - Answer randomization: server shuffles answers, tracks shuffledCorrectIndex
+  - Dynamic rules modal timing:
+    • Round 1: 10s with full rules explanation
+    • Rounds 2-3: 3s with "Same rules! Get ready!"
+    • Round 4: 5s with big red pulsating "SPEED ROUND!" animation
+  - Scoring: 100 base + up to 50 time bonus, 2x multiplier for speed round
+  - Server-authoritative timer sync (clock offset + absolute endTime)
+  - Prominent timer display: large pulsing timer inside question card (not in header)
+  - Frozen scoreboard during question/reveal phases (previousRoundScores state)
+  - Animated recap between rounds (simultaneous difficulty groups):
+    • ALL groups shown vertically at once (not sequential)
+    • Each group: [Difficulty] question, correct answer, player results
+    • Cascade player reveal animation (150ms stagger per player)
+    • Coin pop animation for correct, cross animation for wrong answers
+    • Dynamic viewing time: 3s base + 1s per additional group
+    • Leaderboard updates after player reveals complete
+    • Auto-advances to next round after animation completes
+  - Speed Round (Round 4) individual race format:
+    • Each player answers independently with 60s total time
+    • 1s delay after correct answer with green confirmation
+    • Race visualization showing player positions on shared track
+    • Points badge above each avatar during race (currentSteps * 200)
+    • Race winner announced with overlay when race completes
+  - Speed Recap multi-phase flow:
+    • Race result (3s) → Speed Round Results (4s) → Pre-speed standings (2.5s)
+    • → Animate points (2s) → Game Winner (5s) → Countdown (5s)
+  - Clear distinction between race winner (speed round) vs game winner (overall)
+  - Master-controlled round advancement (no auto-advance except after recap animation)
+  - Reveal All Questions sync: broadcasts to all players (not just local state)
+  - Flashing Next Round button: pulses after 10 seconds to prompt master
+  - Speed round reconnection fix: initializes playerProgress for rejoining players
+  - 290 kid-friendly pop culture questions (6 categories) - expanded from 105
+  - Category selection in game settings: master can select specific themes or "All Categories"
+  - Game settings (themes) carry over from room config to actual game
+  - Visibility change handling for mid-game rejoin
+  - Final results with winner celebration
+  - GamePage routes to TriviaGame based on gameType
+  - GameMasterControls: visible during ALL phases, includes:
+    • Customize Game - shows modal explaining settings must be changed from room, option to end game
+    • Kick Player - select and remove a player from the game
+    • End Game - end current game early, returns all players to room
+
+QUICK MATH GAME:
+  - Simultaneous-play mechanics for rounds 1-3 (all players answer at once)
+  - 4 rounds: Rounds 1-3 (configurable questions), Round 4 (Speed Round individual race)
+  - Configurable settings (shared with Trivia via GameSettingsModal):
+    • Questions per round: 3-15 (default 5)
+    • Time per question: 10-30 seconds (default 15)
+    • Speed round duration: 30-120 seconds (default 60)
+  - NumberPad input: custom 0-9 keypad with Clear, Backspace, Submit buttons
+  - Exact numeric match validation (typed answer must equal correct answer)
+  - Dynamic rules modal timing (same pattern as Trivia):
+    • Round 1: 10s with full rules explanation
+    • Rounds 2-3: 3s with "Same rules! Get ready!"
+    • Round 4: 5s with big red pulsating "SPEED ROUND!" animation
+  - Scoring: 100 base + up to 50 time bonus, 2x multiplier for speed round (200 fixed per correct)
+  - Server-authoritative timer sync (clock offset + absolute endTime)
+  - Prominent timer display: large pulsing timer inside question card (not in header)
+  - Frozen scoreboard during question/reveal phases (previousRoundScores state)
+  - Animated recap between rounds (master-controlled, same as Trivia):
+    • Master has "Reveal All Questions" button (syncs to all players via socket)
+    • Master has "Go to Next Round" button (flashes after 10 seconds)
+    • ALL groups shown vertically, cascade player reveal (150ms stagger)
+    • Coin pop for correct, cross for wrong answers
+    • Non-masters see "Waiting for game master to continue..."
+  - Speed round reconnection fix: initializes playerProgress for rejoining players
+  - Speed Round (Round 4) multiple choice format:
+    • 4 answer options (1 correct + 3 nearby wrong answers)
+    • 60s total time, individual pacing
+    • Race visualization with player avatars on shared track
+    • Points badge above each avatar during race (currentSteps * 200)
+  - Speed Recap multi-phase flow (same as Trivia):
+    • Race result → Speed Round Results → Pre-speed standings → Animate points → Game Winner
+  - Winner celebration overlay with confetti animation after final standings
+  - 110 kid-friendly math questions (4 categories: Addition, Subtraction, Multiplication, Division)
+  - Compact mobile-optimized layout (2-column grid for answered players + standings)
+  - GamePage routes to QuickMathGame based on gameType='quickmath'
+  - GameMasterControls: visible during ALL phases (Customize Game, Kick Player, End Game)
+
+UI/UX FEATURES:
+  - Header with theme switcher, separate mute button + music track selector, menu dropdown
+  - Music control split: mute button toggles sound, separate music icon for track selection
+  - Auto-unmute: selecting a track automatically unmutes and starts playback
+  - Music track selection: 5 background tracks selectable from header dropdown
+  - Global audio: music plays on ALL pages (including landing), persists across navigation
+  - Header dropdowns (music + menu) close on click-outside
+  - Mobile responsive: centered game title, fixed chat (max 30vh)
+  - Mobile header overflow fix: reduced padding and sizing
+  - Pick Winner button: green with pulsing animation
+  - Room page: players sorted by score with #1/#2/#3 placement badges
+  - Room page: kick button (X) on other players for master
+  - Room page: separate edit button overlay for changing own avatar
+  - Room page: clicking any avatar opens player profile
+  - Room chat with avatars, auto-scroll, mobile modal
+  - Player profile modal: dev data + real game history
+  - MusicButton redesigned: tooltip pointing to header, auto-dismiss after 5s
+  - Countdown page: always starts at 3
+  - Room scoreboard: scores ACCUMULATE across all games played in session
+  - End game early: preserves accumulated scores (only cancels current game's points)
+  - Reconnecting page: 5-second timeout redirects to landing page if rejoin fails
+  - Game Selector: "Coming Soon..." badge for unimplemented games (greyed out, not selectable)
+  - Avatar/Game Selector: padding fix prevents selection ring/scale from clipping at edges
+
+AFK & LEAVE ROOM SYSTEM:
+  - AFK detection: player marked AFK when navigating away or switching tabs
+  - Visibility API: uses document.hidden + page state to detect AFK
+  - AFK badge: cyan Tron-styled badge centered over avatar with slight fade (opacity-80)
+  - AFK badge clickable: shows info modal explaining player may be reconnecting
+  - AFK broadcasts: all players in room see AFK status changes in real-time
+  - AFK cleanup: status properly emitted in useEffect cleanup when navigating away
+  - Leave Room button: red button below players row for voluntary room exit
+  - Leave confirmation: modal warns that avatar will be removed before confirming
+  - Leave cleanup: clears session, resets state, navigates to landing page
+  - Master leave: if master leaves, room is closed for all players
+
+MASTER ROOM MANAGEMENT:
+  - Master can kick players from room lobby or during game
+  - Master can skip current drawer's turn (or their own turn)
+  - If master creates/joins another room, old room auto-closes
+  - Avatar selection timeout: 2 minutes to pick avatar or get removed
+  - Kicked players receive error message and return to landing
+  - isMaster status verified from server room data on rejoin (prevents stale session issues)
+  - Kick/skip validation failures now emit error messages (not silent)
+
+LANDING PAGE:
+  - Create/join room forms
+  - Rejoin button with dismiss confirmation (warns about being kicked)
+  - Dev buttons hidden by default (press backtick ` to show)
+  - "How It Works" section
+  - "Explore Games" with filters and game grid
+  - Avatar showcase: browse-only character grid by rarity with detail modal
+
+================================================================================
+                         NOT YET BUILT
+================================================================================
+
+  - Game logic for 13 remaining games (Pictionary, Trivia, Quick Math implemented)
+  - Frontend auth pages (LoginPage, ProfilePage, etc. - files exist but may need wiring)
+  - OAuth integration (Google/Discord - backend routes exist, need API keys configured)
+  - Leaderboards and player statistics
+  - Room persistence (rooms are in-memory only)
+  - Friends system frontend (FriendsPage exists, needs real-time status wiring)
+  - Avatar picker not wired into Create Room flow (only Join + change)
+  - Achievement/unlock tracking backend (unlock conditions defined in characters.js
+    as text, but no server-side tracking, progress persistence, or auto-unlock logic)
+  - Real data for player profiles, medals, stats (currently dummy data)
+  - Player profile data architecture (deferred -- user will decide)
+
+================================================================================
+                 LESSONS LEARNED -- FUTURE GAME DEVELOPMENT
+================================================================================
+
+This section captures critical patterns and gotchas discovered during Pictionary
+and Trivia development. Follow these guidelines to avoid re-learning mistakes.
+
+--------------------------------------------------------------------------------
+SCOREBOARD & STANDINGS MANAGEMENT
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Trivia scoreboard was updating during question phase, revealing who got answers
+  right before the reveal phase. Users complained multiple times about this.
+
+SOLUTION PATTERN:
+  1. Create a "frozen scores" state (e.g., previousRoundScores) that captures
+     standings at specific moments (end of recap/reveal phases)
+  2. Question/playing phases display FROZEN scores only
+  3. Reveal/recap phases can show live updates with animations
+  4. Save final scores to frozen state AFTER recap animation completes, not before
+
+CODE PATTERN:
+  const [previousRoundScores, setPreviousRoundScores] = useState({});
+
+  // In recap completion handler (AFTER animation, not at start):
+  const finalScores = {};
+  standings.forEach(p => { finalScores[p.name] = p.score; });
+  setPreviousRoundScores(finalScores);
+
+  // In question/reveal phase scoreboard:
+  .map(p => ({ ...p, displayScore: previousRoundScores[p.name] || 0 }))
+
+RULE: Decide upfront for each game phase whether scoreboard is:
+  - FROZEN (show previousRoundScores, no indicators)
+  - UPDATING (show live standings with +points animations)
+  - HIDDEN (don't show at all)
+
+--------------------------------------------------------------------------------
+PHASE TRANSITIONS & USER COMPREHENSION TIME
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Phases transitioning too fast. Users couldn't see who won, what happened,
+  or process results before the next thing appeared.
+
+SOLUTION PATTERN:
+  1. Add deliberate delays between phases (2-5 seconds typical)
+  2. Show clear announcements/celebrations before moving on
+  3. Use multi-phase recaps for complex results (race winner vs game winner)
+  4. Let animations COMPLETE before advancing
+
+TIMING CONSTANTS TO DEFINE UPFRONT:
+  const PHASE_TIMINGS = {
+    RULES_DISPLAY: 10000,        // How long to show rules
+    QUESTION_DURATION: 10000,    // Time to answer
+    REVEAL_DURATION: 3000,       // Time to show correct answer
+    RECAP_QUESTION_DELAY: 2000,  // Delay between recap questions
+    WINNER_CELEBRATION: 4000,    // Time to celebrate winner
+    PHASE_TRANSITION: 1000,      // Buffer between phases
+    PRE_ANIMATION_PAUSE: 500,    // Pause before animation starts
+    POST_ANIMATION_PAUSE: 1000,  // Pause after animation ends
+  };
+
+RULE: When in doubt, make transitions SLOWER. Fast feels rushed; slow feels
+polished. Users need time to read, react, and celebrate.
+
+--------------------------------------------------------------------------------
+MULTI-PHASE RECAP FLOWS
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Speed round had race winner AND game winner. Showing both at once was confusing.
+  Users didn't understand which winner was which.
+
+SOLUTION PATTERN:
+  Create distinct phases with clear headers for each piece of information:
+
+  TRIVIA SPEED RECAP EXAMPLE:
+    Phase 1: 'race'       - Show race finishing, overlay "X wins the race!"
+    Phase 2: 'winner'     - "Speed Round Results" - show race winner, all points
+    Phase 3: 'leaderboard'- "Final Standings" - show pre-speed scores
+    Phase 4: 'animating'  - "Adding speed round points..." - animate score changes
+    Phase 5: 'final'      - "Game Winner!" - crown the overall winner
+
+  Each phase has:
+    - Clear header text explaining what's being shown
+    - Sufficient display time (2-5 seconds)
+    - Visual distinction (colors, icons, animations)
+
+RULE: If showing multiple types of "winners" or "results", separate them into
+distinct phases with different headers. Never assume users will figure it out.
+
+--------------------------------------------------------------------------------
+ANIMATION PATTERNS
+--------------------------------------------------------------------------------
+
+PHASED ANIMATIONS (from Trivia/QuickMath recap):
+  Phase 0: Show ALL difficulty groups' questions simultaneously (1s)
+  Phase 1: Cascade reveal players with 150ms stagger (duration varies)
+    - Correct: green + coin pop animation (animate-coinPop)
+    - Wrong: red + cross animation (animate-wrongCross)
+    - All: slide-in animation (animate-playerReveal)
+  Phase 2: Animate points from 0 to earned value (0.8s)
+  Phase 3: Update standings, dynamic viewing time (3s base + 1s per group)
+
+  This creates anticipation and lets users follow what's happening.
+
+CSS ANIMATION CLASSES (in client/index.html):
+  - animate-wrongCross: scale 0 → 1.3 → 1.0 with rotation, 0.5s
+  - animate-coinPop: scale 0 → 1.2 → 1.0, 0.4s
+  - animate-playerReveal: slide-in from left (-20px → 0), 0.3s
+
+FLYING POINTS PATTERN:
+  const [flyingPoints, setFlyingPoints] = useState([]);
+  // Show "+100" floating above player briefly
+  setFlyingPoints([{ playerName: 'Alice', points: 100 }]);
+  setTimeout(() => setFlyingPoints([]), 500);
+
+SCORE COUNTER ANIMATION:
+  // Animate score from old value to new value over duration
+  const animDuration = 800;
+  const steps = 20;
+  let step = 0;
+  const interval = setInterval(() => {
+    step++;
+    const progress = step / steps;
+    const easedProgress = 1 - Math.pow(1 - progress, 3); // ease-out
+    setAnimatedScore(Math.round(oldScore + (pointsEarned * easedProgress)));
+    if (step >= steps) clearInterval(interval);
+  }, animDuration / steps);
+
+RULE: Animate score changes, don't just update them. Users notice and appreciate
+the visual feedback.
+
+--------------------------------------------------------------------------------
+CORRECT ANSWER FEEDBACK
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Speed round correct answers felt instant and unconfirming. Users weren't sure
+  if they got it right before the next question appeared.
+
+SOLUTION PATTERN:
+  1. Show visual confirmation (green highlight, checkmark, "Correct!")
+  2. Add brief delay (1 second) before next action
+  3. Server tracks "isWaiting" state during delay
+  4. Client shows confirmation UI during wait
+
+SERVER PATTERN:
+  if (isCorrect) {
+    progress.isWaiting = true;
+    io.to(player.socketId).emit('correctAnswer', { points });
+    setTimeout(() => {
+      progress.isWaiting = false;
+      sendNextQuestion(player);
+    }, CORRECT_DELAY_MS);
+  }
+
+CLIENT PATTERN:
+  {isWaiting && (
+    <div className="bg-green-500/30 border-2 border-green-500 p-4 rounded-xl">
+      <div className="text-green-400 text-xl font-bold">✓ Correct!</div>
+    </div>
+  )}
+
+RULE: Every correct answer needs visual confirmation + brief pause.
+
+--------------------------------------------------------------------------------
+MASTER CONTROLS DURING GAMES
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Kick/End Game buttons only appeared in certain phases, making them inaccessible
+  when needed (e.g., during question phase when a player is AFK).
+
+SOLUTION PATTERN:
+  1. Create reusable GameMasterControls component
+  2. Include in ALL game phases where master might need control
+  3. Use consistent positioning (usually in sidebar/scoreboard area)
+
+GAMEMASTERCONTROLS COMPONENT:
+  - Kick Player button (opens player selection modal)
+  - End Game button (opens confirmation modal)
+  - Receives: theme, currentTheme, currentRoom, isMaster, playerName, availableCharacters
+  - Returns null if !isMaster
+
+RULE: Master controls should be accessible during ANY game phase, not just
+specific moments. Place them in a consistent location across all phases.
+
+--------------------------------------------------------------------------------
+RECONNECTION & GAME SYNC
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Players refreshing mid-game or switching tabs would see stale/frozen UI.
+
+SOLUTION PATTERN:
+  1. On mount: emit requestGameSync { roomId }
+  2. On visibility change (returning to tab): emit requestGameSync
+  3. Server responds with FULL game state for current phase
+  4. Client has handler to restore ALL relevant state
+
+GAME SYNC RESPONSE MUST INCLUDE:
+  - Current phase
+  - Timer end time (absolute timestamp)
+  - Current round/question data
+  - Player's answer status (hasAnswered, selectedAnswer)
+  - Standings/scores
+  - Any phase-specific state (recap index, speed round progress, etc.)
+
+RULE: Design the gameSync event EARLY. List all state that a reconnecting
+player needs to fully restore their view.
+
+--------------------------------------------------------------------------------
+USEEFFECT DEPENDENCY MANAGEMENT
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  Timer cleanup running prematurely when state changed, causing race conditions.
+  Recap animation resetting mid-animation.
+
+SOLUTION PATTERN:
+  1. Separate useEffects by concern (timer tick vs phase transition vs animation)
+  2. Use early returns for guard conditions
+  3. Be explicit about which state triggers the effect
+
+BAD PATTERN:
+  useEffect(() => {
+    // Timer + animation + phase transition all in one
+    // Dependencies: [phase, timer, raceComplete, animationStep, ...]
+  }, [phase, timer, raceComplete, animationStep]);
+
+GOOD PATTERN:
+  // Timer tick effect
+  useEffect(() => {
+    if (phase !== 'question') return;
+    const interval = setInterval(...);
+    return () => clearInterval(interval);
+  }, [phase]);
+
+  // Race completion effect (separate)
+  useEffect(() => {
+    if (phase !== 'speedRecap' || !raceComplete) return;
+    const timer = setTimeout(() => setNextPhase('winner'), 2000);
+    return () => clearTimeout(timer);
+  }, [phase, raceComplete]);
+
+RULE: One useEffect per concern. If you have more than 3-4 dependencies,
+you're probably mixing concerns.
+
+--------------------------------------------------------------------------------
+"ANSWERED" INDICATORS & PLAYER STATUS
+--------------------------------------------------------------------------------
+
+PROBLEM WE HIT:
+  "Answered" section disappeared between question and reveal phases, breaking
+  continuity of what players had done.
+
+SOLUTION PATTERN:
+  1. Track answeredPlayers state that persists across related phases
+  2. Show consistently in both question AND reveal phases
+  3. Clear only when moving to genuinely new state (next question, new round)
+
+PLAYER STATUS INDICATORS TO CONSIDER:
+  - Waiting to answer (default)
+  - Has answered (checkmark, no reveal of correctness)
+  - Answered correctly (green, shown only in reveal/recap)
+  - Answered incorrectly (red, shown only in reveal/recap)
+  - Timed out / didn't answer (gray)
+  - Disconnected (offline badge)
+
+RULE: Decide upfront which indicators show in which phases. Create a matrix:
+
+  | Indicator        | Question | Reveal | Recap |
+  |------------------|----------|--------|-------|
+  | Has answered     | ✓        | ✓      | -     |
+  | Correct          | -        | ✓      | ✓     |
+  | Wrong            | -        | ✓      | ✓     |
+  | Points earned    | -        | -      | ✓     |
+
+--------------------------------------------------------------------------------
+SERVER-SIDE GAME STATE STRUCTURE
+--------------------------------------------------------------------------------
+
+PLAN THIS UPFRONT for each new game:
+
+room.game = {
+  // CORE (all games need these)
+  gameType: 'newgame',
+  currentRound: 1,
+  totalRounds: 4,
+  phase: 'rules',                    // Define all phases upfront
+
+  // TIMER (if game has timed elements)
+  timerEndTime: Date.now() + 10000,  // Absolute timestamp
+  timerRemainingMs: null,            // For pause/resume
+  paused: false,
+
+  // PLAYER TRACKING
+  players: [...],                    // Or use room.players
+  answers: {},                       // { playerName: { data, timestamp } }
+  scores: {},                        // { playerName: totalScore }
+
+  // ROUND/QUESTION TRACKING
+  currentQuestionIndex: 0,
+  questionsPerRound: [5, 5, 5, 10],
+  roundQuestions: [...],
+  questionHistory: [],               // For recap
+
+  // GAME-SPECIFIC
+  usedItems: [],                     // Words, questions, cards used
+  specialRoundData: {},              // Speed round, bonus round, etc.
+};
+
+RULE: Sketch out room.game structure BEFORE writing code. Include every piece
+of state the client will need to render any phase.
+
+--------------------------------------------------------------------------------
+MOBILE CONSIDERATIONS
+--------------------------------------------------------------------------------
+
+LESSONS LEARNED:
+  1. Fixed positioning for critical UI (chat, timer, action buttons)
+  2. max-height with overflow for scrollable areas (max-h-[30vh])
+  3. Touch events need { passive: false } to prevent scroll while interacting
+  4. Keyboard appearance pushes content - scroll to top on input focus
+  5. Larger touch targets (min 44px) for buttons
+  6. Test portrait AND landscape orientations
+
+MOBILE-SPECIFIC PATTERNS:
+  // Prevent scroll while drawing
+  canvas.addEventListener('touchstart', handler, { passive: false });
+
+  // Scroll to top when keyboard appears
+  const handleInputFocus = () => {
+    if (isMobilePortrait) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Fixed bottom positioning for chat
+  <div className="fixed bottom-0 left-0 right-0 max-h-[30vh] md:relative md:max-h-none">
+
+--------------------------------------------------------------------------------
+CHECKLIST FOR NEW GAMES
+--------------------------------------------------------------------------------
+
+Before starting a new game, answer these questions:
+
+GAME STRUCTURE:
+  □ What are ALL the phases? (rules, play, reveal, recap, results)
+  □ What triggers each phase transition?
+  □ Which phases are timed? What are the durations?
+  □ Is it turn-based or simultaneous play?
+  □ How many rounds? Fixed or player-count based?
+
+SCOREBOARD:
+  □ Which phases show frozen scores vs live updates?
+  □ When exactly are scores saved for the next round?
+  □ What indicators show in each phase? (answered, correct, points)
+
+ANIMATIONS & TIMING:
+  □ What needs animated? (scores, points, transitions)
+  □ How long should each celebration/result display?
+  □ What confirmation feedback do correct/wrong answers need?
+
+RECONNECTION:
+  □ What state does gameSync need to return for each phase?
+  □ Can a player meaningfully rejoin mid-round?
+
+MASTER CONTROLS:
+  □ Can master kick players during all phases?
+  □ Can master end game during all phases?
+  □ Any game-specific master controls? (skip turn, force advance)
+
+MOBILE:
+  □ What UI is fixed to bottom?
+  □ Any touch interactions that need passive: false?
+  □ Will keyboard affect layout?
+
+================================================================================
+                    ARCHITECTURE NOTES FOR CLAUDE
+================================================================================
+
+MODAL PATTERN -- ALWAYS FOLLOW:
+  1. Modal component lives in client/modals/<ModalName>.jsx
+  2. Modal state (object|null or boolean) lives in App.jsx
+  3. Modal renders in App.jsx alongside its parent page, NOT inside the page
+  4. Page components only receive the state SETTER to trigger the modal
+  5. Modal imports its own dependencies (icons, data, etc.)
+  EXCEPTION: PictionaryGame.jsx has inline modals (Rules, PickWinner, TimerEnd,
+  EndGameConfirm, DrawerPickingOverlay) because they depend heavily on game state.
+  EXCEPTION: LandingPage.jsx has inline character detail modal (showcaseChar state)
+  because it's a simple browse-only popup with no external dependencies.
+
+PAGE SIZE AWARENESS:
+  - PictionaryGame.jsx (~1000 lines) and RoomPage.jsx (~820 lines) are largest
+  - If a new feature needs >30 lines of JSX, extract to a modal or component
+
+PLAYER IDENTIFICATION:
+  - Server: socket.id | Client: player.name (unique per room)
+  - Removing name uniqueness would require switching to socketId everywhere
+
+PROP PASSING PATTERN:
+  - Pages receive ALL data via props from App.jsx
+  - Pages get SETTER functions to trigger modals
+  - Pages do NOT get modal STATE if they don't need to read it
+  - isMaster threaded: App.jsx -> GamePage -> PictionaryGame/TriviaGame
+  - gameType threaded: App.jsx -> GamePage (for routing)
+  - gameHistory threaded: App.jsx -> PlayerProfile
+
+THEME-SPECIFIC STYLING:
+  - All new UI must support all 3 themes in the JSX
+  - TRON ONLY rule: focus on tron for MVP, polish others later
+  - Pattern: theme === 'tron' ? ... : theme === 'kids' ? ... : ...
+
+SOCKET.OFF PATTERN -- CRITICAL:
+  NEVER use socket.off('eventName') without a handler reference. This removes
+  ALL listeners including those from other components (e.g. PictionaryGame).
+  ALWAYS use named handlers: socket.off('event', handler).
+  App.jsx socket useEffect uses dependency [] with functional state updates.
+  PictionaryGame socket useEffect uses dependency [playerName].
+
+DEV DATA PATTERN (PlayerProfile):
+  Dummy data constants defined inside PlayerProfile.jsx (not a data file).
+  Will be replaced with real server data later -- do NOT architect this until asked.
+
+GAME HISTORY DATA STRUCTURE:
+  Server compiles at game end and stores in room.gameHistory:
+  {
+    game: "Drawing Game",
+    timestamp: Date.now(),
+    finalScores: [{ name, avatar, score }],  // sorted by score desc
+    roundScores: { "PlayerA": [{ round: 1, points: 100 }, ...], ... }
+  }
+  A player can earn points multiple times in the same round (multiple picks).
+  PlayerProfile groups by round number and sums when displaying.
+
+MUSIC CONTROL PATTERN (Global Audio):
+  - Global audio element lives in App.jsx, rendered for ALL pages (including landing)
+  - musicStarted state + selectedTrack state + audioRef + isMuted live in App.jsx
+  - Audio element uses muted={isMuted} attribute for muting
+  - Header receives musicStarted, selectedTrack, onSelectTrack, onStartMusic, isMuted props
+  - Header has separate mute button + music track dropdown (split controls)
+  - Mute button: toggles isMuted, pulses when muted to indicate no sound
+  - Music button: opens track selection dropdown with checkmark on current track
+  - Auto-unmute: selecting a track calls onStartMusic() if not started, sets isMuted=false
+  - Header music dropdown closes on click-outside (useEffect with ref)
+  - playMusic() function in App.jsx calls play() only (no load() - browser auto-loads on src change)
+  - onStartMusic callback calls playMusic() and sets musicStarted=true
+  - useEffect in App.jsx listens for 'canplay' event when selectedTrack changes (prevents AbortError)
+  - renderPageContent() helper function allows single return with global audio
+  - Music persists across page navigation (audio element never unmounts)
+  - No audio elements in RoomPage or PictionaryGame (removed)
+  - No auto-play on room creation (browsers block autoplay without user interaction)
+
+AFK STATUS TRACKING:
+  - AFK useEffect in App.jsx tracks when player navigates away from room/game pages
+  - Uses document.hidden (Visibility API) and page state to determine AFK
+  - Emits setAfkStatus { roomId, isAfk } to server on visibility change or page change
+  - CRITICAL: Captures roomId at effect start to avoid stale closure issues
+  - Cleanup function emits AFK=true when navigating away (before currentRoom clears)
+  - Server stores isAfk on player object, broadcasts playerAfkChanged to room
+  - App.jsx listens for playerAfkChanged and updates currentRoom.players
+
+CLOCK SYNC PATTERN (Timer Synchronization):
+  - Client socket.js calculates clockOffset on connect/reconnect
+  - Takes 5 samples of round-trip time, uses median offset for accuracy
+  - Server responds to 'requestServerTime' with serverTime + clientSendTime echo
+  - Offset = estimated server time - local time (accounts for network latency)
+  - getServerTime() export: Date.now() + clockOffset (used by all game timers)
+  - Games calculate remaining time: Math.ceil((endTime - getServerTime()) / 1000)
+  - Eliminates cross-client timer drift caused by different device clocks
+
+RECONNECTION SYSTEM (Multi-Layer):
+  - Layer 1: 3-minute grace period (player stays in room with connected=false)
+  - Layer 2: 10-minute expelled cache (player removed but can rejoin with full score + isMaster status)
+  - Layer 3: localStorage persistence (survives browser close, provides rejoin UI)
+  - Rejoin tokens: UUID per player, prevents impersonation on rejoin
+  - Server expelledPlayers Map stores: playerData (including isMaster), roomId, timer, expelledAt
+  - On rejoin: checks room first, then expelled cache, restores score and isMaster if found
+  - Header rejoin button: appears when player has pendingSession and is not in room/game page
+  - Clean serializable room data: roomCreated/roomJoined/rejoinSuccess emit clean copies to avoid circular refs
+
+GAME-SPECIFIC RECONNECTION:
+  - Pictionary: Drawer disconnect PAUSES game, stores remaining time, resumes on reconnect
+  - Trivia/QuickMath: Disconnect during question phase checks if all remaining players answered
+  - Trivia/QuickMath: Re-adds rejoining players to difficultyGroups (fixes "spectator" bug)
+  - All games: Error handling (try-catch) around disconnect/reconnect code prevents server crashes
+  - All games: Null checks on advanceToNextGroup/advanceRound functions prevent crashes
+  - gameType set from room.game.gameType on rejoinSuccess (fixes wrong game loading after refresh)
+
+MANUAL KICK POLICY (no auto-kick):
+  - Disconnected players stay in room/game until master manually kicks them
+  - Players marked player.connected=false, player.disconnectedAt=timestamp
+  - Server emits 'playerDisconnected' to show AFK status in UI
+  - Master can kick players using kick button (GameMasterControls or room lobby)
+  - Kicked players stored in expelledPlayers cache (10-min rejoin window)
+  - Room cleanup only happens when ALL players disconnected for 30+ minutes
+
+AVATAR SELECTION TIMEOUT:
+  - Server tracks avatarSelectionTimers Map (roomId:playerName -> timer)
+  - 2-minute timeout starts when player joins with 'meta' avatar
+  - Timer cancelled when player selects a non-meta avatar via changeAvatar
+  - If timeout fires: player removed, 'removedForNoAvatar' sent to that player
+  - If master times out: room is deleted since master is required
+
+MASTER ROOM TRACKING:
+  - Server tracks masterRooms Map (masterName -> roomId)
+  - When master creates a new room: old room is closed with 'roomClosed' event
+  - When master joins another room: old room is closed
+  - Prevents orphaned rooms and ensures clean room lifecycle
+
+SCORE ACCUMULATION (Room Session):
+  - Player scores in room lobby accumulate across ALL games played in session
+  - App.jsx onGameEnded: adds finalScores to existing p.score (not replaces)
+  - Code: return updated ? { ...p, score: (p.score || 0) + updated.score } : p
+  - Server endGameEarly: does NOT reset scores (preserves accumulated totals)
+  - Cancelled games add 0 points (finalScores: [] sent to client)
+  - Room scoreboard shows combined lifetime score for session
+
+RECONNECTING PAGE TIMEOUT:
+  - RejoiningPage.jsx has 5-second timeout via useEffect
+  - If rejoin doesn't succeed within 5s, onTimeout callback fires
+  - App.jsx clears currentRoom and navigates to landing page
+  - Prevents players from being stuck on reconnecting screen forever
+
+================================================================================
+                    CREATING NEW GAMES -- ARCHITECTURE GUIDE
+================================================================================
+
+This section provides a comprehensive guide for creating new games in GameHub.
+Follow these patterns to ensure consistency with existing architecture.
+
+--------------------------------------------------------------------------------
+GAME ARCHITECTURE OVERVIEW
+--------------------------------------------------------------------------------
+
+FILE STRUCTURE FOR A NEW GAME:
+  client/game/
+    |-- PictionaryGame.jsx      (existing - turn-based, ~1260 lines)
+    |-- TriviaGame.jsx          (existing - simultaneous-play, ~2700 lines)
+    |-- QuickMathGame.jsx       (existing - simultaneous-play with NumberPad, ~1850 lines)
+    |-- NewGame.jsx             (your new game component)
+
+  client/data/
+    |-- games.js                (add game to MOCK_GAMES with gameType field)
+    |-- triviaQuestions.js      (example of game-specific data file)
+
+  src/sockets.js                (add game-specific socket handlers)
+
+COMPONENT HIERARCHY:
+  App.jsx
+    └── GamePage.jsx (router - selects game component based on gameType)
+        ├── PictionaryGame.jsx (turn-based drawing game)
+        ├── TriviaGame.jsx (simultaneous-play quiz game)
+        └── QuickMathGame.jsx (simultaneous-play math game with NumberPad)
+
+KEY PRINCIPLE: GamePage.jsx routes based on gameType prop from App.jsx.
+App.jsx captures gameType from gameStarting event and passes it down.
+Games receive common props (theme, playerName, currentRoom, isMaster, etc.).
+
+--------------------------------------------------------------------------------
+GAME STATE MANAGEMENT (SERVER-SIDE)
+--------------------------------------------------------------------------------
+
+All game state lives on the server in room.game object. Pattern:
+
+  room.game = {
+    // Core state
+    currentRound: 1,
+    totalRounds: players.length,
+    gameType: 'pictionary',           // or 'trivia', 'charades', etc.
+
+    // Turn/player tracking
+    drawingOrder: [...],              // array of { name, avatar, connected, done }
+    currentDrawerIndex: 0,
+
+    // Timer state (server-authoritative)
+    timerEndTime: Date.now() + 60000, // absolute timestamp
+    timerRemainingMs: null,           // captured when paused
+    paused: false,
+
+    // Game-specific state
+    currentWord: 'ELEPHANT',          // pictionary-specific
+    usedWords: ['ELEPHANT'],
+    roundScores: {},                  // { playerName: [{ round, points }] }
+    currentPickValue: 100,            // escalating scoring
+  }
+
+SERVER-AUTHORITATIVE PRINCIPLE:
+  - Server owns ALL game state
+  - Clients receive state via socket events and render it
+  - Clients request state changes via emits, server validates and broadcasts
+  - Never trust client-side computed state for scoring/rules
+
+--------------------------------------------------------------------------------
+SOCKET EVENT PATTERNS FOR GAMES
+--------------------------------------------------------------------------------
+
+STANDARD GAME EVENTS (use these patterns):
+
+1. GAME START SEQUENCE:
+   Client: startGame { roomId }
+   Server:
+     - Validates (master only, games selected, enough players)
+     - Resets all player scores to 0 (all game types: Pictionary, Trivia, Quick Math)
+     - Initializes room.game object
+     - Emits gameStarting { roomId, drawingOrder, totalRounds, currentRound }
+     - Client shows countdown page
+     - After countdown: emits gameStarted { drawerName, currentRound, ... }
+     - Emits yourWord { word } to drawer only (if applicable)
+
+2. GAME TIMER PATTERN (server-authoritative):
+   Server: gameTimerStart { endTime }    // absolute ms timestamp
+   Client:
+     - Stores endTime in ref (timerEndTimeRef.current = endTime)
+     - useEffect ticks every 250ms: Math.ceil((endTime - Date.now()) / 1000)
+     - All clients converge on same second regardless of latency
+
+   PAUSE/RESUME:
+   Client: pauseGame { roomId, pickDuration }
+   Server:
+     - Captures timerRemainingMs = timerEndTime - Date.now()
+     - Clears timerEndTime
+     - Emits gamePaused { pickDuration }
+
+   Client: resumeGame { roomId }
+   Server:
+     - Computes new endTime = Date.now() + timerRemainingMs
+     - Emits gameResumed { endTime }
+
+3. PLAYER ACTION VALIDATION:
+   Server validates ALL actions:
+     - Is player allowed? (drawer vs guesser, master vs non-master)
+     - Is game in valid state? (not paused, not ended)
+     - Is action valid? (can't pick yourself as winner, etc.)
+
+   On validation failure: socket.emit('error', { message: '...' })
+   On success: broadcast to room via io.to(roomId).emit(...)
+
+4. ROUND TRANSITION:
+   Server: roundResult { winnerName, points, currentRound, totalRounds }
+   Server: (after delay) nextRound { drawerName, currentRound, totalRounds }
+   Client: updates UI, shows announcements, resets round state
+
+5. GAME END:
+   Server: gameEnded { finalScores, gameHistory, cancelled? }
+   - finalScores: array sorted by score desc
+   - gameHistory: full history object for PlayerProfile
+   - cancelled: true if ended early (scores reset, game stays in queue)
+   - Server removes completed game from room.selectedGames (unless cancelled)
+   - This keeps server/client queue in sync for "Start Next Game"
+   Client: navigates back to room page, shows final scores
+   - Completed games shown greyed out in queue with "COMPLETED" label
+   - Click completed game to view scoreboard with round breakdown
+   - "Play Again" button re-adds game to queue
+
+--------------------------------------------------------------------------------
+CLIENT-SIDE GAME COMPONENT STRUCTURE
+--------------------------------------------------------------------------------
+
+RECOMMENDED STRUCTURE (see PictionaryGame.jsx):
+
+```jsx
+function NewGame({
+  theme, currentTheme, playerName, selectedAvatar, availableCharacters,
+  currentRoom, isMuted, isMaster, drawingOrder, currentRound, totalRounds
+}) {
+  // === STATE ===
+  // Timer state
+  const [gameTimer, setGameTimer] = useState(60);
+  const timerEndTimeRef = useRef(null);
+
+  // Game state
+  const [isMyTurn, setIsMyTurn] = useState(false);
+  const [currentPlayer, setCurrentPlayer] = useState('');
+
+  // UI state
+  const [showRulesModal, setShowRulesModal] = useState(true);
+  const [chatMessages, setChatMessages] = useState([]);
+
+  // Refs for closure safety
+  const roomIdRef = useRef(currentRoom?.id);
+
+  // === SOCKET EFFECT ===
+  useEffect(() => {
+    const handleGameStarted = (data) => { ... };
+    const handleTimerStart = (data) => { ... };
+    // ... more handlers
+
+    socket.on('gameStarted', handleGameStarted);
+    socket.on('gameTimerStart', handleTimerStart);
+
+    // CRITICAL: Use named handlers for cleanup
+    return () => {
+      socket.off('gameStarted', handleGameStarted);
+      socket.off('gameTimerStart', handleTimerStart);
+    };
+  }, [playerName]); // Minimal dependencies, use refs for room data
+
+  // === TIMER EFFECT ===
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (timerEndTimeRef.current) {
+        const remaining = Math.ceil((timerEndTimeRef.current - Date.now()) / 1000);
+        setGameTimer(Math.max(0, remaining));
+        if (remaining <= 0) {
+          // Timer expired logic
+        }
+      }
+    }, 250);
+    return () => clearInterval(interval);
+  }, []);
+
+  // === RENDER ===
+  return (
+    <div className="min-h-screen ...">
+      {/* Game Header: round, score, timer */}
+      {/* Game Content: varies by game type */}
+      {/* Action Area: chat, buttons */}
+      {/* Modals: rules, pick winner, etc. */}
+    </div>
+  );
+}
+```
+
+KEY PATTERNS TO FOLLOW:
+
+1. USE REFS FOR SOCKET CLOSURES:
+   - roomIdRef.current = currentRoom?.id in effect, not currentRoom directly
+   - Prevents stale closure issues when emitting from event handlers
+
+2. NAMED EVENT HANDLERS:
+   - Define handlers inside useEffect
+   - ALWAYS socket.off('event', handler) with same reference
+   - Never socket.off('event') without handler (removes all listeners)
+
+3. TIMER DISPLAY:
+   - Store absolute endTime from server in ref
+   - Compute display value every 250ms
+   - Never trust client-side countdown (clock drift, background tabs)
+
+4. MODAL PATTERN:
+   - Rules modal: shown at round start, countdown overlay, dismiss button
+   - Action modal: pick winner, confirm actions, timer badge
+   - All modals should handle game continuing in background
+
+--------------------------------------------------------------------------------
+SCORING SYSTEM PATTERNS
+--------------------------------------------------------------------------------
+
+FLAT SCORING (Pictionary pattern):
+  - 300 pts per correct guess for both drawer and guesser
+  - Multiple winners per turn: drawer earns 300 pts per pick
+  - No winner: 0 pts
+
+FIXED SCORING (simple pattern):
+  - Correct answer: fixed points
+  - Wrong answer: 0 or negative
+  - Time bonus: extra points for speed
+
+ROUND SCORES STRUCTURE:
+  roundScores: {
+    "PlayerA": [
+      { round: 1, points: 100 },
+      { round: 1, points: 200 },  // same player can earn multiple times
+      { round: 2, points: 100 }
+    ],
+    "PlayerB": [...]
+  }
+
+FINAL SCORES:
+  - Computed from player.score on each player object
+  - Sorted desc for finalScores array in gameEnded
+
+--------------------------------------------------------------------------------
+TURN-BASED GAME PATTERNS
+--------------------------------------------------------------------------------
+
+DRAWING ORDER:
+  - Computed at game start: computeDrawingOrder(players)
+  - Sorted by score desc, random tiebreakers
+  - Each player gets one turn (totalRounds = players.length)
+  - drawingOrder[currentDrawerIndex] is current player
+
+TURN STATE:
+  - player.done: boolean, has this player completed their turn
+  - room.game.currentDrawerIndex: which player in order
+  - Server advances via advanceRound() function
+
+SKIP/DISCONNECT HANDLING:
+  - Disconnected players: marked connected=false, turn skipped
+  - Master skip: emits skipPlayerTurn, server advances
+  - advanceRound() checks player.connected, skips offline
+
+--------------------------------------------------------------------------------
+MULTI-ROOM HANDLING
+--------------------------------------------------------------------------------
+
+ROOM ISOLATION:
+  - Each room has its own game state in rooms Map
+  - Socket.io rooms: socket.join(roomId), io.to(roomId).emit(...)
+  - Events scoped to room: always include roomId in payload
+  - Never broadcast to all sockets, always to specific room
+
+CONCURRENT GAMES:
+  - Multiple rooms can play same or different games simultaneously
+  - No shared state between rooms
+  - Server handles each room independently
+
+--------------------------------------------------------------------------------
+ADDING A NEW GAME -- CHECKLIST
+--------------------------------------------------------------------------------
+
+IMPORTANT: Read "LESSONS LEARNED -- FUTURE GAME DEVELOPMENT" section first!
+
+PHASE 0: PLANNING (before writing any code)
+   □ Define ALL phases (rules, play, reveal, recap, results, special rounds)
+   □ Create phase transition diagram with timings
+   □ Define scoreboard behavior for each phase (frozen vs updating)
+   □ Sketch room.game server state structure
+   □ List all socket events needed (client→server and server→client)
+   □ Define gameSync response structure for reconnection
+   □ Decide: turn-based or simultaneous play?
+
+PHASE 1: DATA (client/data/games.js)
+   □ Add game to MOCK_GAMES array with id, name, icon, description, etc.
+   □ Include gameType field (e.g., 'trivia', 'pictionary', 'newgame')
+   □ If game needs content (questions, words, cards), create data file
+
+PHASE 2: SERVER (src/sockets.js)
+   □ Define timing constants at top of file (durations, delays, points)
+   □ Add game-specific socket handlers
+   □ Modify startGame to detect gameType and initialize game state
+   □ Implement gameSync handler for this game type
+   □ Add validation for game-specific actions
+   □ Handle scoring with server-authoritative calculations
+   □ Add delays between phase transitions (don't rush!)
+
+PHASE 3: CLIENT COMPONENT (client/game/NewGame.jsx)
+   □ Create game component following structure in this document
+   □ Implement socket event listeners with NAMED handlers for cleanup
+   □ Add server-authoritative timer handling (store endTime in ref)
+   □ Create frozen scores state (previousRoundScores pattern)
+   □ Create game-specific UI for each phase
+   □ Add GameMasterControls component (accessible in ALL phases)
+   □ Add modals: rules, actions, confirmations
+   □ Add animations for score changes and phase transitions
+   □ Add visual feedback for correct/wrong answers (with delays!)
+
+PHASE 4: GAME PAGE ROUTING (client/pages/GamePage.jsx)
+   □ Add condition: if (gameType === 'newgame') return <NewGame {...props} />
+   □ Thread all required props (isMaster, theme, currentRoom, etc.)
+   □ Verify App.jsx captures gameType from gameStarting event
+
+PHASE 5: STYLING & MOBILE
+   □ Support all 3 themes (focus on Tron for MVP)
+   □ Mobile-responsive layout with fixed bottom elements
+   □ Touch interactions with { passive: false } where needed
+   □ Test keyboard appearance doesn't break layout
+   □ Minimum 44px touch targets for buttons
+
+PHASE 6: TESTING
+   □ Single player (edge case - should work or show error)
+   □ Multiple players in same room
+   □ Refresh mid-game (requestGameSync works?)
+   □ Tab switch and return (visibility change handling)
+   □ Timer pause/resume (if applicable)
+   □ Player disconnect during their turn
+   □ Master kick player during each phase
+   □ Master end game during each phase
+   □ All phase transitions have adequate display time
+   □ Score changes are animated, not instant
+   □ Correct/wrong feedback is clear and timed
+
+--------------------------------------------------------------------------------
+TRIVIA GAME IMPLEMENTATION (REFERENCE)
+--------------------------------------------------------------------------------
+
+The Trivia game demonstrates simultaneous-play architecture (vs turn-based Pictionary):
+
+1. GAME TYPE ROUTING (games.js + GamePage.jsx):
+   - games.js: Added gameType field ('trivia' or 'pictionary') to game entries
+   - GamePage.jsx: Routes based on gameType prop from App.jsx
+   - App.jsx: Captures gameType from gameStarting event, passes to GamePage
+
+2. SERVER STATE STRUCTURE (sockets.js):
+   room.game = {
+     gameType: 'trivia',
+     phase: 'rules' | 'question' | 'reveal' | 'recap' | 'finalRecap',
+     currentQuestion: { ...question, shuffledAnswers, shuffledCorrectIndex },
+     answers: { playerName: { answerIndex, timestamp } },
+     questionHistory: [{ question, correctAnswer, playerResults }]
+   }
+
+3. ANSWER RANDOMIZATION:
+   - shuffleArray() Fisher-Yates helper in sockets.js
+   - advanceTriviaQuestion() shuffles before sending to clients
+   - Stores shuffledCorrectIndex for validation in revealTriviaAnswer()
+
+4. DYNAMIC RULES TIMING:
+   - Three duration constants: ROUND1 (10s), NORMAL (3s), SPEED (5s)
+   - startTriviaRound() selects duration based on currentRound
+   - TriviaGame.jsx renderRulesPhase() shows different content per round type
+
+5. ANIMATED RECAP (Simultaneous Difficulty Groups):
+   - State: recapQuestionIndex, revealedPlayers, animatedStandings, previousRoundScores
+   - ALL difficulty groups displayed vertically at once (not sequentially)
+   - getActiveGroups() helper filters out empty difficulty groups
+   - Cascade player reveal: 150ms stagger per player across all groups
+   - CSS animations: animate-coinPop (correct), animate-wrongCross (wrong), animate-playerReveal
+   - Dynamic viewing time: 3000ms base + 1000ms per additional group
+   - Standings update after all player reveals complete
+   - Auto-advances to next round after animation completes (no button needed)
+   - previousRoundScores saved after recap completes for next round's frozen scoreboard
+
+6. FROZEN SCOREBOARD (Question/Reveal phases):
+   - previousRoundScores state holds scores from end of previous recap
+   - Question phase: displays previousRoundScores (static, no updates)
+   - Reveal phase: displays previousRoundScores (static, no indicators)
+   - Only recap phase shows live updates to standings
+
+7. SPEED ROUND RACE:
+   - Individual play format (not simultaneous like rounds 1-3)
+   - Server sends speedRoundQuestion events individually per player
+   - Correct answer triggers 1s delay with green feedback before next question
+   - Race visualization: shared track with player avatars moving based on correctCount
+   - raceData contains: raceData (per-player stats), winner, maxCorrect
+
+8. SPEED RECAP MULTI-PHASE FLOW:
+   - speedRecapPhase state: 'race' → 'winner' → 'leaderboard' → 'animating' → 'final'
+   - Race phase: overlay shows race winner on track (3s pause)
+   - Winner phase: "Speed Round Results" with race winner celebration (4s)
+   - Leaderboard phase: shows preSpeedStandings (scores before speed round) (2.5s)
+   - Animating phase: animatedFinalScores interpolate from pre-speed to final (2s)
+   - Final phase: "Game Winner!" with overall winner celebration (5s)
+   - Clear visual distinction between race winner and game winner
+
+9. KEY DIFFERENCES FROM PICTIONARY:
+   - No drawer/guesser roles - all players equal (rounds 1-3)
+   - No pause/resume - timer runs continuously
+   - Phase-based flow instead of round-based
+   - Auto-advance after recap animation (no master button for normal rounds)
+   - Speed round uses individual race format with server-driven question delivery
+
+---------------------------------------------------------------------------------
+QUICK MATH GAME IMPLEMENTATION (REFERENCE)
+---------------------------------------------------------------------------------
+
+Quick Math follows the same simultaneous-play architecture as Trivia with these differences:
+
+1. INPUT METHOD:
+   - Normal rounds: NumberPad component (typed numeric input)
+     • 0-9 buttons, Clear, Backspace, Submit
+     • Max 6 digits, compact mobile-optimized layout
+   - Speed round: Multiple choice (4 options like Trivia)
+     • generateSpeedRoundOptions() creates 1 correct + 3 wrong nearby answers
+
+2. ANSWER VALIDATION:
+   - Exact numeric match: parseInt(typedAnswer) === correctAnswer
+   - No partial credit, no tolerance for typos
+   - Speed round uses index-based validation (same as Trivia)
+
+3. TIMING:
+   - Normal rounds: 15 seconds (vs Trivia's 10s) to account for typing
+   - Speed round: 60 seconds total (same as Trivia)
+   - Rules duration: Same pattern (10s round 1, 3s rounds 2-3, 5s speed)
+
+4. SOCKET EVENTS (parallel to Trivia):
+   - mathRulesStart, mathQuestion, mathAnswerReceived, mathReveal
+   - mathRecap, mathFinalResults, mathSync
+   - Speed round reuses: speedRoundQuestion, speedRoundCorrect, speedRoundWrong
+
+5. WINNER CELEBRATION:
+   - showWinnerCelebration state triggered 1.5s after final standings
+   - Full-screen overlay with confetti animation (CSS keyframe animation)
+   - "You won the Quick Math Game!" or "{name} won the Quick Math Game!"
+   - "Congratulations!" or "Better luck next time!" subtitle
+   - "View Standings" button to dismiss overlay
+
+6. ROOM SCOREBOARD UPDATE:
+   - App.jsx onGameEnded handler now applies finalScores to room players
+   - Ensures room leaderboard reflects game results after returning
+
+7. COMPACT MOBILE LAYOUT:
+   - 2-column grid: answered players + standings side by side on md+ screens
+   - Reduced padding and text sizes throughout
+   - pt-20 md:pt-24 on main container for header clearance
+
+================================================================================
+MEMORY MASTER GAME ARCHITECTURE
+================================================================================
+
+Memory Master follows the simultaneous-play architecture (like Trivia/Quick Math) with 4 rounds:
+
+FILES:
+  - client/game/MemoryGame.jsx (~1700 lines) - Full Memory game component
+  - client/data/memoryContent.js (~305 lines) - Items, configs, challenge types
+  - src/sockets.js - Server-side game logic (memory* functions)
+
+ROUND STRUCTURE (4 rounds, each with different challenge type):
+  Round 1: Memory Match (find pairs)
+  Round 2: Missing Item (identify removed item)
+  Round 3: Spot the Difference (identify changed item)
+  Round 4: Sequence Memory (speed round - recall sequence order)
+
+CHALLENGE TYPES (CHALLENGE_TYPES constant):
+  'match'      - Match pairs game (Round 1)
+  'missing'    - Missing item identification (Round 2)
+  'difference' - Spot the difference (Round 3)
+  'sequence'   - Sequence recall - speed round (Round 4)
+
+MATCH GAME (Round 1):
+  - Grid sizes by difficulty (MATCH_GRID_CONFIG):
+    super-easy: 2x2 (2 pairs)
+    very-easy:  2x3 (3 pairs)
+    easy:       3x2 (3 pairs)
+    medium:     4x4 (8 pairs)
+    hard:       4x4 (8 pairs)
+    very-hard:  6x6 (18 pairs)
+    genius:     6x6 (18 pairs)
+  - 5 second memorization phase (cards shown face-up)
+  - Cards flip face-down, 60 seconds to match all pairs
+  - 50 points per matched pair
+  - +50 bonus for perfect (no mistakes)
+  - Client handles card flipping locally, submits results to server
+
+DIFFICULTY GROUPS (same as Trivia/Quick Math):
+  - Players grouped by difficulty setting
+  - Each group sees content tailored to their difficulty
+  - Grid sizes, display times, sequence lengths vary by difficulty
+
+PHASE FLOW:
+  rules -> display -> match/question -> reveal -> recap (repeats per round)
+  Final: finalRecap with winner celebration
+
+SOCKET EVENTS (Memory-specific):
+  Client -> Server:
+    memoryReady        { roomId }                    Player ready after rules
+    memoryAnswer       { roomId, answer, ... }      Submit answer/match results
+    requestMemorySync  { roomId }                   Request game state sync
+
+  Server -> Client:
+    memoryRulesStart   { round, challengeType, ... } Start rules phase
+    memoryDisplay      { grid, items, ... }          Show memorization content
+    memoryQuestion     { question, options, ... }    Show question (non-match)
+    memoryReveal       { correctAnswer, ... }        Reveal correct answer
+    memoryRecap        { standings, history }        Round recap
+    memoryFinalResults { winner, standings }         Game over
+    memorySync         { phase, ... }                Full state sync
+    memoryAnswerReceived { playerName, ... }         Player answered
+
+KEY STATE VARIABLES (MemoryGame.jsx):
+  - phase: 'rules'|'display'|'match'|'question'|'reveal'|'recap'|'speedRound'|'finalRecap'
+  - challengeType: 'match'|'missing'|'difference'|'sequence'
+  - matchGrid: Array of items for match game
+  - matchedPairs: Indices of matched cards
+  - flippedCards: Currently flipped card indices (max 2)
+  - canFlip: Whether player can flip cards
+  - matchPoints, matchMistakes, matchComplete: Match game state
+
+TIMER SYNC (same pattern as Trivia/Quick Math):
+  - Server sends absolute timestamps (rulesEndTime, displayEndTime, etc.)
+  - Client calculates remaining time using getServerTime()
+  - Fallback sync request if phase doesn't transition after timer expires
+
+EXIT BUTTON:
+  - Fixed position top-right, visible to game master only
+  - Allows returning to room during game
+
+SPEED ROUND (Round 4 - Sequence):
+  - Items shown one at a time with sequenceItemTime delay
+  - 2 second delay after last item before tiles disappear
+  - Players tap items in correct order
+  - Points based on correct sequence length + time bonus
+
+SERVER FUNCTIONS (sockets.js):
+  generateMatchChallenge()      Generate pairs grid for match game
+  generateMissingChallenge()    Generate missing item challenge
+  generateDifferenceChallenge() Generate spot the difference
+  generateSequenceChallenge()   Generate sequence for speed round
+  startMemoryRound()            Initialize round with rules phase
+  startMemoryGroupTurn()        Start display phase for difficulty group
+  showMemoryQuestion()          Transition to question phase
+  revealMemoryAnswer()          Show correct answer, calculate points
+  advanceToNextMemoryGroup()    Move to next difficulty group
+  showMemoryRecap()             Display round recap
+  startNextMemoryRound()        Advance to next round or end game
+  endMemoryGame()               Final results with winner
+
+INSTRUCTIONS (CHALLENGE_INSTRUCTIONS):
+  Each challenge type has: title, description, steps[]
+  Displayed during rules phase before each round
+
+================================================================================
