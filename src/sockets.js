@@ -6664,6 +6664,39 @@ function setupSockets(io) {
       startNextMemoryRound(io, room, data.roomId);
     });
 
+    // --- Memory Skip Round (Debug - Master only) ---
+    socket.on('memorySkipRound', (data) => {
+      const room = rooms.get(data.roomId);
+      if (!room || !room.game || room.game.gameType !== 'memory') return;
+
+      const game = room.game;
+
+      // Validate sender is master
+      const sender = room.players.find(p => p.socketId === socket.id);
+      if (!sender || sender.name !== room.master) return;
+
+      // Clear any active timers
+      if (game.questionTimer) {
+        clearTimeout(game.questionTimer);
+        game.questionTimer = null;
+      }
+      if (game.displayTimer) {
+        clearTimeout(game.displayTimer);
+        game.displayTimer = null;
+      }
+      if (game.matchTimer) {
+        clearTimeout(game.matchTimer);
+        game.matchTimer = null;
+      }
+      if (game.rulesTimer) {
+        clearTimeout(game.rulesTimer);
+        game.rulesTimer = null;
+      }
+
+      // Skip to next round
+      startNextMemoryRound(io, room, data.roomId);
+    });
+
     // --- Memory Reveal All (Master) ---
     socket.on('memoryRevealAll', (data) => {
       const room = rooms.get(data.roomId);

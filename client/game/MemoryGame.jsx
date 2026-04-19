@@ -101,6 +101,9 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     // Modals
     const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
 
+    // Debug mode
+    const [showDebugSkip, setShowDebugSkip] = useState(false);
+
     // Keep roomIdRef in sync
     useEffect(() => { roomIdRef.current = currentRoom?.id; }, [currentRoom?.id]);
 
@@ -616,6 +619,24 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             socket.off('gameEnded', onGameEnded);
         };
     }, []);
+
+    // Debug skip key listener (backtick key)
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === '`') {
+                setShowDebugSkip(prev => !prev);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Handle debug skip to next round
+    const handleDebugSkipRound = () => {
+        if (!isMaster) return;
+        socket.emit('memorySkipRound', { roomId: roomIdRef.current });
+    };
 
     // Recap animation sequence
     useEffect(() => {
@@ -1693,6 +1714,17 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                     Exit
                 </button>
             )}
+
+            {/* Debug Skip Button - Press ` to toggle */}
+            {showDebugSkip && isMaster && (
+                <button
+                    onClick={handleDebugSkipRound}
+                    className="fixed top-32 right-2 md:right-4 z-50 bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-2 rounded-xl font-bold transition-all text-sm flex items-center gap-1 shadow-lg"
+                >
+                    ⏭️ Skip Round
+                </button>
+            )}
+
             {/* Winner Celebration Modal */}
             {showWinnerCelebration && finalData?.winner && (
                 <WinnerCelebration
