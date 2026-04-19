@@ -320,6 +320,10 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             setIsSpeedRound(data.isSpeedRound);
             rulesEndTimeRef.current = data.rulesEndTime;
 
+            // Initialize rules timer immediately
+            const remaining = Math.max(0, Math.ceil((data.rulesEndTime - getServerTime()) / 1000));
+            setRulesTimer(remaining);
+
             if (data.isSpeedRound && data.speedRoundEndTime) {
                 speedRoundEndTimeRef.current = data.speedRoundEndTime;
             }
@@ -1085,7 +1089,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                     <div className={`text-sm mt-1 ${currentTheme.textSecondary}`}>
                         {challengeType === 'match' && 'Remember where each icon is located'}
                         {challengeType === 'missing' && 'One will be replaced - spot the NEW one'}
-                        {challengeType === 'difference' && 'Find the one you saw when they change'}
+                        {challengeType === 'difference' && 'These icons will all change except for one... Remember which one'}
                     </div>
                 </div>
 

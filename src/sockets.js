@@ -3315,7 +3315,7 @@ function generateMatchChallenge(difficulty, usedItems = []) {
     grid,
     gridRows: rows,
     gridCols: cols,
-    displayTime: 5000,  // 5 seconds to memorize
+    displayTime: 7000,  // 7 seconds to memorize
     matchTimeLimit: 60000,  // 60 seconds to complete matching
     numPairs,
     pointsPerPair,
@@ -3527,11 +3527,11 @@ function startMemoryRound(io, room, roomId) {
   game.challengeType = MEMORY_ROUND_CHALLENGE_TYPES[game.currentRound - 1];
 
   // Set challenges per round based on challenge type
-  // Round 1 (match): 1 challenge (it's a full pairs game)
+  // Round 1 (match): 3 challenges
   // Round 2 (missing) and Round 3 (difference): 5 challenges each
   // Round 4 (sequence): speed round handled separately
   if (game.challengeType === 'match') {
-    game.challengesPerRound = 1;
+    game.challengesPerRound = 3;
   } else if (game.challengeType === 'missing' || game.challengeType === 'difference') {
     game.challengesPerRound = 5;
   }
