@@ -12,7 +12,7 @@ import {
 const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, availableCharacters, currentRoom, isMuted, isMaster }) => {
     // Game state
     const [phase, setPhase] = useState('rules');  // rules, display, question, reveal, recap, speedRound, speedRecap, finalRecap
-    const [challengeType, setChallengeType] = useState('grid');
+    const [challengeType, setChallengeType] = useState('match');
     const [currentRound, setCurrentRound] = useState(1);
     const [totalRounds, setTotalRounds] = useState(4);
     const [challengeNumber, setChallengeNumber] = useState(1);
@@ -753,7 +753,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     // Render Rules Phase
     const renderRulesPhase = () => {
-        const instructions = CHALLENGE_INSTRUCTIONS[challengeType] || CHALLENGE_INSTRUCTIONS.grid;
+        const instructions = CHALLENGE_INSTRUCTIONS[challengeType] || CHALLENGE_INSTRUCTIONS['match'];
         const connectedPlayers = currentRoom?.players?.filter(p => p.connected !== false) || [];
         const allReady = readyPlayers.length >= connectedPlayers.length && connectedPlayers.length > 0;
 
@@ -767,7 +767,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
                     {/* Challenge type icon */}
                     <div className="text-6xl mb-4">
-                        {challengeType === 'grid' && '🧩'}
+                        {challengeType === 'match' && '🧩'}
                         {challengeType === 'missing' && '❓'}
                         {challengeType === 'difference' && '🔍'}
                         {challengeType === 'sequence' && '🔢'}
@@ -1032,7 +1032,6 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 {/* Display area */}
                 <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl p-6 md:p-8 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-2 border-orange-700'}`}>
                     {challengeType === 'match' && renderMatchGrid(true)}
-                    {challengeType === 'grid' && renderGridDisplay()}
                     {(challengeType === 'missing' || challengeType === 'difference') && renderItemsDisplay()}
                 </div>
 
