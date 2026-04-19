@@ -764,7 +764,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     const handleEndGame = () => {
         setShowEndGameConfirm(false);
-        socket.emit('endGame', { roomId: roomIdRef.current });
+        socket.emit('endGameEarly', { roomId: roomIdRef.current });
     };
 
     const handleCelebrationComplete = () => {

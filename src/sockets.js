@@ -3934,8 +3934,37 @@ function advanceToNextMemoryGroup(io, room, roomId) {
   game.currentGroupIndex++;
 
   if (game.currentGroupIndex >= game.difficultyGroups.length) {
-    // All groups done - reveal answer
-    revealMemoryAnswer(io, room, roomId);
+    // All groups done
+    if (game.challengeType === 'match') {
+      // Match games skip reveal phase - go directly to next challenge or recap
+      // Record match results in history
+      if (!game.challengeHistory) game.challengeHistory = [];
+      game.challengeHistory.push({
+        challengeIndex: game.currentChallengeIndex,
+        round: game.currentRound,
+        challengeType: 'match',
+        groupData: game.difficultyGroups.map((group, idx) => ({
+          difficulty: group.difficulty,
+          challenge: game.currentChallengesByGroup[idx],
+          playerResults: Object.fromEntries(
+            Object.entries(game.answers || {})
+              .filter(([name]) => group.playerNames.includes(name))
+              .map(([name, data]) => [name, {
+                matchResults: data.matchResults,
+                pointsEarned: data.matchResults?.points || 0,
+                totalScore: room.players.find(p => p.name === name)?.score || 0
+              }])
+          )
+        }))
+      });
+
+      // Advance to next challenge
+      game.currentChallengeIndex++;
+      advanceMemoryChallenge(io, room, roomId);
+    } else {
+      // Other challenge types - show reveal phase
+      revealMemoryAnswer(io, room, roomId);
+    }
   } else {
     // Start next group's turn
     startMemoryGroupTurn(io, room, roomId);
