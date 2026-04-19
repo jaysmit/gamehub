@@ -3307,9 +3307,8 @@ function generateMatchChallenge(difficulty, usedItems = []) {
   // Shuffle the pairs to randomize positions
   const grid = shuffleArray(pairs);
 
-  // Points per pair based on difficulty
-  const pointsPerPair = 50;  // Fixed 50 points per pair
-  const perfectBonus = 50;   // Bonus for matching all pairs
+  // Scoring: 50 pts per pair + time bonus (4 pts/sec remaining) if all completed
+  const pointsPerPair = 50;
 
   return {
     type: 'match',
@@ -3320,7 +3319,6 @@ function generateMatchChallenge(difficulty, usedItems = []) {
     matchTimeLimit: 60000,  // 60 seconds to complete matching
     numPairs,
     pointsPerPair,
-    perfectBonus,
     items  // Original items (for tracking)
   };
 }

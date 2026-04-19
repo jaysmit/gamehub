@@ -249,13 +249,13 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             // All pairs matched!
             setMatchComplete(true);
             setCanFlip(false);
-            // Add perfect bonus if no mistakes
-            const bonus = matchMistakes === 0 ? (challengeData?.perfectBonus || 50) : 0;
-            const finalPoints = matchPoints + bonus;
+            // Time bonus: 4 points per second remaining (only for completion)
+            const timeBonus = matchTimer * 4;
+            const finalPoints = matchPoints + timeBonus;
             setMatchPoints(finalPoints);
-            handleMatchComplete(finalPoints, matchMistakes === 0);
+            handleMatchComplete(finalPoints, true, timeBonus);
         }
-    }, [matchedPairs, phase, matchComplete, matchPoints, matchMistakes, challengeData]);
+    }, [matchedPairs, phase, matchComplete, matchPoints, matchTimer, challengeData]);
 
     // Handle card flips for match game
     const handleCardFlip = (index) => {
@@ -289,7 +289,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     };
 
     // Submit match results to server
-    const handleMatchComplete = (points = matchPoints, isPerfect = false) => {
+    const handleMatchComplete = (points = matchPoints, allCompleted = false, timeBonus = 0) => {
         socket.emit('memoryAnswer', {
             roomId: roomIdRef.current,
             answer: 'match_complete',
@@ -298,7 +298,8 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 totalPairs: challengeData?.numPairs || 0,
                 mistakes: matchMistakes,
                 points: points,
-                isPerfect: isPerfect,
+                allCompleted: allCompleted,
+                timeBonus: timeBonus,
                 timeRemaining: matchTimer
             }
         });
@@ -753,7 +754,11 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     // Render Rules Phase
     const renderRulesPhase = () => {
-        const instructions = CHALLENGE_INSTRUCTIONS[challengeType] || CHALLENGE_INSTRUCTIONS['match'];
+        const instructions = CHALLENGE_INSTRUCTIONS[challengeType] || CHALLENGE_INSTRUCTIONS['match'] || {
+            title: 'Memory Challenge',
+            description: 'Test your memory skills!',
+            steps: ['Watch carefully', 'Remember what you see', 'Answer correctly']
+        };
         const connectedPlayers = currentRoom?.players?.filter(p => p.connected !== false) || [];
         const allReady = readyPlayers.length >= connectedPlayers.length && connectedPlayers.length > 0;
 
@@ -969,11 +974,11 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                             {matchMistakes}
                         </div>
                     </div>
-                    {matchMistakes === 0 && matchedCount > 0 && (
+                    {!matchComplete && (
                         <div className={`text-center ${currentTheme.textSecondary}`}>
-                            <div className="text-xs">Bonus</div>
+                            <div className="text-xs">Time Bonus</div>
                             <div className={`text-lg font-bold ${theme === 'tron' ? 'text-yellow-400' : 'text-yellow-500'}`}>
-                                +{challengeData?.perfectBonus || 50}
+                                +{matchTimer * 4}
                             </div>
                         </div>
                     )}
