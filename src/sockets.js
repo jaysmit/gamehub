@@ -3259,14 +3259,25 @@ const MEMORY_DIFFICULTY_CONFIG = {
 
 // Challenge types for Memory game
 const MEMORY_CHALLENGE_TYPES = {
-  GRID: 'grid',
+  MATCH: 'match',
   MISSING: 'missing',
   DIFFERENCE: 'difference',
   SEQUENCE: 'sequence'
 };
 
 // Round to challenge type mapping
-const MEMORY_ROUND_CHALLENGE_TYPES = ['grid', 'missing', 'difference', 'sequence'];
+const MEMORY_ROUND_CHALLENGE_TYPES = ['match', 'missing', 'difference', 'sequence'];
+
+// Match game grid sizes by difficulty
+const MATCH_GRID_CONFIG = {
+  'super-easy': { rows: 2, cols: 2 },  // 4 cells = 2 pairs
+  'very-easy': { rows: 2, cols: 3 },   // 6 cells = 3 pairs
+  'easy': { rows: 3, cols: 2 },        // 6 cells = 3 pairs
+  'medium': { rows: 4, cols: 4 },      // 16 cells = 8 pairs
+  'hard': { rows: 4, cols: 4 },        // 16 cells = 8 pairs
+  'very-hard': { rows: 6, cols: 6 },   // 36 cells = 18 pairs
+  'genius': { rows: 6, cols: 6 }       // 36 cells = 18 pairs
+};
 
 // Get random items from emoji pool
 function getRandomMemoryItems(count, exclude = []) {
@@ -3278,6 +3289,40 @@ function getRandomMemoryItems(count, exclude = []) {
 // Get memory difficulty config
 function getMemoryDifficultyConfig(difficulty) {
   return MEMORY_DIFFICULTY_CONFIG[difficulty] || MEMORY_DIFFICULTY_CONFIG['medium'];
+}
+
+// Generate a Memory Match challenge (find pairs)
+function generateMatchChallenge(difficulty, usedItems = []) {
+  const gridConfig = MATCH_GRID_CONFIG[difficulty] || MATCH_GRID_CONFIG['medium'];
+  const { rows, cols } = gridConfig;
+  const totalCells = rows * cols;
+  const numPairs = totalCells / 2;
+
+  // Get unique items for the pairs
+  const items = getRandomMemoryItems(numPairs, usedItems);
+
+  // Create grid with pairs (each item appears twice)
+  const pairs = [...items, ...items];  // Duplicate each item
+
+  // Shuffle the pairs to randomize positions
+  const grid = shuffleArray(pairs);
+
+  // Points per pair based on difficulty
+  const pointsPerPair = 50;  // Fixed 50 points per pair
+  const perfectBonus = 50;   // Bonus for matching all pairs
+
+  return {
+    type: 'match',
+    grid,
+    gridRows: rows,
+    gridCols: cols,
+    displayTime: 5000,  // 5 seconds to memorize
+    matchTimeLimit: 60000,  // 60 seconds to complete matching
+    numPairs,
+    pointsPerPair,
+    perfectBonus,
+    items  // Original items (for tracking)
+  };
 }
 
 // Generate a Grid Memory challenge
@@ -3548,8 +3593,8 @@ function startMemoryRound(io, room, roomId) {
       for (let i = 0; i < game.challengesPerRound; i++) {
         let challenge;
         switch (game.challengeType) {
-          case 'grid':
-            challenge = generateGridChallenge(group.difficulty, usedItems);
+          case 'match':
+            challenge = generateMatchChallenge(group.difficulty, usedItems);
             break;
           case 'missing':
             challenge = generateMissingChallenge(group.difficulty, usedItems);
@@ -3558,7 +3603,7 @@ function startMemoryRound(io, room, roomId) {
             challenge = generateDifferenceChallenge(group.difficulty, usedItems);
             break;
           default:
-            challenge = generateGridChallenge(group.difficulty, usedItems);
+            challenge = generateMatchChallenge(group.difficulty, usedItems);
         }
 
         // Track used items to avoid repeats
@@ -3785,10 +3830,26 @@ function startMemoryGroupTurn(io, room, roomId) {
     }
   });
 
-  // After display time, show question
+  // After display time, show question (or wait for match results)
   game.displayTimer = setTimeout(() => {
     if (room.game && room.game.gameType === 'memory') {
-      showMemoryQuestion(io, room, roomId);
+      // For match games, the client handles the match phase locally
+      // Server just waits for memoryAnswer with results
+      if (game.challengeType === 'match') {
+        // Set phase to indicate we're waiting for match results
+        game.phase = 'match';
+        // Set a match timeout (60 seconds)
+        const matchTimeout = 60000;
+        game.matchTimer = setTimeout(() => {
+          if (room.game && room.game.gameType === 'memory' && room.game.phase === 'match') {
+            // Time's up - advance to next group
+            advanceToNextMemoryGroup(io, room, roomId);
+          }
+        }, matchTimeout);
+      } else {
+        // Normal question-based challenge
+        showMemoryQuestion(io, room, roomId);
+      }
     }
   }, displayTime);
 }
@@ -3867,6 +3928,10 @@ function advanceToNextMemoryGroup(io, room, roomId) {
     clearTimeout(game.displayTimer);
     game.displayTimer = null;
   }
+  if (game.matchTimer) {
+    clearTimeout(game.matchTimer);
+    game.matchTimer = null;
+  }
 
   game.currentGroupIndex++;
 
@@ -3888,6 +3953,10 @@ function revealMemoryAnswer(io, room, roomId) {
   if (game.questionTimer) {
     clearTimeout(game.questionTimer);
     game.questionTimer = null;
+  }
+  if (game.matchTimer) {
+    clearTimeout(game.matchTimer);
+    game.matchTimer = null;
   }
 
   game.phase = 'reveal';
@@ -6484,7 +6553,51 @@ function setupSockets(io) {
       const player = room.players.find(p => p.socketId === socket.id);
       if (!player) return;
 
-      // For regular rounds, validate player is in active group and hasn't answered
+      // Handle match game results (Round 1)
+      if (data.answer === 'match_complete' && data.matchResults) {
+        // Check if already submitted
+        if (game.answers && game.answers[player.name]) return;
+
+        // Initialize answers object if needed
+        if (!game.answers) game.answers = {};
+
+        // Record match results
+        const results = data.matchResults;
+        const points = results.points || 0;
+
+        game.answers[player.name] = {
+          answer: 'match_complete',
+          matchResults: results,
+          timestamp: Date.now()
+        };
+
+        // Award points
+        player.score = (player.score || 0) + points;
+
+        // Broadcast that player completed
+        io.to(data.roomId).emit('memoryAnswerReceived', {
+          playerName: player.name,
+          matchResults: results
+        });
+
+        // Check if all players in group have completed
+        const currentGroup = game.difficultyGroups?.[game.currentGroupIndex];
+        if (currentGroup) {
+          const connectedInGroup = currentGroup.playerNames.filter(name => {
+            const p = room.players.find(pl => pl.name === name);
+            return p && p.connected !== false;
+          });
+          const answeredInGroup = connectedInGroup.filter(name => game.answers[name]);
+
+          if (answeredInGroup.length >= connectedInGroup.length) {
+            // All completed - reveal and advance
+            advanceToNextMemoryGroup(io, room, data.roomId);
+          }
+        }
+        return;
+      }
+
+      // For regular rounds (question-based), validate player is in active group and hasn't answered
       if (!game.isSpeedRound) {
         if (game.phase !== 'question') return;
 

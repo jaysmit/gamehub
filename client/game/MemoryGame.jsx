@@ -86,6 +86,17 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     const [raceStarted, setRaceStarted] = useState(false);
     const [raceComplete, setRaceComplete] = useState(false);
 
+    // Match game state (Round 1)
+    const [matchGrid, setMatchGrid] = useState([]);
+    const [matchedPairs, setMatchedPairs] = useState([]);  // indices of matched cards
+    const [flippedCards, setFlippedCards] = useState([]);  // indices of currently flipped cards (max 2)
+    const [canFlip, setCanFlip] = useState(false);         // whether player can flip cards
+    const [matchTimer, setMatchTimer] = useState(60);
+    const [matchPoints, setMatchPoints] = useState(0);
+    const [matchMistakes, setMatchMistakes] = useState(0);
+    const [matchComplete, setMatchComplete] = useState(false);
+    const matchEndTimeRef = useRef(null);
+
     // Modals
     const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
 
@@ -126,13 +137,26 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         return () => clearInterval(interval);
     }, [phase]);
 
-    // Timer tick effect for question phase
+    // Timer tick effect for question phase with fallback sync
     useEffect(() => {
         if (phase !== 'question' || !questionEndTimeRef.current) return;
+
+        let syncRequested = false;
 
         const interval = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((questionEndTimeRef.current - getServerTime()) / 1000));
             setQuestionTimer(remaining);
+
+            // Request sync if timer reached 0 and we haven't transitioned yet
+            if (remaining <= 0 && !syncRequested) {
+                syncRequested = true;
+                setTimeout(() => {
+                    if (phase === 'question' && roomIdRef.current) {
+                        console.log('[MEMORY] Question timer hit 0, requesting sync');
+                        socket.emit('requestGameSync', { roomId: roomIdRef.current });
+                    }
+                }, 2000);
+            }
         }, 100);
 
         return () => clearInterval(interval);
@@ -150,17 +174,135 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         return () => clearInterval(interval);
     }, [phase]);
 
-    // Speed round timer
+    // Speed round timer with fallback sync
     useEffect(() => {
         if (phase !== 'speedRound' || !speedRoundEndTimeRef.current) return;
+
+        let syncRequested = false;
 
         const interval = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((speedRoundEndTimeRef.current - getServerTime()) / 1000));
             setSpeedRoundTimer(remaining);
+
+            // Request sync if timer reached 0 and we haven't transitioned yet
+            if (remaining <= 0 && !syncRequested) {
+                syncRequested = true;
+                // Give server a moment to send the event, then request sync
+                setTimeout(() => {
+                    if (phase === 'speedRound' && roomIdRef.current) {
+                        console.log('[MEMORY] Speed round timer hit 0, requesting sync');
+                        socket.emit('requestGameSync', { roomId: roomIdRef.current });
+                    }
+                }, 2000);
+            }
         }, 100);
 
         return () => clearInterval(interval);
     }, [phase]);
+
+    // Match game: transition from display to match phase when display timer expires
+    useEffect(() => {
+        if (phase !== 'display' || challengeType !== 'match' || !displayEndTimeRef.current) return;
+
+        const checkTimer = setInterval(() => {
+            const remaining = Math.max(0, Math.ceil((displayEndTimeRef.current - getServerTime()) / 1000));
+            if (remaining <= 0) {
+                clearInterval(checkTimer);
+                // Transition to match phase
+                setPhase('match');
+                setShowItems(false);  // Flip cards face-down
+                setCanFlip(true);
+                // Set match timer (60 seconds default)
+                const matchDuration = challengeData?.matchTimeLimit || 60000;
+                matchEndTimeRef.current = getServerTime() + matchDuration;
+            }
+        }, 100);
+
+        return () => clearInterval(checkTimer);
+    }, [phase, challengeType, challengeData]);
+
+    // Match game timer
+    useEffect(() => {
+        if (phase !== 'match' || !matchEndTimeRef.current) return;
+
+        const interval = setInterval(() => {
+            const remaining = Math.max(0, Math.ceil((matchEndTimeRef.current - getServerTime()) / 1000));
+            setMatchTimer(remaining);
+
+            // Time's up - submit results
+            if (remaining <= 0 && !matchComplete) {
+                setMatchComplete(true);
+                setCanFlip(false);
+                handleMatchComplete();
+            }
+        }, 100);
+
+        return () => clearInterval(interval);
+    }, [phase, matchComplete]);
+
+    // Check if all pairs are matched
+    useEffect(() => {
+        if (phase !== 'match' || matchComplete) return;
+
+        const totalPairs = challengeData?.numPairs || 0;
+        if (matchedPairs.length === totalPairs * 2 && totalPairs > 0) {
+            // All pairs matched!
+            setMatchComplete(true);
+            setCanFlip(false);
+            // Add perfect bonus if no mistakes
+            const bonus = matchMistakes === 0 ? (challengeData?.perfectBonus || 50) : 0;
+            const finalPoints = matchPoints + bonus;
+            setMatchPoints(finalPoints);
+            handleMatchComplete(finalPoints, matchMistakes === 0);
+        }
+    }, [matchedPairs, phase, matchComplete, matchPoints, matchMistakes, challengeData]);
+
+    // Handle card flips for match game
+    const handleCardFlip = (index) => {
+        if (!canFlip || matchComplete) return;
+        if (matchedPairs.includes(index)) return;  // Already matched
+        if (flippedCards.includes(index)) return;  // Already flipped
+        if (flippedCards.length >= 2) return;  // Max 2 cards flipped
+
+        const newFlipped = [...flippedCards, index];
+        setFlippedCards(newFlipped);
+
+        // If two cards flipped, check for match
+        if (newFlipped.length === 2) {
+            setCanFlip(false);  // Prevent more flips while checking
+            const [first, second] = newFlipped;
+            const isMatch = matchGrid[first] === matchGrid[second];
+
+            setTimeout(() => {
+                if (isMatch) {
+                    // Matched! Add to matched pairs
+                    setMatchedPairs(prev => [...prev, first, second]);
+                    setMatchPoints(prev => prev + (challengeData?.pointsPerPair || 50));
+                } else {
+                    // Not a match
+                    setMatchMistakes(prev => prev + 1);
+                }
+                setFlippedCards([]);
+                setCanFlip(true);
+            }, isMatch ? 500 : 1000);  // Shorter delay for matches
+        }
+    };
+
+    // Submit match results to server
+    const handleMatchComplete = (points = matchPoints, isPerfect = false) => {
+        socket.emit('memoryAnswer', {
+            roomId: roomIdRef.current,
+            answer: 'match_complete',
+            matchResults: {
+                pairsMatched: matchedPairs.length / 2,
+                totalPairs: challengeData?.numPairs || 0,
+                mistakes: matchMistakes,
+                points: points,
+                isPerfect: isPerfect,
+                timeRemaining: matchTimer
+            }
+        });
+    };
 
     // Socket event handlers
     useEffect(() => {
@@ -216,8 +358,24 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 gridCols: data.gridCols,
                 items: data.items || data.itemsBefore,
                 itemsBefore: data.itemsBefore,
-                itemsAfter: data.itemsAfter
+                itemsAfter: data.itemsAfter,
+                numPairs: data.numPairs,
+                pointsPerPair: data.pointsPerPair || 50,
+                perfectBonus: data.perfectBonus || 50,
+                matchTimeLimit: data.matchTimeLimit || 60000
             });
+
+            // Initialize match game state if this is a match challenge
+            if (data.challengeType === 'match') {
+                setMatchGrid(data.grid || []);
+                setMatchedPairs([]);
+                setFlippedCards([]);
+                setCanFlip(false);
+                setMatchPoints(0);
+                setMatchMistakes(0);
+                setMatchComplete(false);
+                matchEndTimeRef.current = null;
+            }
 
             setSelectedAnswer(null);
             setHasAnswered(false);
@@ -305,11 +463,11 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 }, (idx + 1) * itemTime);
             });
 
-            // After sequence shown, allow input
+            // After sequence shown, allow input (2 second delay after last tile)
             setTimeout(() => {
                 setShowingSequence(false);
                 setCurrentSequenceIndex(0);
-            }, data.sequence.length * itemTime + 500);
+            }, data.sequence.length * itemTime + 2000);
         };
 
         const onMemorySpeedCorrect = (data) => {
@@ -727,6 +885,103 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         );
     };
 
+    // Render Match Game Grid
+    const renderMatchGrid = (showAll = false) => {
+        if (!matchGrid || matchGrid.length === 0) return null;
+
+        const rows = challengeData?.gridRows || 4;
+        const cols = challengeData?.gridCols || 4;
+
+        return (
+            <div
+                className="grid gap-2 md:gap-3 mx-auto"
+                style={{
+                    gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                    maxWidth: `${Math.min(cols * 70, 500)}px`
+                }}
+            >
+                {matchGrid.map((item, idx) => {
+                    const isMatched = matchedPairs.includes(idx);
+                    const isFlipped = flippedCards.includes(idx);
+                    const showCard = showAll || isMatched || isFlipped;
+
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => !showAll && handleCardFlip(idx)}
+                            disabled={showAll || isMatched || !canFlip}
+                            className={`aspect-square flex items-center justify-center text-2xl md:text-3xl rounded-xl transition-all transform ${
+                                showCard
+                                    ? isMatched
+                                        ? `${theme === 'tron' ? 'bg-green-500/30 border-2 border-green-500' : theme === 'kids' ? 'bg-green-200 border-2 border-green-400' : 'bg-green-700/30 border-2 border-green-600'} scale-95`
+                                        : `${theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-500' : theme === 'kids' ? 'bg-purple-100 border-2 border-purple-400' : 'bg-orange-700/30 border-2 border-orange-600'}`
+                                    : `${theme === 'tron' ? 'bg-gray-800 border-2 border-cyan-500/30 hover:border-cyan-400' : theme === 'kids' ? 'bg-purple-200 border-2 border-purple-300 hover:border-purple-500' : 'bg-gray-800 border-2 border-orange-700/30 hover:border-orange-500'} cursor-pointer hover:scale-105`
+                            } ${!showAll && !isMatched && canFlip ? 'active:scale-95' : ''}`}
+                        >
+                            {showCard ? item : '?'}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    // Render Match Phase (after display, player matches pairs)
+    const renderMatchPhase = () => {
+        const totalPairs = challengeData?.numPairs || 0;
+        const matchedCount = matchedPairs.length / 2;
+
+        return (
+            <div className="max-w-4xl mx-auto p-4">
+                {/* Header with timer and progress */}
+                <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl p-4 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-2 border-orange-700'} mb-4`}>
+                    <div className="flex items-center justify-between">
+                        <div className={`text-sm font-bold ${currentTheme.textSecondary}`}>
+                            {matchedCount}/{totalPairs} pairs
+                        </div>
+                        <div className={`text-2xl font-black ${matchTimer <= 10 ? 'text-red-500 animate-pulse' : theme === 'tron' ? 'text-cyan-400' : theme === 'kids' ? 'text-purple-600' : 'text-orange-400'}`}>
+                            {matchTimer}s
+                        </div>
+                        <div className={`text-sm font-bold ${theme === 'tron' ? 'text-yellow-400' : theme === 'kids' ? 'text-yellow-600' : 'text-yellow-400'}`}>
+                            {matchPoints} pts
+                        </div>
+                    </div>
+                </div>
+
+                {/* Instruction */}
+                <div className={`text-center mb-4 text-lg font-bold ${currentTheme.text}`}>
+                    {matchComplete
+                        ? (theme === 'tron' ? '> COMPLETE!' : 'Complete!')
+                        : (theme === 'tron' ? '> FIND_PAIRS' : 'Find the matching pairs!')
+                    }
+                </div>
+
+                {/* Match grid */}
+                <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl p-4 md:p-6 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-2 border-orange-700'}`}>
+                    {renderMatchGrid(false)}
+                </div>
+
+                {/* Stats */}
+                <div className="flex justify-center gap-6 mt-4">
+                    <div className={`text-center ${currentTheme.textSecondary}`}>
+                        <div className="text-xs">Mistakes</div>
+                        <div className={`text-lg font-bold ${matchMistakes > 0 ? 'text-red-400' : theme === 'tron' ? 'text-green-400' : 'text-green-500'}`}>
+                            {matchMistakes}
+                        </div>
+                    </div>
+                    {matchMistakes === 0 && matchedCount > 0 && (
+                        <div className={`text-center ${currentTheme.textSecondary}`}>
+                            <div className="text-xs">Bonus</div>
+                            <div className={`text-lg font-bold ${theme === 'tron' ? 'text-yellow-400' : 'text-yellow-500'}`}>
+                                +{challengeData?.perfectBonus || 50}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     // Render Items Display (for missing/difference challenges)
     const renderItemsDisplay = () => {
         const items = showItems ? (challengeData?.itemsBefore || challengeData?.items) : challengeData?.itemsAfter;
@@ -776,6 +1031,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
                 {/* Display area */}
                 <div className={`${currentTheme.cardBg} backdrop-blur-lg rounded-2xl p-6 md:p-8 ${theme === 'tron' ? 'tron-border' : theme === 'kids' ? 'border-4 border-purple-400' : 'border-2 border-orange-700'}`}>
+                    {challengeType === 'match' && renderMatchGrid(true)}
                     {challengeType === 'grid' && renderGridDisplay()}
                     {(challengeType === 'missing' || challengeType === 'difference') && renderItemsDisplay()}
                 </div>
@@ -1291,6 +1547,12 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         );
     };
 
+    // Handle exit to room
+    const handleExitToRoom = () => {
+        if (!currentRoom?.id) return;
+        socket.emit('endGameEarly', { roomId: currentRoom.id });
+    };
+
     // Main render - use explicit theme backgrounds with gradients
     const getBackground = () => {
         switch (theme) {
@@ -1306,6 +1568,24 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     return (
         <div className={`min-h-screen ${getBackground()} p-2 pt-16 md:p-4 md:pt-24 pb-4`}>
+            {/* Exit Button - Fixed top right for master */}
+            {isMaster && !showWinnerCelebration && (
+                <button
+                    onClick={() => setShowEndGameConfirm(true)}
+                    className={`fixed top-16 md:top-20 right-4 z-40 ${
+                        theme === 'tron' ? 'bg-red-500/80 hover:bg-red-500 text-white border border-red-400' :
+                        theme === 'kids' ? 'bg-red-400 hover:bg-red-500 text-white' :
+                        'bg-red-700/80 hover:bg-red-700 text-white border border-red-600'
+                    } px-4 py-2 rounded-xl font-bold transition-all text-sm flex items-center gap-2 shadow-lg`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    Exit
+                </button>
+            )}
             {/* Winner Celebration Modal */}
             {showWinnerCelebration && finalData?.winner && (
                 <WinnerCelebration
@@ -1367,6 +1647,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 <div className="flex-1">
                     {phase === 'rules' && renderRulesPhase()}
                     {phase === 'display' && renderDisplayPhase()}
+                    {phase === 'match' && renderMatchPhase()}
                     {phase === 'question' && renderQuestionPhase()}
                     {phase === 'groupWaiting' && renderGroupWaitingPhase()}
                     {phase === 'reveal' && renderRevealPhase()}

@@ -135,7 +135,7 @@ export const MEMORY_DIFFICULTY_CONFIG = {
 
 // Challenge type constants
 export const CHALLENGE_TYPES = {
-  GRID_MEMORY: 'grid',
+  MEMORY_MATCH: 'match',            // Round 1: Match pairs
   MISSING_ITEM: 'missing',
   SPOT_DIFFERENCE: 'difference',
   SEQUENCE: 'sequence'
@@ -143,7 +143,7 @@ export const CHALLENGE_TYPES = {
 
 // Which challenge type is used in each round
 export const ROUND_CHALLENGE_TYPES = [
-  CHALLENGE_TYPES.GRID_MEMORY,      // Round 1
+  CHALLENGE_TYPES.MEMORY_MATCH,     // Round 1: Match pairs game
   CHALLENGE_TYPES.MISSING_ITEM,     // Round 2
   CHALLENGE_TYPES.SPOT_DIFFERENCE,  // Round 3
   CHALLENGE_TYPES.SEQUENCE          // Round 4 (Speed Round)
@@ -151,21 +151,33 @@ export const ROUND_CHALLENGE_TYPES = [
 
 // Display names for challenge types
 export const CHALLENGE_TYPE_NAMES = {
-  [CHALLENGE_TYPES.GRID_MEMORY]: 'Grid Memory',
+  [CHALLENGE_TYPES.MEMORY_MATCH]: 'Memory Match',
   [CHALLENGE_TYPES.MISSING_ITEM]: 'Missing Item',
   [CHALLENGE_TYPES.SPOT_DIFFERENCE]: 'Spot the Difference',
   [CHALLENGE_TYPES.SEQUENCE]: 'Sequence Memory'
 };
 
+// Match game grid sizes by difficulty (must be even number of cells for pairs)
+export const MATCH_GRID_CONFIG = {
+  'super-easy': { rows: 2, cols: 2 },  // 4 cells = 2 pairs
+  'very-easy': { rows: 2, cols: 3 },   // 6 cells = 3 pairs
+  'easy': { rows: 3, cols: 2 },        // 6 cells = 3 pairs (close to 3x3)
+  'medium': { rows: 4, cols: 4 },      // 16 cells = 8 pairs
+  'hard': { rows: 4, cols: 4 },        // 16 cells = 8 pairs
+  'very-hard': { rows: 6, cols: 6 },   // 36 cells = 18 pairs
+  'genius': { rows: 6, cols: 6 }       // 36 cells = 18 pairs
+};
+
 // Instructions for each challenge type
 export const CHALLENGE_INSTRUCTIONS = {
-  [CHALLENGE_TYPES.GRID_MEMORY]: {
-    title: 'Grid Memory',
-    description: 'Memorize the items in the grid, then answer questions about their positions!',
+  [CHALLENGE_TYPES.MEMORY_MATCH]: {
+    title: 'Memory Match',
+    description: 'Find all the matching pairs! Cards will be shown briefly, then flip over.',
     steps: [
-      'Look at the grid and remember where each item is',
-      'The grid will disappear',
-      'Answer the question about what you saw'
+      'Memorize where each icon is located',
+      'After 5 seconds, cards will flip face-down',
+      'Tap two cards to find matching pairs',
+      'Match all pairs to complete the challenge!'
     ]
   },
   [CHALLENGE_TYPES.MISSING_ITEM]: {
