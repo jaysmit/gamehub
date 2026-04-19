@@ -1192,7 +1192,8 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                                 </button>
                             );
                         })}
-                </div>
+                    </div>
+                )}
 
                 {/* Answered players */}
                 {answeredPlayers.length > 0 && (
