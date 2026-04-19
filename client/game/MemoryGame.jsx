@@ -1077,9 +1077,16 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                     </div>
                 </div>
 
-                {/* Instruction */}
-                <div className={`text-center mb-4 text-lg font-bold ${currentTheme.text}`}>
-                    {theme === 'tron' ? '> MEMORIZE' : 'Memorize!'}
+                {/* Instruction - tells player what they'll be asked */}
+                <div className={`text-center mb-4 ${currentTheme.text}`}>
+                    <div className="text-lg font-bold">
+                        {theme === 'tron' ? '> MEMORIZE' : 'Memorize!'}
+                    </div>
+                    <div className={`text-sm mt-1 ${currentTheme.textSecondary}`}>
+                        {challengeType === 'match' && 'Remember where each icon is located'}
+                        {challengeType === 'missing' && 'One will be replaced - spot the NEW one'}
+                        {challengeType === 'difference' && 'Find the one you saw when they change'}
+                    </div>
                 </div>
 
                 {/* Display area */}

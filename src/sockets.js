@@ -3719,7 +3719,9 @@ function startMemoryGroupTurn(io, room, roomId) {
 
   // Apply display time multiplier from config
   const multiplier = game.displayTimeMultiplier || 1.0;
-  const displayTime = Math.round(challenge.displayTime * multiplier);
+  // Add 3 seconds extra for missing and difference rounds to give players time to read instructions
+  const extraTime = (challenge.type === 'missing' || challenge.type === 'difference') ? 3000 : 0;
+  const displayTime = Math.round(challenge.displayTime * multiplier) + extraTime;
   const displayEndTime = Date.now() + displayTime;
   game.displayEndTime = displayEndTime;
   game.phase = 'display';
