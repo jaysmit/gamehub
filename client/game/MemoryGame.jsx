@@ -1126,35 +1126,11 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                         {question}
                     </h2>
 
-                    {/* For missing challenge, show the grid with blank spot */}
-                    {challengeType === 'missing' && challengeData?.itemsAfter && (
-                        <div className="mt-4">
-                            <div className="flex flex-wrap justify-center gap-3">
-                                {challengeData.itemsAfter.map((item, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`w-12 h-12 md:w-14 md:h-14 flex items-center justify-center text-2xl md:text-3xl rounded-xl ${
-                                            item === '⬜'
-                                                ? (theme === 'tron' ? 'bg-gray-700 border-2 border-dashed border-cyan-400' :
-                                                   theme === 'kids' ? 'bg-gray-200 border-2 border-dashed border-purple-400' :
-                                                   'bg-gray-700 border-2 border-dashed border-orange-400')
-                                                : (theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-500' :
-                                                   theme === 'kids' ? 'bg-purple-100 border-2 border-purple-400' :
-                                                   'bg-orange-700/30 border-2 border-orange-600')
-                                        }`}
-                                    >
-                                        {item === '⬜' ? '?' : item}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* For difference (Spot the One), show tappable grid */}
-                    {challengeType === 'difference' && isTapToAnswer && challengeData?.itemsAfter && (
+                    {/* For tap-to-answer challenges (missing = tap NEW one, difference = tap one you SAW) */}
+                    {isTapToAnswer && challengeData?.itemsAfter && (
                         <div className="mt-4">
                             <div className={`text-sm ${currentTheme.textSecondary} text-center mb-3`}>
-                                Tap the one you saw before:
+                                {challengeType === 'missing' ? 'Tap the NEW one:' : 'Tap the one you saw before:'}
                             </div>
                             <div className="flex flex-wrap justify-center gap-3">
                                 {challengeData.itemsAfter.map((item, idx) => {
@@ -1696,34 +1672,6 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     return (
         <div className={`min-h-screen ${getBackground()} p-2 pt-16 md:p-4 md:pt-24 pb-4`}>
-            {/* Exit Button - Fixed top right for master */}
-            {isMaster && !showWinnerCelebration && (
-                <button
-                    onClick={() => setShowEndGameConfirm(true)}
-                    className={`fixed top-20 right-2 md:right-4 z-50 ${
-                        theme === 'tron' ? 'bg-red-500/90 hover:bg-red-500 text-white border border-red-400' :
-                        theme === 'kids' ? 'bg-red-400 hover:bg-red-500 text-white' :
-                        'bg-red-700/90 hover:bg-red-700 text-white border border-red-600'
-                    } px-3 py-2 rounded-xl font-bold transition-all text-sm flex items-center gap-1 shadow-lg`}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    Exit
-                </button>
-            )}
-
-            {/* Debug Skip Button - Press ` to toggle */}
-            {showDebugSkip && isMaster && (
-                <button
-                    onClick={handleDebugSkipRound}
-                    className="fixed top-32 right-2 md:right-4 z-50 bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-2 rounded-xl font-bold transition-all text-sm flex items-center gap-1 shadow-lg"
-                >
-                    ⏭️ Skip Round
-                </button>
-            )}
 
             {/* Winner Celebration Modal */}
             {showWinnerCelebration && finalData?.winner && (
@@ -1780,6 +1728,30 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 </div>
             )}
 
+            {/* Mobile master controls - fixed at bottom */}
+            {isMaster && !showWinnerCelebration && phase !== 'rules' && (
+                <div className="lg:hidden fixed bottom-4 right-4 z-40 flex flex-col gap-2">
+                    {showDebugSkip && (
+                        <button
+                            onClick={handleDebugSkipRound}
+                            className="bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-2 rounded-xl font-bold text-sm shadow-lg"
+                        >
+                            ⏭️ Skip
+                        </button>
+                    )}
+                    <button
+                        onClick={() => setShowEndGameConfirm(true)}
+                        className={`${
+                            theme === 'tron' ? 'bg-red-500/90 text-white' :
+                            theme === 'kids' ? 'bg-red-400 text-white' :
+                            'bg-red-700/90 text-white'
+                        } px-3 py-2 rounded-xl font-bold text-sm shadow-lg`}
+                    >
+                        Exit
+                    </button>
+                </div>
+            )}
+
             {/* Main content */}
             <div className="flex gap-4">
                 {/* Main game area */}
@@ -1799,6 +1771,38 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                 {phase !== 'rules' && phase !== 'finalRecap' && !showWinnerCelebration && (
                     <div className="hidden lg:block w-64 flex-shrink-0">
                         {renderScoreboard()}
+
+                        {/* Master controls below scoreboard */}
+                        {isMaster && (
+                            <div className="mt-3 space-y-2">
+                                {/* Debug Skip Button - Press ` to toggle */}
+                                {showDebugSkip && (
+                                    <button
+                                        onClick={handleDebugSkipRound}
+                                        className="w-full bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-2 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2"
+                                    >
+                                        ⏭️ Skip Round
+                                    </button>
+                                )}
+
+                                {/* Exit Button */}
+                                <button
+                                    onClick={() => setShowEndGameConfirm(true)}
+                                    className={`w-full ${
+                                        theme === 'tron' ? 'bg-red-500/90 hover:bg-red-500 text-white border border-red-400' :
+                                        theme === 'kids' ? 'bg-red-400 hover:bg-red-500 text-white' :
+                                        'bg-red-700/90 hover:bg-red-700 text-white border border-red-600'
+                                    } px-3 py-2 rounded-xl font-bold transition-all text-sm flex items-center justify-center gap-2`}
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                                        <polyline points="16 17 21 12 16 7"></polyline>
+                                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                                    </svg>
+                                    Exit Game
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

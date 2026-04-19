@@ -3398,43 +3398,40 @@ function generateGridChallenge(difficulty, usedItems = []) {
   };
 }
 
-// Generate a Missing Item challenge
-// Shows grid with one item becoming blank - player selects what was there
+// Generate a Missing Item challenge (Spot the New One)
+// Shows original items, then replaces ONE with a NEW item
+// Player must tap the NEW item (the one that wasn't there before)
 function generateMissingChallenge(difficulty, usedItems = []) {
   const config = getMemoryDifficultyConfig(difficulty);
   // Use 6 items for medium, scale for other difficulties
   const itemCount = difficulty === 'medium' ? 6 : config.itemCount;
 
-  // Get unique items
-  const items = getRandomMemoryItems(itemCount, usedItems);
+  // Get original items to memorize
+  const originalItems = getRandomMemoryItems(itemCount, usedItems);
 
-  // Choose one to remove (will become blank)
-  const missingIndex = Math.floor(Math.random() * items.length);
-  const missingItem = items[missingIndex];
+  // Get ONE new item that will replace one of the originals
+  const allUsed = [...usedItems, ...originalItems];
+  const newItems = getRandomMemoryItems(1, allUsed);
+  const newItem = newItems[0];
 
-  // Create the "after" array with blank placeholder at missing position
-  const itemsAfter = items.map((item, idx) => idx === missingIndex ? '⬜' : item);
+  // Choose which original item to replace
+  const replaceIndex = Math.floor(Math.random() * originalItems.length);
 
-  // Generate options (include correct, add 5 random others)
-  const optionItems = [missingItem];
-  while (optionItems.length < 6) {
-    const randItem = MEMORY_EMOJIS[Math.floor(Math.random() * MEMORY_EMOJIS.length)];
-    if (!optionItems.includes(randItem) && !items.includes(randItem)) {
-      optionItems.push(randItem);
-    }
-  }
+  // Create the "after" array with the new item replacing the original
+  const itemsAfter = originalItems.map((item, idx) => idx === replaceIndex ? newItem : item);
 
   return {
     type: 'missing',
-    itemsBefore: items,
+    itemsBefore: originalItems,
     itemsAfter,
-    missingItem,
-    missingIndex,
+    newItem,
+    replaceIndex,
     displayTime: config.displayTime,
     questionTime: config.questionTime,
-    question: "What was in the blank spot?",
-    correctAnswer: missingItem,
-    options: shuffleArray(optionItems)
+    question: "Which one is NEW?",
+    correctAnswer: newItem,
+    options: itemsAfter,
+    tapToAnswer: true  // Player taps directly on grid
   };
 }
 
