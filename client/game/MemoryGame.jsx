@@ -399,10 +399,12 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             setDifficulty(data.difficulty);
             setDifficultyLabel(data.difficultyLabel);
 
-            // For difference challenges, show the after state
-            if (data.itemsAfter) {
-                setChallengeData(prev => ({ ...prev, itemsAfter: data.itemsAfter }));
-            }
+            // Update challengeData with question phase info
+            setChallengeData(prev => ({
+                ...prev,
+                itemsAfter: data.itemsAfter,
+                tapToAnswer: data.tapToAnswer
+            }));
         };
 
         const onMemoryGroupWaiting = (data) => {
@@ -1077,6 +1079,9 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
 
     // Render Question Phase
     const renderQuestionPhase = () => {
+        // Check if this is a tap-to-answer challenge (Round 3 - Spot the One)
+        const isTapToAnswer = challengeData?.tapToAnswer;
+
         return (
             <div className="max-w-4xl mx-auto p-4">
                 {/* Header */}
@@ -1100,57 +1105,93 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
                         {question}
                     </h2>
 
-                    {/* For difference, show the changed items */}
-                    {challengeType === 'difference' && challengeData?.itemsAfter && (
+                    {/* For missing challenge, show the grid with blank spot */}
+                    {challengeType === 'missing' && challengeData?.itemsAfter && (
                         <div className="mt-4">
-                            <div className={`text-sm ${currentTheme.textSecondary} text-center mb-2`}>Now showing:</div>
-                            <div className="flex flex-wrap justify-center gap-2">
+                            <div className="flex flex-wrap justify-center gap-3">
                                 {challengeData.itemsAfter.map((item, idx) => (
                                     <div
                                         key={idx}
-                                        className={`w-10 h-10 flex items-center justify-center text-xl rounded-lg ${
-                                            theme === 'tron' ? 'bg-cyan-500/20 border border-cyan-500' :
-                                            theme === 'kids' ? 'bg-purple-100 border border-purple-400' :
-                                            'bg-orange-700/30 border border-orange-600'
+                                        className={`w-12 h-12 md:w-14 md:h-14 flex items-center justify-center text-2xl md:text-3xl rounded-xl ${
+                                            item === '⬜'
+                                                ? (theme === 'tron' ? 'bg-gray-700 border-2 border-dashed border-cyan-400' :
+                                                   theme === 'kids' ? 'bg-gray-200 border-2 border-dashed border-purple-400' :
+                                                   'bg-gray-700 border-2 border-dashed border-orange-400')
+                                                : (theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-500' :
+                                                   theme === 'kids' ? 'bg-purple-100 border-2 border-purple-400' :
+                                                   'bg-orange-700/30 border-2 border-orange-600')
                                         }`}
                                     >
-                                        {item}
+                                        {item === '⬜' ? '?' : item}
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
+
+                    {/* For difference (Spot the One), show tappable grid */}
+                    {challengeType === 'difference' && isTapToAnswer && challengeData?.itemsAfter && (
+                        <div className="mt-4">
+                            <div className={`text-sm ${currentTheme.textSecondary} text-center mb-3`}>
+                                Tap the one you saw before:
+                            </div>
+                            <div className="flex flex-wrap justify-center gap-3">
+                                {challengeData.itemsAfter.map((item, idx) => {
+                                    const isSelected = selectedAnswer === item;
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleAnswerSelect(item)}
+                                            disabled={hasAnswered}
+                                            className={`w-14 h-14 md:w-16 md:h-16 flex items-center justify-center text-3xl md:text-4xl rounded-xl transition-all ${
+                                                isSelected
+                                                    ? (theme === 'tron' ? 'bg-cyan-500/40 border-3 border-cyan-400 scale-110' :
+                                                       theme === 'kids' ? 'bg-purple-200 border-3 border-purple-500 scale-110' :
+                                                       'bg-orange-600/40 border-3 border-orange-400 scale-110')
+                                                    : (theme === 'tron' ? 'bg-cyan-500/20 border-2 border-cyan-500 hover:bg-cyan-500/30 hover:scale-105' :
+                                                       theme === 'kids' ? 'bg-purple-100 border-2 border-purple-400 hover:bg-purple-200 hover:scale-105' :
+                                                       'bg-orange-700/30 border-2 border-orange-600 hover:bg-orange-700/50 hover:scale-105')
+                                            } ${hasAnswered ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                        >
+                                            {item}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Answer options */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {answerOptions.map((option, idx) => {
-                        const isSelected = selectedAnswer === option;
-                        const baseStyle = theme === 'tron'
-                            ? 'bg-gray-800/80 border-2 border-cyan-500/50 hover:border-cyan-400 hover:bg-cyan-500/20'
-                            : theme === 'kids'
-                            ? 'bg-purple-50 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-100'
-                            : 'bg-gray-800/80 border-2 border-orange-600/50 hover:border-orange-500 hover:bg-orange-700/20';
+                {/* Answer options - only for non-tap challenges (missing item) */}
+                {!isTapToAnswer && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {answerOptions.map((option, idx) => {
+                            const isSelected = selectedAnswer === option;
+                            const baseStyle = theme === 'tron'
+                                ? 'bg-gray-800/80 border-2 border-cyan-500/50 hover:border-cyan-400 hover:bg-cyan-500/20'
+                                : theme === 'kids'
+                                ? 'bg-purple-50 border-2 border-purple-300 hover:border-purple-500 hover:bg-purple-100'
+                                : 'bg-gray-800/80 border-2 border-orange-600/50 hover:border-orange-500 hover:bg-orange-700/20';
 
-                        const selectedStyle = theme === 'tron'
-                            ? 'bg-cyan-500/30 border-2 border-cyan-400'
-                            : theme === 'kids'
-                            ? 'bg-purple-200 border-2 border-purple-500'
-                            : 'bg-orange-700/40 border-2 border-orange-500';
+                            const selectedStyle = theme === 'tron'
+                                ? 'bg-cyan-500/30 border-2 border-cyan-400'
+                                : theme === 'kids'
+                                ? 'bg-purple-200 border-2 border-purple-500'
+                                : 'bg-orange-700/40 border-2 border-orange-500';
 
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => handleAnswerSelect(option)}
-                                disabled={hasAnswered}
-                                className={`p-4 rounded-xl font-bold text-lg transition-all ${
-                                    isSelected ? selectedStyle : baseStyle
-                                } ${hasAnswered ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${currentTheme.text}`}
-                            >
-                                {option}
-                            </button>
-                        );
-                    })}
+                            return (
+                                <button
+                                    key={idx}
+                                    onClick={() => handleAnswerSelect(option)}
+                                    disabled={hasAnswered}
+                                    className={`p-4 rounded-xl font-bold text-2xl transition-all ${
+                                        isSelected ? selectedStyle : baseStyle
+                                    } ${hasAnswered ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${currentTheme.text}`}
+                                >
+                                    {option}
+                                </button>
+                            );
+                        })}
                 </div>
 
                 {/* Answered players */}
@@ -1637,11 +1678,11 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             {isMaster && !showWinnerCelebration && (
                 <button
                     onClick={() => setShowEndGameConfirm(true)}
-                    className={`fixed top-16 md:top-20 right-4 z-40 ${
-                        theme === 'tron' ? 'bg-red-500/80 hover:bg-red-500 text-white border border-red-400' :
+                    className={`fixed top-20 right-2 md:right-4 z-50 ${
+                        theme === 'tron' ? 'bg-red-500/90 hover:bg-red-500 text-white border border-red-400' :
                         theme === 'kids' ? 'bg-red-400 hover:bg-red-500 text-white' :
-                        'bg-red-700/80 hover:bg-red-700 text-white border border-red-600'
-                    } px-4 py-2 rounded-xl font-bold transition-all text-sm flex items-center gap-2 shadow-lg`}
+                        'bg-red-700/90 hover:bg-red-700 text-white border border-red-600'
+                    } px-3 py-2 rounded-xl font-bold transition-all text-sm flex items-center gap-1 shadow-lg`}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>

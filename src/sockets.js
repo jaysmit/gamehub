@@ -3399,19 +3399,21 @@ function generateGridChallenge(difficulty, usedItems = []) {
 }
 
 // Generate a Missing Item challenge
+// Shows grid with one item becoming blank - player selects what was there
 function generateMissingChallenge(difficulty, usedItems = []) {
   const config = getMemoryDifficultyConfig(difficulty);
-  const itemCount = config.itemCount;
+  // Use 6 items for medium, scale for other difficulties
+  const itemCount = difficulty === 'medium' ? 6 : config.itemCount;
 
   // Get unique items
   const items = getRandomMemoryItems(itemCount, usedItems);
 
-  // Choose one to remove
+  // Choose one to remove (will become blank)
   const missingIndex = Math.floor(Math.random() * items.length);
   const missingItem = items[missingIndex];
 
-  // Create the "after" array without the missing item
-  const itemsAfter = items.filter((_, idx) => idx !== missingIndex);
+  // Create the "after" array with blank placeholder at missing position
+  const itemsAfter = items.map((item, idx) => idx === missingIndex ? '⬜' : item);
 
   // Generate options (include correct, add 5 random others)
   const optionItems = [missingItem];
@@ -3427,100 +3429,54 @@ function generateMissingChallenge(difficulty, usedItems = []) {
     itemsBefore: items,
     itemsAfter,
     missingItem,
+    missingIndex,
     displayTime: config.displayTime,
     questionTime: config.questionTime,
-    question: "What's missing?",
+    question: "What was in the blank spot?",
     correctAnswer: missingItem,
     options: shuffleArray(optionItems)
   };
 }
 
-// Generate a Spot the Difference challenge
+// Generate a Spot the One challenge (renamed from Spot the Difference)
+// Shows original items, then shows completely NEW items with only ONE from original
+// Player must tap the one they recognize
 function generateDifferenceChallenge(difficulty, usedItems = []) {
   const config = getMemoryDifficultyConfig(difficulty);
-  const itemCount = config.itemCount;
+  // Use 6 items for medium, scale for other difficulties
+  const itemCount = difficulty === 'medium' ? 6 : config.itemCount;
 
-  // Get unique items
-  const items = getRandomMemoryItems(itemCount + 1, usedItems);  // +1 for replacement
+  // Get original items to memorize
+  const originalItems = getRandomMemoryItems(itemCount, usedItems);
 
-  const originalItems = items.slice(0, itemCount);
+  // Choose which original item will appear in the "after" set
+  const keepIndex = Math.floor(Math.random() * originalItems.length);
+  const keptItem = originalItems[keepIndex];
 
-  // Choose change type: swap, replace, or move
-  const changeType = ['swap', 'replace', 'move'][Math.floor(Math.random() * 3)];
+  // Get completely NEW items (excluding all originals)
+  const allUsed = [...usedItems, ...originalItems];
+  const newItems = getRandomMemoryItems(itemCount - 1, allUsed);
 
-  let changedItems, question, correctAnswer, options;
+  // Create the "after" array: new items + the one kept item, shuffled
+  const afterItems = [...newItems, keptItem];
+  const shuffledAfter = shuffleArray(afterItems);
 
-  if (changeType === 'replace') {
-    // Replace one item with a new one
-    const replaceIndex = Math.floor(Math.random() * originalItems.length);
-    const oldItem = originalItems[replaceIndex];
-    const newItem = items[itemCount];  // The extra item
-
-    changedItems = [...originalItems];
-    changedItems[replaceIndex] = newItem;
-
-    question = "What changed?";
-    correctAnswer = `${oldItem} became ${newItem}`;
-    options = [
-      correctAnswer,
-      `${newItem} became ${oldItem}`,
-      `${originalItems[0]} moved`,
-      `${originalItems[1] || originalItems[0]} disappeared`,
-      `${newItem} was added`,
-      `Nothing changed`
-    ];
-  } else if (changeType === 'swap') {
-    // Swap two items
-    const idx1 = Math.floor(Math.random() * originalItems.length);
-    let idx2 = Math.floor(Math.random() * originalItems.length);
-    while (idx2 === idx1) {
-      idx2 = Math.floor(Math.random() * originalItems.length);
-    }
-
-    changedItems = [...originalItems];
-    [changedItems[idx1], changedItems[idx2]] = [changedItems[idx2], changedItems[idx1]];
-
-    question = "What changed?";
-    correctAnswer = `${originalItems[idx1]} and ${originalItems[idx2]} swapped`;
-    options = [
-      correctAnswer,
-      `${originalItems[0]} moved`,
-      `${originalItems[1] || originalItems[0]} disappeared`,
-      `A new item appeared`,
-      `${originalItems[idx1]} was removed`,
-      `Nothing changed`
-    ];
-  } else {
-    // Move one item to different position
-    const fromIdx = Math.floor(Math.random() * originalItems.length);
-    const movedItem = originalItems[fromIdx];
-
-    changedItems = originalItems.filter((_, i) => i !== fromIdx);
-    const toIdx = Math.floor(Math.random() * (changedItems.length + 1));
-    changedItems.splice(toIdx, 0, movedItem);
-
-    question = "What changed?";
-    correctAnswer = `${movedItem} moved`;
-    options = [
-      correctAnswer,
-      `${originalItems[0]} disappeared`,
-      `Items were swapped`,
-      `A new item appeared`,
-      `${originalItems[1] || originalItems[0]} changed`,
-      `Nothing changed`
-    ];
-  }
+  // Find where the kept item ended up after shuffling
+  const keptItemIndex = shuffledAfter.indexOf(keptItem);
 
   return {
     type: 'difference',
     itemsBefore: originalItems,
-    itemsAfter: changedItems,
-    changeType,
+    itemsAfter: shuffledAfter,
+    keptItem,
+    keptItemIndex,
     displayTime: config.displayTime,
     questionTime: config.questionTime,
-    question,
-    correctAnswer,
-    options: shuffleArray(options)
+    question: "Which one did you see before?",
+    correctAnswer: keptItem,
+    // For this challenge, player taps directly on the grid - options are the grid items
+    options: shuffledAfter,
+    tapToAnswer: true  // Flag to indicate direct tap interaction
   };
 }
 
@@ -3897,8 +3853,9 @@ function showMemoryQuestion(io, room, roomId) {
         difficultyLabel: challenge.difficultyLabel,
         question: challenge.question,
         options: challenge.options,
-        // For difference challenges, show the after state
-        itemsAfter: challenge.itemsAfter
+        // For challenges with direct grid interaction
+        itemsAfter: challenge.itemsAfter,
+        tapToAnswer: challenge.tapToAnswer
       });
     }
   });
