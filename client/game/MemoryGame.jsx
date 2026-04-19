@@ -37,6 +37,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
     const [questionTimer, setQuestionTimer] = useState(10);
     const [rulesTimer, setRulesTimer] = useState(10);
     const [speedRoundTimer, setSpeedRoundTimer] = useState(60);
+    const [rulesTimerTrigger, setRulesTimerTrigger] = useState(0); // Trigger to restart rules timer effect
 
     // Timer refs (absolute end times)
     const displayEndTimeRef = useRef(null);
@@ -176,7 +177,7 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
         }, 100);
 
         return () => clearInterval(interval);
-    }, [phase]);
+    }, [phase, rulesTimerTrigger]);
 
     // Speed round timer with fallback sync
     useEffect(() => {
@@ -320,9 +321,10 @@ const MemoryGame = ({ theme, currentTheme, playerName, selectedAvatar, available
             setIsSpeedRound(data.isSpeedRound);
             rulesEndTimeRef.current = data.rulesEndTime;
 
-            // Initialize rules timer immediately
+            // Initialize rules timer immediately and trigger the timer effect
             const remaining = Math.max(0, Math.ceil((data.rulesEndTime - getServerTime()) / 1000));
             setRulesTimer(remaining);
+            setRulesTimerTrigger(prev => prev + 1);
 
             if (data.isSpeedRound && data.speedRoundEndTime) {
                 speedRoundEndTimeRef.current = data.speedRoundEndTime;
