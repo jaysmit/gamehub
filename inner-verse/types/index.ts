@@ -82,6 +82,7 @@ export type EventType =
   | "privacy_consent"
   | "poem_generated"
   | "poem_viewed"
+  | "poem_revealed"
   | "share_clicked"
   | "copy_clicked"
   | "download_clicked"
