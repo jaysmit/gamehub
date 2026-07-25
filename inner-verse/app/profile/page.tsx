@@ -26,50 +26,39 @@ export default function ProfilePage() {
   useEffect(() => {
     trackEvent("profile_view", { anonymousToken: getAnonymousToken() });
 
-    const checkUser = async () => {
-      const supabase = createClient();
-
-      if (!supabase) {
-        // Supabase not configured - show mock state
-        setLoading(false);
-        return;
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/auth/signin?next=/profile");
-        return;
-      }
-
-      setUser({ email: user.email || "" });
-
-      // TODO: Fetch poems from database
-      // For now, try to get from localStorage as demo
-      const currentPoem = localStorage.getItem("iv_current_poem");
-      if (currentPoem) {
+    const loadData = async () => {
+      // Load poems from localStorage history
+      const history = localStorage.getItem("iv_poem_history");
+      if (history) {
         try {
-          const poemData = JSON.parse(currentPoem);
-          setPoems([
-            {
-              id: poemData.poemId,
-              content: poemData.content,
-              shareSlug: poemData.shareSlug,
-              createdAt: poemData.createdAt,
-            },
-          ]);
+          const poemHistory = JSON.parse(history);
+          setPoems(
+            poemHistory.map((p: { poemId: string; content: string; shareSlug: string; createdAt: string; savedAt?: string }) => ({
+              id: p.poemId,
+              content: p.content,
+              shareSlug: p.shareSlug,
+              createdAt: p.savedAt || p.createdAt,
+            }))
+          );
         } catch {
           // Invalid data
+        }
+      }
+
+      // Check for authenticated user
+      const supabase = createClient();
+      if (supabase) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          setUser({ email: authUser.email || "" });
         }
       }
 
       setLoading(false);
     };
 
-    checkUser();
-  }, [router]);
+    loadData();
+  }, []);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -133,11 +122,28 @@ export default function ProfilePage() {
         {/* Poems list */}
         {poems.length > 0 ? (
           <div className="space-y-6">
-            {poems.map((poem) => (
-              <div
+            {poems.map((poem, index) => (
+              <button
                 key={poem.id}
-                className="p-6 bg-card rounded-lg border border-border hover:border-accent/30 transition-colors"
+                onClick={() => {
+                  // Load this poem as current and navigate
+                  localStorage.setItem("iv_current_poem", JSON.stringify({
+                    poemId: poem.id,
+                    content: poem.content,
+                    shareSlug: poem.shareSlug,
+                    createdAt: poem.createdAt,
+                  }));
+                  router.push("/poem");
+                }}
+                className="w-full text-left p-6 bg-card rounded-lg border border-border hover:border-accent/30 transition-colors"
               >
+                {/* Badge for most recent */}
+                {index === 0 && (
+                  <span className="inline-block text-xs px-2 py-1 rounded-full bg-accent/10 text-accent mb-3">
+                    Most recent
+                  </span>
+                )}
+
                 {/* Preview of poem */}
                 <div className="mb-4">
                   <p className="font-[family-name:var(--font-crimson)] text-foreground/80 line-clamp-3">
@@ -150,16 +156,11 @@ export default function ProfilePage() {
                   <p className="text-xs text-muted">
                     {formatDate(poem.createdAt)}
                   </p>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/poem/${poem.shareSlug}`}
-                      className="text-xs text-accent hover:brightness-110"
-                    >
-                      View
-                    </Link>
-                  </div>
+                  <span className="text-xs text-accent">
+                    View →
+                  </span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ) : (
@@ -169,14 +170,29 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Sign out */}
+        {/* Account section */}
         <div className="mt-12 pt-8 border-t border-border">
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-muted hover:text-foreground transition-colors"
-          >
-            Sign out
-          </button>
+          {user ? (
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-muted hover:text-foreground transition-colors"
+            >
+              Sign out
+            </button>
+          ) : (
+            <div className="text-center">
+              <p className="text-sm text-muted mb-4">
+                Create an account to save your reflections and access them anywhere.
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => router.push("/auth/signin?next=/profile")}
+              >
+                Create account
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </main>

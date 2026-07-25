@@ -22,11 +22,30 @@ export default function PoemRevealPage() {
   const [poemData, setPoemData] = useState<PoemData | null>(null);
   const [showActions, setShowActions] = useState(false);
 
-  // Load poem data from localStorage
+  // Load poem data from localStorage (current or history)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const stored = localStorage.getItem("iv_current_poem");
+    // Try current poem first
+    let stored = localStorage.getItem("iv_current_poem");
+
+    // If no current poem, try most recent from history
+    if (!stored) {
+      const history = localStorage.getItem("iv_poem_history");
+      if (history) {
+        try {
+          const poems = JSON.parse(history);
+          if (poems.length > 0) {
+            stored = JSON.stringify(poems[0]);
+            // Restore to current
+            localStorage.setItem("iv_current_poem", stored);
+          }
+        } catch {
+          // Invalid history
+        }
+      }
+    }
+
     if (stored) {
       try {
         const data = JSON.parse(stored) as PoemData;

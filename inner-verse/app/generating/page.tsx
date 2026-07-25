@@ -7,11 +7,12 @@ import { Header } from "@/components/layout/Header";
 import { useJourneyState } from "@/hooks/useJourneyState";
 import { trackEvent, getAnonymousToken } from "@/lib/analytics";
 
-const loadingMessages = [
-  "Reading your words...",
-  "Finding the thread...",
-  "Weaving meaning...",
-  "Shaping your reflection...",
+const generationStages = [
+  { message: "Reading your words...", duration: 3000 },
+  { message: "Finding the deeper meaning...", duration: 4000 },
+  { message: "Weaving your truth...", duration: 5000 },
+  { message: "Crafting something personal...", duration: 5000 },
+  { message: "Adding the finishing touches...", duration: 3000 },
 ];
 
 export default function GeneratingPage() {
@@ -19,7 +20,8 @@ export default function GeneratingPage() {
   const { state, isHydrated, setPrivacyConsent } = useJourneyState();
   const [agreed, setAgreed] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
+  const [currentStage, setCurrentStage] = useState(0);
+  const [stageProgress, setStageProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const handleBack = () => {
@@ -35,19 +37,39 @@ export default function GeneratingPage() {
     }
   }, [isHydrated, state.answers.heroAnswer, router]);
 
-  // Cycle through loading messages
+  // Progress animation
   useEffect(() => {
     if (!isGenerating) return;
 
-    const interval = setInterval(() => {
-      setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
-    }, 2500);
+    const stage = generationStages[currentStage];
+    if (!stage) return;
 
-    return () => clearInterval(interval);
-  }, [isGenerating]);
+    // Animate progress within current stage
+    const progressInterval = setInterval(() => {
+      setStageProgress((prev) => {
+        if (prev >= 100) return 100;
+        return prev + 2;
+      });
+    }, stage.duration / 50);
+
+    // Move to next stage
+    const stageTimeout = setTimeout(() => {
+      if (currentStage < generationStages.length - 1) {
+        setCurrentStage((prev) => prev + 1);
+        setStageProgress(0);
+      }
+    }, stage.duration);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(stageTimeout);
+    };
+  }, [isGenerating, currentStage]);
 
   const generatePoem = useCallback(async () => {
     setIsGenerating(true);
+    setCurrentStage(0);
+    setStageProgress(0);
     setError(null);
 
     try {
@@ -75,9 +97,18 @@ export default function GeneratingPage() {
         metadata: { poemId: data.poemId },
       });
 
-      // Store poem data for reveal page
+      // Store poem data for reveal page AND for retrieval later
       if (typeof window !== "undefined") {
         localStorage.setItem("iv_current_poem", JSON.stringify(data));
+
+        // Also store in poem history
+        const history = JSON.parse(localStorage.getItem("iv_poem_history") || "[]");
+        history.unshift({
+          ...data,
+          savedAt: new Date().toISOString(),
+        });
+        // Keep last 10 poems
+        localStorage.setItem("iv_poem_history", JSON.stringify(history.slice(0, 10)));
       }
 
       router.push("/poem");
@@ -92,28 +123,83 @@ export default function GeneratingPage() {
     generatePoem();
   };
 
-  // Show loading state
+  // Calculate overall progress
+  const totalStages = generationStages.length;
+  const overallProgress = ((currentStage / totalStages) * 100) + (stageProgress / totalStages);
+
+  // Show loading state with progress meter
   if (isGenerating) {
+    const currentMessage = generationStages[currentStage]?.message || "Almost there...";
+
     return (
       <main className="flex-1 flex flex-col min-h-screen bg-background stars">
         <Header />
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div className="text-center page-transition">
-            {/* Animated dots */}
-            <div className="flex justify-center gap-2 mb-8">
-              {[0, 1, 2].map((i) => (
+          <div className="max-w-md w-full text-center page-transition">
+            {/* Glowing orb animation */}
+            <div className="relative w-32 h-32 mx-auto mb-12">
+              <div
+                className="absolute inset-0 rounded-full opacity-20 animate-pulse"
+                style={{ backgroundColor: "var(--accent)" }}
+              />
+              <div
+                className="absolute inset-4 rounded-full opacity-40 animate-pulse"
+                style={{ backgroundColor: "var(--accent)", animationDelay: "0.5s" }}
+              />
+              <div
+                className="absolute inset-8 rounded-full opacity-60 animate-pulse"
+                style={{ backgroundColor: "var(--accent)", animationDelay: "1s" }}
+              />
+              <div
+                className="absolute inset-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "var(--accent)" }}
+              >
+                <svg className="w-6 h-6 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                </svg>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            <div className="mb-6">
+              <div className="h-2 bg-border rounded-full overflow-hidden">
                 <div
-                  key={i}
-                  className="w-2 h-2 bg-accent rounded-full animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s` }}
+                  className="h-full rounded-full transition-all duration-300 ease-out"
+                  style={{
+                    width: `${Math.min(overallProgress, 95)}%`,
+                    backgroundColor: "var(--accent)"
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted mt-2">
+                {Math.round(Math.min(overallProgress, 95))}% complete
+              </p>
+            </div>
+
+            {/* Current stage message */}
+            <p className="font-[family-name:var(--font-crimson)] text-xl text-foreground mb-4">
+              {currentMessage}
+            </p>
+
+            {/* Stage indicators */}
+            <div className="flex justify-center gap-2 mt-8">
+              {generationStages.map((_, index) => (
+                <div
+                  key={index}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    index < currentStage
+                      ? "scale-100"
+                      : index === currentStage
+                      ? "scale-125"
+                      : "opacity-30"
+                  }`}
+                  style={{
+                    backgroundColor: index <= currentStage ? "var(--accent)" : "var(--border)"
+                  }}
                 />
               ))}
             </div>
-
-            {/* Loading message */}
-            <p className="font-[family-name:var(--font-crimson)] text-xl text-foreground">
-              {loadingMessages[loadingMessageIndex]}
-            </p>
           </div>
         </div>
       </main>
@@ -195,7 +281,7 @@ export default function GeneratingPage() {
 
           {/* Small note */}
           <p className="text-xs text-muted/50 text-center mt-6">
-            This usually takes about 15 seconds
+            This usually takes about 20 seconds
           </p>
         </div>
       </div>

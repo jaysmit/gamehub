@@ -32,7 +32,7 @@ export async function generatePoem(prompt: string): Promise<string> {
   try {
     const message = await client.messages.create({
       model: "claude-sonnet-5",
-      max_tokens: 1024,
+      max_tokens: 2048,
       messages: [
         {
           role: "user",
