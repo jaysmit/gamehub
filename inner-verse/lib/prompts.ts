@@ -30,8 +30,8 @@ You will receive answers to reflection questions about someone's vision of their
    - Build to emotional crescendos
 
 4. **Structure**:
-   - 7-10 substantial stanzas (longer than typical poems)
-   - Arc: the weight they carry → the dreams they hold → the fears beneath → the strength within → the path forward → the truth revealed
+   - 5-7 stanzas (meaningful but not sprawling)
+   - Arc: the weight they carry → the dreams they hold → the strength within → the truth revealed
    - Include a turning point - a moment of realization
    - End with an insight that feels both surprising and inevitable
 
@@ -73,9 +73,9 @@ export function buildPoemPrompt(
     }
   }
 
-  prompt += `\n---\n\nNow write a substantial, emotionally deep poem (7-10 stanzas) that captures the full essence of this person's reflection. Use their words. Honor their journey. Find the truth they're reaching for but haven't quite grasped. Make them feel seen. Make them feel something profound.
+  prompt += `\n---\n\nNow write an emotionally deep poem (5-7 stanzas) that captures the essence of this person's reflection. Use their words. Honor their journey. Find the truth they're reaching for but haven't quite grasped. Make them feel seen. Make them feel something profound.
 
-This should be a poem they return to. A poem that makes them pause. A poem that feels like coming home to themselves.
+Every line should earn its place. No filler. This should be a poem they return to.
 
 Output only the poem, no title or commentary.`;
 
