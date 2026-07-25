@@ -31,7 +31,7 @@ export async function generatePoem(prompt: string): Promise<string> {
 
   try {
     const message = await client.messages.create({
-      model: "claude-opus-4-1-20250414",
+      model: "claude-fable-5",
       max_tokens: 2048,
       messages: [
         {
