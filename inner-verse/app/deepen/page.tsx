@@ -160,7 +160,26 @@ export default function DeepenPage() {
             </ul>
           )}
 
-          {/* Previous answer section - now below the question */}
+          {/* Writing area - now above previous answer */}
+          <div className="relative mb-8">
+            <textarea
+              value={currentAnswer}
+              onChange={handleAnswerChange}
+              placeholder={currentPrompt.placeholder || "Add more details here..."}
+              autoFocus
+              className={cn(
+                "w-full min-h-[200px] p-6 rounded-xl",
+                "bg-card border-2 border-border",
+                "text-lg text-foreground leading-relaxed",
+                "placeholder:text-muted/50",
+                "focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/20",
+                "transition-all duration-200",
+                "resize-none"
+              )}
+            />
+          </div>
+
+          {/* Previous answer section - now below the input */}
           {showPreviousAnswer && (
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
@@ -202,7 +221,7 @@ export default function DeepenPage() {
           {!showPreviousAnswer && (
             <button
               onClick={() => setShowPreviousAnswer(true)}
-              className="mb-6 text-sm text-accent hover:text-accent/80 flex items-center gap-1"
+              className="text-sm text-accent hover:text-accent/80 flex items-center gap-1"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -211,25 +230,6 @@ export default function DeepenPage() {
               Show my previous answer
             </button>
           )}
-
-          {/* Writing area */}
-          <div className="relative">
-            <textarea
-              value={currentAnswer}
-              onChange={handleAnswerChange}
-              placeholder={currentPrompt.placeholder || "Add more details here..."}
-              autoFocus
-              className={cn(
-                "w-full min-h-[200px] p-6 rounded-xl",
-                "bg-card border-2 border-border",
-                "text-lg text-foreground leading-relaxed",
-                "placeholder:text-muted/50",
-                "focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/20",
-                "transition-all duration-200",
-                "resize-none"
-              )}
-            />
-          </div>
         </div>
       </div>
 
