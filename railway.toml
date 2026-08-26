@@ -1,8 +1,0 @@
-[build]
-builder = "nixpacks"
-
-[build.nixpacks]
-aptPkgs = []
-
-[deploy]
-startCommand = "npm start"
